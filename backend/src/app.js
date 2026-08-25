@@ -36,8 +36,8 @@ app.get('/api/health', (req, res) => {
 app.use('/api/auth', require('./modules/auth/auth.routes'));
 app.use('/api/users', require('./modules/users/users.routes'));
 app.use('/api/projects', require('./modules/projects/projects.routes'));
-// Phase 4: Parcel routes
-// app.use('/api/parcels', require('./modules/parcels/routes'));
+app.use('/api/parcels', require('./modules/parcels/parcels.routes'));
+app.use('/api/gis', require('./modules/gis/gis.routes'));
 // ... more routes added per phase
 
 // ─── Constants endpoint (for frontend enums) ───────────────────────
@@ -67,10 +67,18 @@ app.use(notFoundHandler);
 app.use(errorHandler);
 
 // ─── Initialize DB and Start Server ─────────────────────────────────
-initializeDatabase();
+let server;
 
-const server = app.listen(env.port, () => {
-  console.log(`
+async function start() {
+  try {
+    await initializeDatabase();
+  } catch (err) {
+    console.error(`\n[FATAL] ${err.message}\n`);
+    process.exit(1);
+  }
+
+  server = app.listen(env.port, () => {
+    console.log(`
 ╔══════════════════════════════════════════════════════════════╗
 ║  National Land Acquisition & Management System — Backend    ║
 ║  ──────────────────────────────────────────────────────────  ║
@@ -79,19 +87,21 @@ const server = app.listen(env.port, () => {
 ║  API:         http://localhost:${String(env.port)}/api/health${' '.repeat(18)} ║
 ║  Frontend:    ${env.frontendUrl.padEnd(44)} ║
 ╚══════════════════════════════════════════════════════════════╝
-  `);
-});
+    `);
+  });
+}
+
+start();
 
 // Graceful shutdown
-process.on('SIGINT', () => {
+async function shutdown() {
   console.log('\n[Server] Shutting down...');
-  closeDb();
-  server.close(() => process.exit(0));
-});
+  if (server) server.close();
+  await closeDb();
+  process.exit(0);
+}
 
-process.on('SIGTERM', () => {
-  closeDb();
-  server.close(() => process.exit(0));
-});
+process.on('SIGINT', shutdown);
+process.on('SIGTERM', shutdown);
 
 module.exports = app;

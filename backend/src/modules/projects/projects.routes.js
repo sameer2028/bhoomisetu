@@ -1,5 +1,5 @@
 const express = require('express');
-const { getDb } = require('../../config/database');
+const { queryOne, queryRows } = require('../../config/database');
 const { authenticate } = require('../../middleware/auth');
 const { rbac } = require('../../middleware/rbac');
 const { apiResponse, logAudit, generateId, generateCode, parsePagination } = require('../../utils/helpers');
@@ -11,63 +11,65 @@ const router = express.Router();
  * GET /api/projects
  * List all projects with filtering and search
  */
-router.get('/', authenticate, (req, res, next) => {
+router.get('/', authenticate, async (req, res, next) => {
   try {
     const { status, state, district, search } = req.query;
     const { limit, offset, page } = parsePagination(req.query);
-    const db = getDb();
 
-    let query = `
-      SELECT p.*, u.full_name as creator_name,
-        ROUND((p.total_area_acquired / NULLIF(p.total_area_required, 0)) * 100, 2) as acquisition_progress_pct
-      FROM projects p
-      LEFT JOIN users u ON p.created_by = u.id
-      WHERE 1=1
-    `;
+    const conditions = [];
     const params = [];
 
-    // Filter by status
     if (status) {
-      query += ' AND p.status = ?';
       params.push(status);
+      conditions.push(`p.status = $${params.length}`);
     }
-
-    // Filter by geography
     if (state) {
-      query += ' AND p.state = ?';
       params.push(state);
+      conditions.push(`p.state = $${params.length}`);
     }
     if (district) {
-      query += ' AND p.district = ?';
       params.push(district);
+      conditions.push(`p.district = $${params.length}`);
     }
-
-    // Search term matching name, code, agency
     if (search) {
-      query += ' AND (p.name LIKE ? OR p.project_code LIKE ? OR p.implementing_agency LIKE ?)';
-      const term = `%${search.trim()}%`;
-      params.push(term, term, term);
+      params.push(`%${search.trim()}%`);
+      const i = params.length;
+      conditions.push(`(p.name ILIKE $${i} OR p.project_code ILIKE $${i} OR p.implementing_agency ILIKE $${i})`);
     }
 
-    // Count total query
-    const countQuery = `SELECT COUNT(*) as count FROM (${query})`;
-    const totalCount = db.prepare(countQuery).get(...params).count;
+    const where = conditions.length ? `WHERE ${conditions.join(' AND ')}` : '';
 
-    // Append order and pagination
-    query += ' ORDER BY p.created_at DESC LIMIT ? OFFSET ?';
-    params.push(limit, offset);
+    const countRow = await queryOne(
+      `SELECT COUNT(*) AS count FROM projects p ${where}`,
+      params
+    );
 
-    const projects = db.prepare(query).all(...params);
+    const listParams = [...params, limit, offset];
+    const projects = await queryRows(
+      `SELECT p.id, p.project_code, p.name, p.description, p.project_type, p.implementing_agency,
+              p.state, p.district, p.taluk, p.total_area_required, p.total_area_acquired,
+              p.status, p.start_date, p.expected_end_date, p.created_by,
+              p.corridor_width_m, p.created_at, p.updated_at,
+              u.full_name AS creator_name,
+              ROUND((p.total_area_acquired / NULLIF(p.total_area_required, 0)) * 100, 2) AS acquisition_progress_pct,
+              (p.corridor IS NOT NULL) AS has_corridor
+         FROM projects p
+         LEFT JOIN users u ON p.created_by = u.id
+         ${where}
+         ORDER BY p.created_at DESC
+         LIMIT $${params.length + 1} OFFSET $${params.length + 2}`,
+      listParams
+    );
 
     return apiResponse(res, {
       status: 200,
       success: true,
       data: projects,
       meta: {
-        total: totalCount,
+        total: countRow.count,
         page,
         limit,
-        totalPages: Math.ceil(totalCount / limit),
+        totalPages: Math.ceil(countRow.count / limit),
       },
     });
   } catch (err) {
@@ -79,7 +81,7 @@ router.get('/', authenticate, (req, res, next) => {
  * POST /api/projects
  * Create a new land acquisition project (Restricted to PIA, ADMIN)
  */
-router.post('/', authenticate, rbac(ROLES.PIA, ROLES.ADMIN), (req, res, next) => {
+router.post('/', authenticate, rbac(ROLES.PIA, ROLES.ADMIN), async (req, res, next) => {
   try {
     const {
       name,
@@ -102,38 +104,36 @@ router.post('/', authenticate, rbac(ROLES.PIA, ROLES.ADMIN), (req, res, next) =>
       });
     }
 
-    const db = getDb();
     const id = generateId();
-    const project_code = generateCode('PRJ', 'projects', 'project_code');
-
+    const project_code = await generateCode('PRJ', 'projects', 'project_code');
     const areaRequired = parseFloat(total_area_required);
 
-    db.prepare(`
-      INSERT INTO projects (
-        id, project_code, name, description, project_type, implementing_agency,
-        state, district, taluk, total_area_required, total_area_acquired,
-        status, start_date, expected_end_date, created_by
-      ) VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?, ?, 0, ?, ?, ?, ?)
-    `).run(
-      id,
-      project_code,
-      name.trim(),
-      description ? description.trim() : null,
-      project_type ? project_type.trim() : 'Infrastructure',
-      implementing_agency ? implementing_agency.trim() : req.user.full_name,
-      state ? state.trim() : req.user.state || 'Uttar Pradesh',
-      district ? district.trim() : req.user.district || 'Lucknow',
-      taluk ? taluk.trim() : null,
-      areaRequired,
-      PROJECT_STATUS.PROPOSED,
-      start_date || null,
-      expected_end_date || null,
-      req.user.id
+    const createdProject = await queryOne(
+      `INSERT INTO projects (
+         id, project_code, name, description, project_type, implementing_agency,
+         state, district, taluk, total_area_required, total_area_acquired,
+         status, start_date, expected_end_date, created_by
+       ) VALUES ($1,$2,$3,$4,$5,$6,$7,$8,$9,$10,0,$11,$12,$13,$14)
+       RETURNING *`,
+      [
+        id,
+        project_code,
+        name.trim(),
+        description ? description.trim() : null,
+        project_type ? project_type.trim() : 'Infrastructure',
+        implementing_agency ? implementing_agency.trim() : req.user.full_name,
+        state ? state.trim() : req.user.state || 'Uttar Pradesh',
+        district ? district.trim() : req.user.district || 'Lucknow',
+        taluk ? taluk.trim() : null,
+        areaRequired,
+        PROJECT_STATUS.PROPOSED,
+        start_date || null,
+        expected_end_date || null,
+        req.user.id,
+      ]
     );
 
-    const createdProject = db.prepare('SELECT * FROM projects WHERE id = ?').get(id);
-
-    logAudit({
+    await logAudit({
       entityType: 'project',
       entityId: id,
       action: 'CREATE_PROJECT',
@@ -155,21 +155,27 @@ router.post('/', authenticate, rbac(ROLES.PIA, ROLES.ADMIN), (req, res, next) =>
 
 /**
  * GET /api/projects/:id
- * Get single project details by ID
+ * Get single project details by ID or project code
  */
-router.get('/:id', authenticate, (req, res, next) => {
+router.get('/:id', authenticate, async (req, res, next) => {
   try {
-    const db = getDb();
-    const project = db.prepare(`
-      SELECT p.*, u.full_name as creator_name, u.email as creator_email,
-        ROUND((p.total_area_acquired / NULLIF(p.total_area_required, 0)) * 100, 2) as acquisition_progress_pct,
-        (SELECT COUNT(*) FROM parcels WHERE project_id = p.id) as total_parcels,
-        (SELECT COUNT(*) FROM acquisition_cases WHERE project_id = p.id) as total_cases,
-        (SELECT COUNT(*) FROM families WHERE project_id = p.id) as total_families
-      FROM projects p
-      LEFT JOIN users u ON p.created_by = u.id
-      WHERE p.id = ? OR p.project_code = ?
-    `).get(req.params.id, req.params.id);
+    const project = await queryOne(
+      `SELECT p.id, p.project_code, p.name, p.description, p.project_type, p.implementing_agency,
+              p.state, p.district, p.taluk, p.total_area_required, p.total_area_acquired,
+              p.status, p.start_date, p.expected_end_date, p.created_by,
+              p.corridor_width_m, p.geometry_source, p.created_at, p.updated_at,
+              u.full_name AS creator_name, u.email AS creator_email,
+              ROUND((p.total_area_acquired / NULLIF(p.total_area_required, 0)) * 100, 2) AS acquisition_progress_pct,
+              (SELECT COUNT(*) FROM parcels WHERE project_id = p.id) AS total_parcels,
+              (SELECT COUNT(*) FROM acquisition_cases WHERE project_id = p.id) AS total_cases,
+              (SELECT COUNT(*) FROM families WHERE project_id = p.id) AS total_families,
+              (p.corridor IS NOT NULL) AS has_corridor,
+              ROUND((ST_Length(p.centerline::geography) / 1000.0)::numeric, 2) AS corridor_length_km
+         FROM projects p
+         LEFT JOIN users u ON p.created_by = u.id
+        WHERE p.id::text = $1 OR p.project_code = $1`,
+      [req.params.id]
+    );
 
     if (!project) {
       return apiResponse(res, {
@@ -193,10 +199,9 @@ router.get('/:id', authenticate, (req, res, next) => {
  * PUT /api/projects/:id
  * Update project details or status
  */
-router.put('/:id', authenticate, rbac(ROLES.DLAO, ROLES.PIA, ROLES.SGA, ROLES.ADMIN), (req, res, next) => {
+router.put('/:id', authenticate, rbac(ROLES.DLAO, ROLES.PIA, ROLES.SGA, ROLES.ADMIN), async (req, res, next) => {
   try {
-    const db = getDb();
-    const existing = db.prepare('SELECT * FROM projects WHERE id = ?').get(req.params.id);
+    const existing = await queryOne('SELECT * FROM projects WHERE id::text = $1', [req.params.id]);
 
     if (!existing) {
       return apiResponse(res, {
@@ -222,41 +227,43 @@ router.put('/:id', authenticate, rbac(ROLES.DLAO, ROLES.PIA, ROLES.SGA, ROLES.AD
     } = req.body;
 
     const updatedName = name !== undefined ? name.trim() : existing.name;
-    const updatedDesc = description !== undefined ? description.trim() : existing.description;
+    const updatedDesc = description !== undefined ? (description ? description.trim() : null) : existing.description;
     const updatedType = project_type !== undefined ? project_type.trim() : existing.project_type;
     const updatedAgency = implementing_agency !== undefined ? implementing_agency.trim() : existing.implementing_agency;
     const updatedState = state !== undefined ? state.trim() : existing.state;
     const updatedDistrict = district !== undefined ? district.trim() : existing.district;
-    const updatedTaluk = taluk !== undefined ? taluk.trim() : existing.taluk;
+    const updatedTaluk = taluk !== undefined ? (taluk ? taluk.trim() : null) : existing.taluk;
     const updatedReqArea = total_area_required !== undefined ? parseFloat(total_area_required) : existing.total_area_required;
     const updatedAcqArea = total_area_acquired !== undefined ? parseFloat(total_area_acquired) : existing.total_area_acquired;
     const updatedStatus = status !== undefined ? status.toUpperCase() : existing.status;
-    const updatedStart = start_date !== undefined ? start_date : existing.start_date;
-    const updatedEnd = expected_end_date !== undefined ? expected_end_date : existing.expected_end_date;
+    const updatedStart = start_date !== undefined ? (start_date || null) : existing.start_date;
+    const updatedEnd = expected_end_date !== undefined ? (expected_end_date || null) : existing.expected_end_date;
 
-    db.prepare(`
-      UPDATE projects
-      SET name = ?, description = ?, project_type = ?, implementing_agency = ?,
-          state = ?, district = ?, taluk = ?, total_area_required = ?,
-          total_area_acquired = ?, status = ?, start_date = ?, expected_end_date = ?,
-          updated_at = datetime('now')
-      WHERE id = ?
-    `).run(
-      updatedName, updatedDesc, updatedType, updatedAgency,
-      updatedState, updatedDistrict, updatedTaluk, updatedReqArea,
-      updatedAcqArea, updatedStatus, updatedStart, updatedEnd,
-      req.params.id
+    const updatedProject = await queryOne(
+      `UPDATE projects
+          SET name = $1, description = $2, project_type = $3, implementing_agency = $4,
+              state = $5, district = $6, taluk = $7, total_area_required = $8,
+              total_area_acquired = $9, status = $10, start_date = $11, expected_end_date = $12
+        WHERE id = $13
+      RETURNING id, project_code, name, description, project_type, implementing_agency,
+                state, district, taluk, total_area_required, total_area_acquired,
+                status, start_date, expected_end_date, created_by, corridor_width_m,
+                created_at, updated_at`,
+      [
+        updatedName, updatedDesc, updatedType, updatedAgency,
+        updatedState, updatedDistrict, updatedTaluk, updatedReqArea,
+        updatedAcqArea, updatedStatus, updatedStart, updatedEnd,
+        existing.id,
+      ]
     );
 
-    const updatedProject = db.prepare('SELECT * FROM projects WHERE id = ?').get(req.params.id);
-
-    logAudit({
+    await logAudit({
       entityType: 'project',
-      entityId: req.params.id,
+      entityId: existing.id,
       action: 'UPDATE_PROJECT',
       performedBy: req.user.id,
-      oldValues: existing,
-      newValues: updatedProject,
+      oldValues: { name: existing.name, status: existing.status, total_area_acquired: existing.total_area_acquired },
+      newValues: { name: updatedName, status: updatedStatus, total_area_acquired: updatedAcqArea },
       ipAddress: req.ip,
     });
 

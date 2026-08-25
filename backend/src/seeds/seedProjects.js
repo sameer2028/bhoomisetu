@@ -1,10 +1,9 @@
-const { getDb } = require('../config/database');
+const { query, queryOne } = require('../config/database');
 const { generateId } = require('../utils/helpers');
 const { PROJECT_STATUS } = require('../config/constants');
 
 async function seedProjects() {
-  const db = getDb();
-  const count = db.prepare('SELECT COUNT(*) as count FROM projects').get().count;
+  const { count } = await queryOne('SELECT COUNT(*) AS count FROM projects');
 
   if (count > 0) {
     console.log('[SEED] Projects table already has data. Skipping project seed.');
@@ -14,7 +13,7 @@ async function seedProjects() {
   console.log('[SEED] Seeding synthetic SIH project data...');
 
   // Find PIA user for created_by
-  const piaUser = db.prepare("SELECT id FROM users WHERE role = 'PIA' LIMIT 1").get();
+  const piaUser = await queryOne("SELECT id FROM users WHERE role = 'PIA' LIMIT 1");
   const createdById = piaUser ? piaUser.id : null;
 
   const demoProjects = [
@@ -88,25 +87,22 @@ async function seedProjects() {
     },
   ];
 
-  const stmt = db.prepare(`
-    INSERT INTO projects (
-      id, project_code, name, description, project_type, implementing_agency,
-      state, district, taluk, total_area_required, total_area_acquired,
-      status, start_date, expected_end_date, created_by
-    ) VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?)
-  `);
-
-  const insertMany = db.transaction((projects) => {
-    for (const p of projects) {
-      stmt.run(
+  for (const p of demoProjects) {
+    await query(
+      `INSERT INTO projects (
+         id, project_code, name, description, project_type, implementing_agency,
+         state, district, taluk, total_area_required, total_area_acquired,
+         status, start_date, expected_end_date, created_by
+       ) VALUES ($1,$2,$3,$4,$5,$6,$7,$8,$9,$10,$11,$12,$13,$14,$15)
+       ON CONFLICT (project_code) DO NOTHING`,
+      [
         p.id, p.project_code, p.name, p.description, p.project_type, p.implementing_agency,
         p.state, p.district, p.taluk, p.total_area_required, p.total_area_acquired,
-        p.status, p.start_date, p.expected_end_date, p.created_by
-      );
-    }
-  });
+        p.status, p.start_date, p.expected_end_date, p.created_by,
+      ]
+    );
+  }
 
-  insertMany(demoProjects);
   console.log(`[SEED] Successfully seeded ${demoProjects.length} synthetic SIH projects.`);
 }
 

@@ -1,5 +1,5 @@
 const { v4: uuidv4 } = require('uuid');
-const { getDb } = require('../config/database');
+const { query, queryOne } = require('../config/database');
 
 /**
  * Generate a new UUID
@@ -9,40 +9,52 @@ function generateId() {
 }
 
 /**
- * Log an action to the audit trail
+ * Log an action to the audit trail.
+ * Audit logging must never break the request it is recording, so failures are
+ * logged to the console instead of being thrown.
  */
-function logAudit({ entityType, entityId, action, performedBy, oldValues, newValues, ipAddress }) {
-  const db = getDb();
-  const id = generateId();
-  db.prepare(`
-    INSERT INTO audit_log (id, entity_type, entity_id, action, performed_by, old_values, new_values, ip_address)
-    VALUES (?, ?, ?, ?, ?, ?, ?, ?)
-  `).run(
-    id,
-    entityType,
-    entityId,
-    action,
-    performedBy,
-    oldValues ? JSON.stringify(oldValues) : null,
-    newValues ? JSON.stringify(newValues) : null,
-    ipAddress || null
-  );
-  return id;
+async function logAudit({ entityType, entityId, action, performedBy, oldValues, newValues, ipAddress }) {
+  try {
+    const id = generateId();
+    await query(
+      `INSERT INTO audit_log (id, entity_type, entity_id, action, performed_by, old_values, new_values, ip_address)
+       VALUES ($1, $2, $3, $4, $5, $6, $7, $8)`,
+      [
+        id,
+        entityType,
+        entityId,
+        action,
+        performedBy || null,
+        oldValues ? JSON.stringify(oldValues) : null,
+        newValues ? JSON.stringify(newValues) : null,
+        ipAddress || null,
+      ]
+    );
+    return id;
+  } catch (err) {
+    console.error('[AUDIT] Failed to write audit entry:', err.message);
+    return null;
+  }
 }
 
 /**
  * Generate a sequential code like PRJ-2026-001
  */
-function generateCode(prefix, tableName, codeColumn = 'project_code') {
-  const db = getDb();
+async function generateCode(prefix, tableName, codeColumn = 'project_code') {
   const year = new Date().getFullYear();
   const pattern = `${prefix}-${year}-%`;
-  const row = db.prepare(`SELECT ${codeColumn} FROM ${tableName} WHERE ${codeColumn} LIKE ? ORDER BY ${codeColumn} DESC LIMIT 1`).get(pattern);
+  const row = await queryOne(
+    `SELECT ${codeColumn} AS code FROM ${tableName}
+     WHERE ${codeColumn} LIKE $1
+     ORDER BY ${codeColumn} DESC LIMIT 1`,
+    [pattern]
+  );
 
   let nextNum = 1;
-  if (row) {
-    const parts = row[codeColumn].split('-');
-    nextNum = parseInt(parts[parts.length - 1]) + 1;
+  if (row && row.code) {
+    const parts = row.code.split('-');
+    const parsed = parseInt(parts[parts.length - 1], 10);
+    if (!Number.isNaN(parsed)) nextNum = parsed + 1;
   }
 
   return `${prefix}-${year}-${String(nextNum).padStart(3, '0')}`;
@@ -65,7 +77,7 @@ function apiResponse(res, { status = 200, success = true, data = null, message =
  */
 function parsePagination(query) {
   const page = Math.max(1, parseInt(query.page) || 1);
-  const limit = Math.min(100, Math.max(1, parseInt(query.limit) || 20));
+  const limit = Math.min(500, Math.max(1, parseInt(query.limit) || 20));
   const offset = (page - 1) * limit;
   return { page, limit, offset };
 }

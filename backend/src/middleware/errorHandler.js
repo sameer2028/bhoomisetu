@@ -29,19 +29,45 @@ function errorHandler(err, req, res, _next) {
     });
   }
 
-  // SQLite constraint errors
-  if (err.message && err.message.includes('UNIQUE constraint failed')) {
-    return res.status(409).json({
-      success: false,
-      error: 'A record with this value already exists.',
-    });
-  }
-
-  if (err.message && err.message.includes('FOREIGN KEY constraint failed')) {
-    return res.status(400).json({
-      success: false,
-      error: 'Referenced record does not exist.',
-    });
+  // ─── PostgreSQL error codes ───────────────────────────────────────
+  // https://www.postgresql.org/docs/current/errcodes-appendix.html
+  switch (err.code) {
+    case '23505': // unique_violation
+    case '23000': // integrity_constraint_violation
+      return res.status(409).json({
+        success: false,
+        error: 'A record with this value already exists.',
+      });
+    case '23503': // foreign_key_violation
+      return res.status(400).json({
+        success: false,
+        error: 'Referenced record does not exist.',
+      });
+    case '23514': // check_violation
+      return res.status(400).json({
+        success: false,
+        error: 'Value is not allowed for this field.',
+      });
+    case '22P02': // invalid_text_representation (e.g. malformed UUID)
+      return res.status(400).json({
+        success: false,
+        error: 'Invalid identifier or value format.',
+      });
+    case 'XX000': // internal_error — PostGIS geometry failures land here
+      if (err.message && /geometry|geojson|srid/i.test(err.message)) {
+        return res.status(400).json({
+          success: false,
+          error: `Invalid geometry: ${err.message}`,
+        });
+      }
+      break;
+    case 'ECONNREFUSED':
+      return res.status(503).json({
+        success: false,
+        error: 'Database unavailable. Start the spatial database with: docker compose up -d',
+      });
+    default:
+      break;
   }
 
   // Default server error

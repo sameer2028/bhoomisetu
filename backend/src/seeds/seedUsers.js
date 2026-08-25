@@ -1,11 +1,10 @@
 const bcrypt = require('bcryptjs');
-const { getDb } = require('../config/database');
+const { query, queryOne } = require('../config/database');
 const { generateId } = require('../utils/helpers');
 const { ROLES } = require('../config/constants');
 
 async function seedUsers() {
-  const db = getDb();
-  const count = db.prepare('SELECT COUNT(*) as count FROM users').get().count;
+  const { count } = await queryOne('SELECT COUNT(*) AS count FROM users');
 
   if (count > 0) {
     console.log('[SEED] Users table already has data. Skipping seed.');
@@ -68,18 +67,15 @@ async function seedUsers() {
     },
   ];
 
-  const stmt = db.prepare(`
-    INSERT INTO users (id, email, password_hash, full_name, role, state, district, phone)
-    VALUES (?, ?, ?, ?, ?, ?, ?, ?)
-  `);
+  for (const u of demoUsers) {
+    await query(
+      `INSERT INTO users (id, email, password_hash, full_name, role, state, district, phone)
+       VALUES ($1,$2,$3,$4,$5,$6,$7,$8)
+       ON CONFLICT (email) DO NOTHING`,
+      [u.id, u.email, u.password_hash, u.full_name, u.role, u.state, u.district, u.phone]
+    );
+  }
 
-  const insertMany = db.transaction((users) => {
-    for (const u of users) {
-      stmt.run(u.id, u.email, u.password_hash, u.full_name, u.role, u.state, u.district, u.phone);
-    }
-  });
-
-  insertMany(demoUsers);
   console.log(`[SEED] Successfully seeded ${demoUsers.length} demo users.`);
 }
 

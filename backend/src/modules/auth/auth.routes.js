@@ -1,7 +1,7 @@
 const express = require('express');
 const bcrypt = require('bcryptjs');
 const jwt = require('jsonwebtoken');
-const { getDb } = require('../../config/database');
+const { queryOne } = require('../../config/database');
 const env = require('../../config/env');
 const { authenticate } = require('../../middleware/auth');
 const { apiResponse, logAudit } = require('../../utils/helpers');
@@ -24,8 +24,7 @@ router.post('/login', async (req, res, next) => {
       });
     }
 
-    const db = getDb();
-    const user = db.prepare('SELECT * FROM users WHERE email = ?').get(email.trim().toLowerCase());
+    const user = await queryOne('SELECT * FROM users WHERE email = $1', [email.trim().toLowerCase()]);
 
     if (!user) {
       return apiResponse(res, {
@@ -74,7 +73,7 @@ router.post('/login', async (req, res, next) => {
     };
 
     // Log audit event
-    logAudit({
+    await logAudit({
       entityType: 'user',
       entityId: user.id,
       action: 'LOGIN',
@@ -100,8 +99,8 @@ router.post('/login', async (req, res, next) => {
  * POST /api/auth/logout
  * User logout (Client clears token, logged in audit trail)
  */
-router.post('/logout', authenticate, (req, res) => {
-  logAudit({
+router.post('/logout', authenticate, async (req, res) => {
+  await logAudit({
     entityType: 'user',
     entityId: req.user.id,
     action: 'LOGOUT',

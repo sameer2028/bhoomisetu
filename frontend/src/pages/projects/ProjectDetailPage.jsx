@@ -16,6 +16,8 @@ import {
   Save,
   TrendingUp,
   UserCheck,
+  Map as MapIcon,
+  Route,
 } from 'lucide-react';
 
 export default function ProjectDetailPage() {
@@ -144,6 +146,14 @@ export default function ProjectDetailPage() {
               {project.status.replace('_', ' ')}
             </span>
 
+            <Link
+              to={`/projects/${project.id}/gis`}
+              className="btn btn-primary text-xs flex items-center gap-1.5"
+              title="Open this project on the GIS map"
+            >
+              <MapIcon className="w-4 h-4" /> Open GIS Map
+            </Link>
+
             {canEdit && !editing && (
               <button
                 onClick={() => setEditing(true)}
@@ -182,11 +192,13 @@ export default function ProjectDetailPage() {
           <span className="text-xs text-emerald-600 font-medium">{pct}% Completed</span>
         </div>
 
-        <div className="kpi-card">
+        <Link to={`/parcels?projectId=${project.id}`} className="kpi-card hover:border-emerald-300 transition-colors group">
           <span className="text-xs text-neutral-500 uppercase font-semibold">Linked Parcels</span>
           <div className="text-2xl font-bold text-neutral-900 mt-1">{project.total_parcels || 0}</div>
-          <span className="text-xs text-neutral-400">Surveyed Land Parcels</span>
-        </div>
+          <span className="text-xs text-blue-600 group-hover:underline font-medium flex items-center gap-1 mt-0.5">
+            View Project Parcels &rarr;
+          </span>
+        </Link>
 
         <div className="kpi-card">
           <span className="text-xs text-neutral-500 uppercase font-semibold">Acquisition Cases</span>
@@ -382,6 +394,45 @@ export default function ProjectDetailPage() {
                   <span className="text-xs text-neutral-400 block font-medium">Taluk / Tehsil</span>
                   <span className="text-sm font-bold text-neutral-800">{project.taluk || 'N/A'}</span>
                 </div>
+              </div>
+
+              {/* Phase 5 — spatial layer summary */}
+              <div className="mt-4 pt-4 border-t border-neutral-100">
+                <h3 className="text-sm font-semibold text-neutral-800 mb-3 flex items-center gap-2">
+                  <Route className="w-4 h-4 text-blue-700" /> Acquisition Corridor (GIS)
+                </h3>
+                {project.has_corridor ? (
+                  <div className="grid grid-cols-1 sm:grid-cols-3 gap-4">
+                    <div className="bg-blue-50/60 p-3.5 rounded-lg border border-blue-100">
+                      <span className="text-xs text-neutral-400 block font-medium">Alignment Length</span>
+                      <span className="text-sm font-bold text-neutral-800">
+                        {project.corridor_length_km ?? '—'} km
+                      </span>
+                    </div>
+                    <div className="bg-blue-50/60 p-3.5 rounded-lg border border-blue-100">
+                      <span className="text-xs text-neutral-400 block font-medium">Right-of-Way Width</span>
+                      <span className="text-sm font-bold text-neutral-800">
+                        {project.corridor_width_m ?? '—'} m
+                      </span>
+                    </div>
+                    <Link
+                      to={`/projects/${project.id}/gis`}
+                      className="bg-blue-50/60 p-3.5 rounded-lg border border-blue-100 hover:border-blue-300 transition-colors group"
+                    >
+                      <span className="text-xs text-neutral-400 block font-medium">Mapped Parcels</span>
+                      <span className="text-sm font-bold text-neutral-800">
+                        {project.total_parcels || 0}
+                      </span>
+                      <span className="text-[11px] text-blue-600 group-hover:underline font-medium block mt-0.5">
+                        View on map &rarr;
+                      </span>
+                    </Link>
+                  </div>
+                ) : (
+                  <p className="text-sm text-neutral-400 italic">
+                    No corridor geometry has been defined for this project yet.
+                  </p>
+                )}
               </div>
             </div>
           </div>
