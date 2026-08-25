@@ -1,0 +1,88 @@
+import { BrowserRouter, Routes, Route, Navigate } from 'react-router-dom';
+import { AuthProvider } from './contexts/AuthContext';
+import AppLayout from './components/layout/AppLayout';
+import LoginPage from './pages/auth/LoginPage';
+import DashboardPage from './pages/dashboard/DashboardPage';
+import ProfilePage from './pages/auth/ProfilePage';
+import ProjectListPage from './pages/projects/ProjectListPage';
+import ProjectDetailPage from './pages/projects/ProjectDetailPage';
+
+// Placeholder pages for future phases
+function PlaceholderPage({ title, phase }) {
+  return (
+    <div>
+      <div className="page-header">
+        <h1 className="page-title">{title}</h1>
+        <p className="page-subtitle">This module will be implemented in {phase}</p>
+      </div>
+      <div className="card">
+        <div className="card-body text-center py-16">
+          <p className="text-neutral-400 text-lg">🚧 Coming in {phase}</p>
+        </div>
+      </div>
+    </div>
+  );
+}
+
+export default function App() {
+  return (
+    <BrowserRouter>
+      <AuthProvider>
+        <Routes>
+          {/* Public routes */}
+          <Route path="/login" element={<LoginPage />} />
+
+          {/* Protected routes inside AppLayout */}
+          <Route element={<AppLayout />}>
+            <Route path="/dashboard" element={<DashboardPage />} />
+
+            {/* Phase 3 — Projects */}
+            <Route path="/projects" element={<ProjectListPage />} />
+            <Route path="/projects/:id" element={<ProjectDetailPage />} />
+
+            {/* Phase 4 — Parcels */}
+            <Route path="/parcels" element={<PlaceholderPage title="Parcels" phase="Phase 4" />} />
+            <Route path="/parcels/:id" element={<PlaceholderPage title="Parcel Details" phase="Phase 4" />} />
+
+            {/* Phase 5 — GIS */}
+            <Route path="/gis" element={<PlaceholderPage title="GIS Map" phase="Phase 5" />} />
+
+            {/* Phase 6 — Workflow */}
+            <Route path="/cases" element={<PlaceholderPage title="Workflow Cases" phase="Phase 6" />} />
+            <Route path="/cases/:id" element={<PlaceholderPage title="Case Details" phase="Phase 6" />} />
+
+            {/* Phase 7 — Documents */}
+            <Route path="/documents" element={<PlaceholderPage title="Documents" phase="Phase 7" />} />
+
+            {/* Phase 8 — AI */}
+            <Route path="/ai/mismatch" element={<PlaceholderPage title="AI Mismatch Detection" phase="Phase 8" />} />
+
+            {/* Phase 9 — Compensation */}
+            <Route path="/compensation" element={<PlaceholderPage title="Compensation" phase="Phase 9" />} />
+
+            {/* Phase 10 — R&R */}
+            <Route path="/rr" element={<PlaceholderPage title="R&R Management" phase="Phase 10" />} />
+
+            {/* Phase 12 — Alerts */}
+            <Route path="/alerts" element={<PlaceholderPage title="Alerts & Escalation" phase="Phase 12" />} />
+
+            {/* Phase 12 — Audit */}
+            <Route path="/audit" element={<PlaceholderPage title="Audit Trail" phase="Phase 12" />} />
+
+            {/* Phase 13 — Mock API */}
+            <Route path="/mock-api" element={<PlaceholderPage title="Government API (Mock)" phase="Phase 13" />} />
+
+            {/* Phase 14 — Field */}
+            <Route path="/field" element={<PlaceholderPage title="Field View" phase="Phase 14" />} />
+
+            {/* Profile */}
+            <Route path="/profile" element={<ProfilePage />} />
+          </Route>
+
+          {/* Catch-all redirect */}
+          <Route path="*" element={<Navigate to="/dashboard" replace />} />
+        </Routes>
+      </AuthProvider>
+    </BrowserRouter>
+  );
+}
