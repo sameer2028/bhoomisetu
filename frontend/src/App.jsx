@@ -11,6 +11,8 @@ import ParcelDetailPage from './pages/parcels/ParcelDetailPage';
 import GisPage from './pages/gis/GisPage';
 import CaseListPage from './pages/cases/CaseListPage';
 import CaseDetailPage from './pages/cases/CaseDetailPage';
+import DocumentListPage from './pages/documents/DocumentListPage';
+import DocumentDetailPage from './pages/documents/DocumentDetailPage';
 
 // Placeholder pages for future phases
 function PlaceholderPage({ title, phase }) {
@@ -58,7 +60,8 @@ export default function App() {
             <Route path="/cases/:id" element={<CaseDetailPage />} />
 
             {/* Phase 7 — Documents */}
-            <Route path="/documents" element={<PlaceholderPage title="Documents" phase="Phase 7" />} />
+            <Route path="/documents" element={<DocumentListPage />} />
+            <Route path="/documents/:id" element={<DocumentDetailPage />} />
 
             {/* Phase 8 — AI */}
             <Route path="/ai/mismatch" element={<PlaceholderPage title="AI Mismatch Detection" phase="Phase 8" />} />
