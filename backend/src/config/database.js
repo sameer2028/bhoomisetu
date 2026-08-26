@@ -125,11 +125,13 @@ async function initializeDatabase() {
   const { seedProjects } = require('../seeds/seedProjects');
   const { seedParcels } = require('../seeds/seedParcels');
   const { seedGis } = require('../seeds/seedGis');
+  const { seedWorkflow } = require('../seeds/seedWorkflow');
 
   await seedUsers();
   await seedProjects();
   await seedParcels();
   await seedGis();
+  await seedWorkflow();
 }
 
 async function closeDb() {

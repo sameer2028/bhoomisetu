@@ -9,6 +9,8 @@ import ProjectDetailPage from './pages/projects/ProjectDetailPage';
 import ParcelListPage from './pages/parcels/ParcelListPage';
 import ParcelDetailPage from './pages/parcels/ParcelDetailPage';
 import GisPage from './pages/gis/GisPage';
+import CaseListPage from './pages/cases/CaseListPage';
+import CaseDetailPage from './pages/cases/CaseDetailPage';
 
 // Placeholder pages for future phases
 function PlaceholderPage({ title, phase }) {
@@ -52,8 +54,8 @@ export default function App() {
             <Route path="/gis" element={<GisPage />} />
 
             {/* Phase 6 — Workflow */}
-            <Route path="/cases" element={<PlaceholderPage title="Workflow Cases" phase="Phase 6" />} />
-            <Route path="/cases/:id" element={<PlaceholderPage title="Case Details" phase="Phase 6" />} />
+            <Route path="/cases" element={<CaseListPage />} />
+            <Route path="/cases/:id" element={<CaseDetailPage />} />
 
             {/* Phase 7 — Documents */}
             <Route path="/documents" element={<PlaceholderPage title="Documents" phase="Phase 7" />} />
