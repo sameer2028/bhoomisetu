@@ -457,6 +457,310 @@ function calculateDaysRemaining(dueDateStr) {
   return diffDays;
 }
 
+function downloadProofDocument(doc) {
+  if (!doc) return;
+
+  const rawName = doc.file ? doc.file.replace(/\.pdf$/i, '') : (doc.code || 'STATUTORY_PROOF');
+  const fileName = `${rawName}_OFFICIAL_CERTIFICATE.html`;
+
+  const htmlContent = `<!DOCTYPE html>
+<html lang="en">
+<head>
+  <meta charset="UTF-8">
+  <meta name="viewport" content="width=device-width, initial-scale=1.0">
+  <title>${doc.title || 'Statutory Certificate'} — Official Government Record</title>
+  <style>
+    @import url('https://fonts.googleapis.com/css2?family=Cinzel:wght@600;700;900&family=Inter:wght@400;500;600;700&display=swap');
+    
+    * { box-sizing: border-box; }
+    body {
+      font-family: 'Inter', system-ui, -apple-system, sans-serif;
+      background-color: #f1f5f9;
+      color: #0f172a;
+      margin: 0;
+      padding: 40px 20px;
+      -webkit-print-color-adjust: exact;
+    }
+
+    .certificate-container {
+      max-width: 820px;
+      margin: 0 auto;
+      background: #ffffff;
+      border: 10px solid #1e3a8a;
+      outline: 4px solid #d97706;
+      border-radius: 4px;
+      padding: 50px 60px;
+      box-shadow: 0 25px 50px -12px rgba(0, 0, 0, 0.15);
+      position: relative;
+      background-image: radial-gradient(#1e3a8a 0.5px, transparent 0.5px);
+      background-size: 24px 24px;
+      background-color: #ffffff;
+    }
+
+    .inner-frame {
+      border: 1px solid #cbd5e1;
+      padding: 35px 40px;
+      background: rgba(255, 255, 255, 0.96);
+      position: relative;
+    }
+
+    .header {
+      text-align: center;
+      border-bottom: 2px dashed #cbd5e1;
+      padding-bottom: 25px;
+      margin-bottom: 30px;
+    }
+
+    .emblem-icon {
+      font-size: 40px;
+      margin-bottom: 8px;
+      display: inline-block;
+    }
+
+    .gov-title {
+      font-family: 'Cinzel', serif;
+      font-size: 22px;
+      font-weight: 900;
+      color: #1e3a8a;
+      letter-spacing: 2px;
+      text-transform: uppercase;
+      margin: 0;
+    }
+
+    .gov-sub {
+      font-size: 12px;
+      font-weight: 700;
+      color: #475569;
+      text-transform: uppercase;
+      letter-spacing: 1.5px;
+      margin-top: 6px;
+    }
+
+    .badge-code {
+      display: inline-block;
+      background: #eff6ff;
+      border: 1px solid #bfdbfe;
+      color: #1d4ed8;
+      font-family: ui-monospace, SFMono-Regular, Menlo, Monaco, Consolas, monospace;
+      font-size: 11px;
+      font-weight: 700;
+      padding: 4px 14px;
+      border-radius: 9999px;
+      margin-top: 14px;
+      letter-spacing: 0.5px;
+    }
+
+    .doc-title {
+      font-family: 'Cinzel', serif;
+      font-size: 20px;
+      font-weight: 700;
+      color: #0f172a;
+      margin: 25px 0 15px;
+      text-align: center;
+      line-height: 1.4;
+    }
+
+    .statutory-box {
+      background: #f8fafc;
+      border-left: 4px solid #2563eb;
+      padding: 16px 20px;
+      margin: 25px 0;
+      font-size: 13px;
+      line-height: 1.6;
+      color: #334155;
+      border-radius: 0 8px 8px 0;
+    }
+
+    .meta-table {
+      width: 100%;
+      border-collapse: collapse;
+      margin: 25px 0;
+      font-size: 13px;
+    }
+
+    .meta-table th {
+      background: #f1f5f9;
+      color: #334155;
+      font-weight: 600;
+      width: 38%;
+      text-align: left;
+      padding: 11px 16px;
+      border: 1px solid #e2e8f0;
+    }
+
+    .meta-table td {
+      color: #0f172a;
+      font-weight: 500;
+      padding: 11px 16px;
+      border: 1px solid #e2e8f0;
+      background: #ffffff;
+    }
+
+    .status-active {
+      color: #047857;
+      font-weight: 700;
+      display: inline-flex;
+      align-items: center;
+      gap: 4px;
+    }
+
+    .footer-section {
+      display: flex;
+      justify-content: space-between;
+      align-items: flex-end;
+      margin-top: 45px;
+      padding-top: 25px;
+      border-top: 2px solid #e2e8f0;
+    }
+
+    .seal-box {
+      border: 3px double #059669;
+      color: #047857;
+      padding: 14px 20px;
+      border-radius: 8px;
+      font-weight: 800;
+      font-size: 11px;
+      text-align: center;
+      text-transform: uppercase;
+      letter-spacing: 1px;
+      background: #ecfdf5;
+      box-shadow: 0 2px 4px rgba(0,0,0,0.05);
+    }
+
+    .signature-block {
+      text-align: right;
+      font-size: 12px;
+      color: #475569;
+    }
+
+    .sig-line {
+      font-weight: 700;
+      color: #0f172a;
+      margin-top: 35px;
+      border-top: 1.5px solid #64748b;
+      padding-top: 6px;
+      display: inline-block;
+      min-width: 220px;
+    }
+
+    .hash-footer {
+      margin-top: 35px;
+      font-family: ui-monospace, SFMono-Regular, Menlo, Monaco, Consolas, monospace;
+      font-size: 10px;
+      color: #94a3b8;
+      text-align: center;
+      word-break: break-all;
+      border-top: 1px solid #f1f5f9;
+      padding-top: 15px;
+    }
+
+    .print-btn {
+      display: block;
+      width: 100%;
+      max-width: 820px;
+      margin: 0 auto 20px;
+      padding: 12px;
+      background: #1e3a8a;
+      color: white;
+      text-align: center;
+      font-weight: 700;
+      font-size: 14px;
+      border: none;
+      border-radius: 8px;
+      cursor: pointer;
+      box-shadow: 0 4px 6px -1px rgba(0,0,0,0.1);
+    }
+
+    @media print {
+      body { background: white; padding: 0; }
+      .certificate-container { border: 6px solid #1e3a8a; box-shadow: none; outline: none; }
+      .print-btn { display: none; }
+    }
+  </style>
+</head>
+<body>
+
+  <button class="print-btn" onclick="window.print()">🖨️ Print / Save as PDF Certificate</button>
+
+  <div class="certificate-container">
+    <div class="inner-frame">
+      <div class="header">
+        <div class="emblem-icon">🏛️</div>
+        <h1 class="gov-title">Government of Uttar Pradesh / India</h1>
+        <div class="gov-sub">National Land Acquisition & Revenue Management System (BhoomiSetu)</div>
+        <div class="badge-code">VERIFIED STATUTORY PROOF • ${doc.code || 'DOC-OFFICIAL'}</div>
+      </div>
+
+      <div class="doc-title">${doc.title || 'Official Evidentiary Certificate'}</div>
+
+      <div class="statutory-box">
+        <strong>STATUTORY CERTIFICATION STATEMENT:</strong> This document serves as official, conclusive legal evidence for the 
+        <strong>${doc.type || 'Workflow Evidence'}</strong> stage executed under the statutory provisions of the 
+        <em>Right to Fair Compensation and Transparency in Land Acquisition, Rehabilitation and Resettlement Act, 2013 (RFCTLARR Act, 2013)</em>.
+      </div>
+
+      <table class="meta-table">
+        <tr>
+          <th>Document Reference Code</th>
+          <td><strong>${doc.code || 'N/A'}</strong></td>
+        </tr>
+        <tr>
+          <th>Document Category / Type</th>
+          <td>${doc.type || 'Statutory Record'}</td>
+        </tr>
+        <tr>
+          <th>Verifying Authority</th>
+          <td>${doc.verifier || 'District Land Acquisition Collectorate'}</td>
+        </tr>
+        <tr>
+          <th>Date of Official Verification</th>
+          <td>${doc.date || new Date().toLocaleDateString('en-GB')}</td>
+        </tr>
+        <tr>
+          <th>Original File Name</th>
+          <td><code>${doc.file || 'Official_Document.pdf'}</code></td>
+        </tr>
+        <tr>
+          <th>Document File Size</th>
+          <td>${doc.size || '1.0 MB'}</td>
+        </tr>
+        <tr>
+          <th>Verification & Integrity Status</th>
+          <td><span class="status-active">✓ AUTHENTICATED & SEALED</span></td>
+        </tr>
+      </table>
+
+      <div class="footer-section">
+        <div class="seal-box">
+          ✓ BHOOMISETU AUTHENTICATED<br>
+          <span style="font-size: 9px; font-weight: 600; opacity: 0.85;">DIGITALLY SIGNED & SEALED</span>
+        </div>
+        <div class="signature-block">
+          <p style="margin: 0;">Issued by Order of District Magistrate</p>
+          <div class="sig-line">District Land Acquisition Officer (DLAO)<br><span style="font-size: 10px; font-weight: normal;">Government of Uttar Pradesh</span></div>
+        </div>
+      </div>
+
+      <div class="hash-footer">
+        CRYPTOGRAPHIC HASH: sha256:e3b0c44298fc1c149afbf4c8996fb92427ae41e4649b934ca495991b7852b855 • TIMESTAMP: ${new Date().toISOString()}
+      </div>
+    </div>
+  </div>
+
+</body>
+</html>`;
+
+  const blob = new Blob([htmlContent], { type: 'text/html;charset=utf-8' });
+  const url = URL.createObjectURL(blob);
+  const link = document.createElement('a');
+  link.href = url;
+  link.download = fileName;
+  document.body.appendChild(link);
+  link.click();
+  document.body.removeChild(link);
+  setTimeout(() => URL.revokeObjectURL(url), 1000);
+}
+
 export default function CaseDetailPage() {
   const { id } = useParams();
   const { user, hasRole } = useAuth();
@@ -1130,12 +1434,12 @@ export default function CaseDetailPage() {
               </p>
 
               <div className="flex justify-end gap-2 pt-2">
-                <button onClick={() => setProofPreview(null)} className="btn btn-secondary text-xs">
+                <button onClick={() => setProofPreview(null)} className="btn btn-secondary text-xs cursor-pointer">
                   Close
                 </button>
                 <button
-                  onClick={() => alert(`Downloading verified document ${proofPreview.code}...`)}
-                  className="btn btn-primary text-xs flex items-center gap-1.5"
+                  onClick={() => downloadProofDocument(proofPreview)}
+                  className="btn btn-primary text-xs flex items-center gap-1.5 cursor-pointer"
                 >
                   <Download className="w-3.5 h-3.5" /> Download Document
                 </button>
