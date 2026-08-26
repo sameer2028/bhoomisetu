@@ -10,17 +10,22 @@ For step-by-step instructions on setting up and running the project locally, ple
 
 ### Quick Start:
 
-```bash
-# 1. Start Backend (Terminal 1)
-cd backend
-npm install
-npm run dev
+1. **Database Setup** (Choose one):
+   - **Neon Cloud (No Docker)**: Create a free DB on [neon.tech](https://neon.tech), run `CREATE EXTENSION postgis;`, and add your URL to `backend/.env` as `DATABASE_URL`.
+   - **Docker (Local)**: Run `docker compose up -d` in project root.
 
-# 2. Start Frontend (Terminal 2)
-cd frontend
-npm install
-npm run dev
-```
+2. **Start Servers**:
+   ```bash
+   # 1. Start Backend (Terminal 1)
+   cd backend
+   npm install
+   npm run dev
+
+   # 2. Start Frontend (Terminal 2)
+   cd frontend
+   npm install
+   npm run dev
+   ```
 
 Open `http://localhost:5173` in your browser.
 

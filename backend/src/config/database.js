@@ -20,8 +20,14 @@ let pool;
  */
 function getPool() {
   if (!pool) {
+    const isCloudDb =
+      env.databaseUrl.includes('neon.tech') ||
+      env.databaseUrl.includes('supabase') ||
+      env.databaseUrl.includes('sslmode=require');
+
     pool = new Pool({
       connectionString: env.databaseUrl,
+      ssl: isCloudDb ? { rejectUnauthorized: false } : false,
       max: 10,
       idleTimeoutMillis: 30000,
       connectionTimeoutMillis: 10000,

@@ -131,80 +131,82 @@ bhoomisetu/
 
 ---
 
-## 🐳 Docker & PostgreSQL + PostGIS Setup & Access
+## 🗄️ PostgreSQL + PostGIS Setup Options
 
-This project includes a `docker-compose.yml` file pre-configured with **PostgreSQL 16 + PostGIS 3.4** for spatial data storage and GIS spatial queries.
-
-### 1. Start the Docker Spatial Database Container
-
-Ensure Docker Desktop is open and running on your computer, then execute:
-
-```bash
-# Start PostgreSQL + PostGIS container in background
-docker compose up -d
-```
-
-Check that the container is running healthy:
-```bash
-docker compose ps
-```
+You can set up PostgreSQL + PostGIS using **any of the 3 options below**. Option 1 (Neon Cloud) is recommended if Docker is too complicated or heavy to run locally.
 
 ---
 
-### 2. Database Connection Credentials
+### ⚡ Option 1: Neon.tech (Free Cloud PostgreSQL — Recommended, No Docker Needed)
 
-| Property | Value |
-|----------|-------|
-| **Host** | `localhost` or `127.0.0.1` |
-| **Port** | `5432` |
-| **Database Name** | `nla_db` |
-| **Username** | `nla_user` |
-| **Password** | `nla_dev_password` |
-| **Connection URL** | `postgresql://nla_user:nla_dev_password@localhost:5432/nla_db` |
+[Neon.tech](https://neon.tech) provides a free cloud PostgreSQL database with PostGIS support. **Zero local software installation required.**
 
----
+#### Step 1: Create a Free Account & Database
+1. Go to [neon.tech](https://neon.tech) and sign up for a free account.
+2. Click **Create Project** -> Set project name to `bhoomisetu` -> Click **Create Project**.
 
-### 3. Connect Backend to Docker Database
+#### Step 2: Enable PostGIS Extension
+1. In the Neon Console sidebar, click **SQL Editor**.
+2. Run the following command:
+   ```sql
+   CREATE EXTENSION IF NOT EXISTS postgis;
+   ```
 
-In `backend/.env`, set the `DATABASE_URL`:
-
-```env
-DATABASE_URL=postgresql://nla_user:nla_dev_password@localhost:5432/nla_db
-```
-
-When you launch the backend (`cd backend && npm run dev`), Express will connect to the Docker container, run `database/init.sql` automatically, and seed all spatial parcel polygons & corridors!
-
----
-
-### 4. How to Access the Database directly
-
-#### Option A: Command Line (`psql` inside Docker container)
-```bash
-docker exec -it nla_postgis psql -U nla_user -d nla_db
-```
-
-Common psql commands once connected:
-- `\dt` — List all tables (`users`, `projects`, `parcels`, etc.)
-- `SELECT parcel_code, survey_number, ST_AsText(geometry) FROM parcels;` — Inspect GIS spatial geometries
-- `\q` — Exit psql
-
-#### Option B: Database GUI (pgAdmin, DBeaver, VSCode Extension)
-Connect your favorite database GUI using:
-- **Host**: `localhost`
-- **Port**: `5432`
-- **Database**: `nla_db`
-- **User**: `nla_user`
-- **Password**: `nla_dev_password`
+#### Step 3: Connect Backend to Neon
+1. On the Neon Dashboard (or Connection Details page), copy the **Postgres connection string** (e.g. `postgresql://alex:xyz123@ep-cool-name-123456.us-east-2.aws.neon.tech/neondb?sslmode=require`).
+2. Open `backend/.env` on your computer and set `DATABASE_URL`:
+   ```env
+   DATABASE_URL=postgresql://alex:xyz123@ep-cool-name-123456.us-east-2.aws.neon.tech/neondb?sslmode=require
+   ```
+3. Start the backend:
+   ```bash
+   cd backend
+   npm run dev
+   ```
+   *(The backend will connect to Neon, execute `database/init.sql`, create all spatial tables, and seed synthetic SIH demo data automatically!)*
 
 ---
 
-### 5. Useful Docker Commands
+### 🐳 Option 2: Local Docker Container (PostgreSQL 16 + PostGIS 3.4)
 
-| Action | Command |
-|--------|---------|
-| View database logs | `docker compose logs -f db` |
-| Stop container (preserve data) | `docker compose down` |
-| Reset database & delete all data volume | `docker compose down -v` |
+If you prefer running a database locally using Docker Desktop:
+
+1. Ensure Docker Desktop is running on your computer.
+2. In the project root directory (`bhoomisetu`), run:
+   ```bash
+   docker compose up -d
+   ```
+3. In `backend/.env`, set:
+   ```env
+   DATABASE_URL=postgresql://nla_user:nla_dev_password@localhost:5432/nla_db
+   ```
+4. Start backend: `cd backend && npm run dev`
+
+---
+
+### 💻 Option 3: Native Windows Installer (EnterpriseDB Installer — No Docker)
+
+If you want local PostgreSQL without Docker:
+
+1. Download **PostgreSQL 16** for Windows from [EnterpriseDB Download Page](https://www.enterprisedb.com/downloads/postgres-postgresql-downloads).
+2. Run installer (set superuser password as `nla_dev_password`).
+3. On the final installer screen, check **Launch Stack Builder** -> Select **Spatial Extensions** -> Check **PostGIS 3.x** and finish installation.
+4. Open `pgAdmin` or `psql` and run: `CREATE DATABASE nla_db;`
+5. In `backend/.env`, set:
+   ```env
+   DATABASE_URL=postgresql://postgres:nla_dev_password@localhost:5432/nla_db
+   ```
+
+---
+
+### 🛠️ Accessing Database Directly (GUI / CLI)
+
+- **Neon Console**: Use the built-in **SQL Editor** & **Tables** tab on `neon.tech`.
+- **Desktop GUI**: Connect pgAdmin, DBeaver, or VS Code Database extension using your `DATABASE_URL`.
+- **Command Line (`psql`)**:
+  ```bash
+  psql "YOUR_DATABASE_URL_HERE"
+  ```
 
 ---
 
