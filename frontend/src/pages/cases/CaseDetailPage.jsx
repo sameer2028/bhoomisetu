@@ -35,6 +35,10 @@ import {
   Users as UsersIcon,
   Map as MapIcon,
   Download,
+  BookOpen,
+  Copy,
+  Printer,
+  Share2,
 } from 'lucide-react';
 
 // ─── Stage Configuration & Comprehensive Guidance Data ──────────────
@@ -769,6 +773,18 @@ export default function CaseDetailPage() {
   const [loading, setLoading] = useState(true);
   const [transitionModal, setTransitionModal] = useState(null);
   const [proofPreview, setProofPreview] = useState(null);
+  const [selectedStageKey, setSelectedStageKey] = useState(null);
+  const [auditFilter, setAuditFilter] = useState('ALL');
+  const [showFullAuditModal, setShowFullAuditModal] = useState(false);
+  const [showActionDropdown, setShowActionDropdown] = useState(false);
+  const [copiedToast, setCopiedToast] = useState(null);
+
+  const handleCopy = (text, label) => {
+    navigator.clipboard.writeText(text);
+    setCopiedToast(`${label} copied to clipboard!`);
+    setTimeout(() => setCopiedToast(null), 3000);
+    setShowActionDropdown(false);
+  };
 
   const fetchCase = useCallback(async () => {
     setLoading(true);
@@ -812,11 +828,17 @@ export default function CaseDetailPage() {
 
   const isTerminal = ['COMPLETED', 'REJECTED'].includes(caseData.status);
   const currentStageKey = caseData.current_stage || 'PROJECT_PROPOSAL';
-  const stageGuidance = STAGE_GUIDANCE_DATA[currentStageKey] || STAGE_GUIDANCE_DATA.PROJECT_PROPOSAL;
+  const activeStageKey = selectedStageKey || currentStageKey;
+  const stageGuidance = STAGE_GUIDANCE_DATA[activeStageKey] || STAGE_GUIDANCE_DATA.PROJECT_PROPOSAL;
 
   const currentStageIndex = STAGE_ORDER.indexOf(currentStageKey);
+  const activeStageIndex = STAGE_ORDER.indexOf(activeStageKey);
   const overallProgressPct = Math.min(100, Math.max(9, Math.round(((currentStageIndex + 1) / 11) * 100)));
   const daysRemaining = calculateDaysRemaining(caseData.due_date);
+
+  const activeStageAuditEvents = caseData.auditTimeline?.filter(
+    (evt) => evt.to_stage === activeStageKey || evt.from_stage === activeStageKey
+  ) || [];
 
   return (
     <div className="space-y-6 fade-in pb-12">
@@ -856,9 +878,114 @@ export default function CaseDetailPage() {
           >
             <ArrowLeft className="w-4 h-4" /> Back to All Cases
           </Link>
-          <button className="p-2 rounded-lg border border-neutral-200 hover:bg-neutral-50 text-neutral-600 transition-colors">
-            <MoreVertical className="w-4 h-4" />
-          </button>
+          {/* 3-Dot Quick Actions Dropdown */}
+          <div className="relative">
+            <button
+              type="button"
+              onClick={() => setShowActionDropdown((prev) => !prev)}
+              className={`p-2 rounded-lg border transition-all cursor-pointer ${
+                showActionDropdown
+                  ? 'bg-blue-50 border-blue-300 text-blue-700 shadow-sm ring-2 ring-blue-100'
+                  : 'border-neutral-200 hover:bg-neutral-50 text-neutral-600'
+              }`}
+              title="More Case Actions"
+            >
+              <MoreVertical className="w-4 h-4" />
+            </button>
+
+            {/* Dropdown Menu */}
+            {showActionDropdown && (
+              <>
+                <div
+                  className="fixed inset-0 z-30"
+                  onClick={() => setShowActionDropdown(false)}
+                />
+
+                <div className="absolute right-0 mt-2 w-64 bg-white rounded-xl shadow-xl border border-neutral-200 py-2 z-40 fade-in text-xs font-medium text-neutral-700">
+                  <div className="px-3.5 py-2 border-b border-neutral-100 bg-neutral-50/70 flex items-center justify-between">
+                    <span className="text-[10px] uppercase font-bold text-neutral-400">Quick Actions</span>
+                    <span className="font-mono font-bold text-blue-700 text-[11px]">{caseData.case_code}</span>
+                  </div>
+
+                  <button
+                    type="button"
+                    onClick={() => {
+                      setShowActionDropdown(false);
+                      setShowFullAuditModal(true);
+                    }}
+                    className="w-full text-left px-4 py-2.5 hover:bg-blue-50 hover:text-blue-700 flex items-center gap-2.5 transition-colors cursor-pointer"
+                  >
+                    <MessageSquare className="w-4 h-4 text-blue-600 flex-shrink-0" />
+                    <span>View Full Audit Trail</span>
+                  </button>
+
+                  <button
+                    type="button"
+                    onClick={() => {
+                      setShowActionDropdown(false);
+                      downloadProofDocument({
+                        code: caseData.case_code,
+                        title: `EXECUTIVE CASE FILE SUMMARY — ${caseData.case_code}`,
+                        type: 'Statutory Acquisition Summary File',
+                        verifier: caseData.assigned_officer_name || 'District Land Acquisition Collectorate',
+                        date: new Date().toLocaleDateString('en-GB'),
+                        file: `${caseData.case_code}_ACQUISITION_SUMMARY.pdf`,
+                        size: '1.8 MB',
+                      });
+                    }}
+                    className="w-full text-left px-4 py-2.5 hover:bg-emerald-50 hover:text-emerald-700 flex items-center gap-2.5 transition-colors cursor-pointer"
+                  >
+                    <Printer className="w-4 h-4 text-emerald-600 flex-shrink-0" />
+                    <span>Export Case Summary Certificate</span>
+                  </button>
+
+                  <button
+                    type="button"
+                    onClick={() => handleCopy(caseData.case_code, 'Case Code')}
+                    className="w-full text-left px-4 py-2.5 hover:bg-slate-50 hover:text-slate-900 flex items-center gap-2.5 transition-colors cursor-pointer"
+                  >
+                    <Copy className="w-4 h-4 text-slate-500 flex-shrink-0" />
+                    <span>Copy Case Code ({caseData.case_code})</span>
+                  </button>
+
+                  <button
+                    type="button"
+                    onClick={() => handleCopy(window.location.href, 'Case URL')}
+                    className="w-full text-left px-4 py-2.5 hover:bg-slate-50 hover:text-slate-900 flex items-center gap-2.5 transition-colors cursor-pointer"
+                  >
+                    <Share2 className="w-4 h-4 text-slate-500 flex-shrink-0" />
+                    <span>Copy Direct Case Link</span>
+                  </button>
+
+                  <div className="my-1 border-t border-neutral-100" />
+
+                  <Link
+                    to={`/projects/${caseData.project_id}`}
+                    onClick={() => setShowActionDropdown(false)}
+                    className="w-full text-left px-4 py-2 hover:bg-neutral-50 flex items-center justify-between text-neutral-600 transition-colors"
+                  >
+                    <span className="flex items-center gap-2">
+                      <FolderKanban className="w-4 h-4 text-purple-600 flex-shrink-0" /> Associated Project
+                    </span>
+                    <ChevronRight className="w-3.5 h-3.5 text-neutral-400" />
+                  </Link>
+
+                  {caseData.parcel_id && (
+                    <Link
+                      to={`/parcels/${caseData.parcel_id}`}
+                      onClick={() => setShowActionDropdown(false)}
+                      className="w-full text-left px-4 py-2 hover:bg-neutral-50 flex items-center justify-between text-neutral-600 transition-colors"
+                    >
+                      <span className="flex items-center gap-2">
+                        <MapPin className="w-4 h-4 text-amber-600 flex-shrink-0" /> View Parcel Record
+                      </span>
+                      <ChevronRight className="w-3.5 h-3.5 text-neutral-400" />
+                    </Link>
+                  )}
+                </div>
+              </>
+            )}
+          </div>
         </div>
       </div>
 
@@ -960,24 +1087,34 @@ export default function CaseDetailPage() {
             {STAGE_ORDER.map((stageKey, idx) => {
               const isPast = idx < currentStageIndex;
               const isCurrent = idx === currentStageIndex;
+              const isSelected = stageKey === activeStageKey;
               const label = STAGE_LABELS[stageKey];
 
               return (
-                <div key={stageKey} className="flex flex-col items-center relative z-10 group">
+                <button
+                  key={stageKey}
+                  type="button"
+                  onClick={() => setSelectedStageKey(stageKey)}
+                  className="flex flex-col items-center relative z-10 group cursor-pointer focus:outline-none"
+                >
                   <div
                     className={`w-8 h-8 rounded-full flex items-center justify-center text-xs font-bold transition-all ${
-                      isPast
-                        ? 'bg-emerald-500 text-white'
+                      isSelected
+                        ? 'bg-blue-700 text-white ring-4 ring-blue-200 shadow-lg scale-125 z-20'
                         : isCurrent
                         ? 'bg-blue-600 text-white ring-4 ring-blue-100 shadow-md scale-110'
-                        : 'bg-white border-2 border-neutral-300 text-neutral-400'
+                        : isPast
+                        ? 'bg-emerald-500 text-white hover:bg-emerald-600'
+                        : 'bg-white border-2 border-neutral-300 text-neutral-400 hover:border-blue-400'
                     }`}
                   >
                     {isPast ? <Check className="w-4 h-4" /> : idx + 1}
                   </div>
                   <span
                     className={`text-[11px] font-semibold mt-2.5 text-center whitespace-nowrap max-w-[85px] truncate ${
-                      isCurrent
+                      isSelected
+                        ? 'text-blue-800 font-black border-b-2 border-blue-700 pb-0.5'
+                        : isCurrent
                         ? 'text-blue-700 font-extrabold border-b-2 border-blue-600 pb-0.5'
                         : isPast
                         ? 'text-neutral-700 font-medium'
@@ -987,7 +1124,7 @@ export default function CaseDetailPage() {
                   >
                     {label}
                   </span>
-                </div>
+                </button>
               );
             })}
           </div>
@@ -1067,19 +1204,111 @@ export default function CaseDetailPage() {
             <div className="card md:col-span-2 bg-white border border-neutral-200 overflow-hidden flex flex-col justify-between">
               {/* Dark Navy Header Bar */}
               <div className="bg-[#0f172a] text-white px-5 py-3 flex items-center justify-between">
-                <h3 className="text-xs font-bold uppercase tracking-wider flex items-center gap-2">
-                  STAGE GUIDANCE — {STAGE_LABELS[currentStageKey]?.toUpperCase()}
-                </h3>
+                <div className="flex items-center gap-2">
+                  <BookOpen className="w-4 h-4 text-blue-400" />
+                  <h3 className="text-xs font-bold uppercase tracking-wider">
+                    STAGE {activeStageIndex + 1}: {STAGE_LABELS[activeStageKey]}
+                  </h3>
+                </div>
+                {activeStageKey !== caseData.current_stage && (
+                  <button
+                    type="button"
+                    onClick={() => setSelectedStageKey(caseData.current_stage)}
+                    className="text-[10px] bg-blue-600 hover:bg-blue-700 text-white font-bold px-2.5 py-1 rounded transition-colors"
+                  >
+                    Jump to Current Stage
+                  </button>
+                )}
               </div>
 
               <div className="p-5 space-y-4 flex-1">
+                {/* Stage Switcher Pills Bar */}
+                <div className="flex items-center gap-1 overflow-x-auto pb-2 border-b border-neutral-100 no-scrollbar">
+                  {STAGE_ORDER.map((sKey, sIdx) => {
+                    const isSelected = sKey === activeStageKey;
+                    const isCurrent = sKey === caseData.current_stage;
+                    return (
+                      <button
+                        key={sKey}
+                        type="button"
+                        onClick={() => setSelectedStageKey(sKey)}
+                        className={`px-2.5 py-1 rounded text-[11px] font-medium whitespace-nowrap transition-all flex items-center gap-1 cursor-pointer ${
+                          isSelected
+                            ? 'bg-blue-600 text-white font-bold shadow-xs'
+                            : isCurrent
+                            ? 'bg-blue-50 text-blue-700 border border-blue-200 font-bold'
+                            : 'bg-neutral-100 text-neutral-600 hover:bg-neutral-200'
+                        }`}
+                      >
+                        <span className="text-[9px] opacity-75 font-mono">#{sIdx + 1}</span>
+                        {STAGE_LABELS[sKey]}
+                      </button>
+                    );
+                  })}
+                </div>
+
                 {/* Description Info Banner */}
                 <div className="bg-blue-50/80 border border-blue-100 rounded-lg p-3.5 text-xs text-blue-950 flex items-start gap-3">
                   <HelpCircle className="w-4 h-4 text-blue-600 mt-0.5 flex-shrink-0" />
                   <div className="flex-1">
                     <span>{stageGuidance.description}</span>
-                    <button className="text-blue-700 font-bold ml-1 hover:underline inline-block">Read more</button>
                   </div>
+                </div>
+
+                {/* ─── Officer Decision Record for Selected Stage ─── */}
+                <div className="bg-gradient-to-r from-slate-900 via-slate-800 to-blue-950 text-white rounded-lg p-4 space-y-3 shadow-sm border border-slate-700">
+                  <div className="flex items-center justify-between">
+                    <span className="text-[11px] font-bold uppercase tracking-wider text-blue-300 flex items-center gap-1.5">
+                      <Shield className="w-3.5 h-3.5 text-emerald-400" />
+                      Officer Decision Record for Step {activeStageIndex + 1}: {STAGE_LABELS[activeStageKey]}
+                    </span>
+                    {activeStageAuditEvents.length > 0 ? (
+                      <span className="bg-emerald-500/20 text-emerald-300 border border-emerald-500/40 text-[10px] font-extrabold px-2.5 py-0.5 rounded-full uppercase">
+                        ✓ Decision Recorded
+                      </span>
+                    ) : activeStageIndex < currentStageIndex ? (
+                      <span className="bg-emerald-500/20 text-emerald-300 border border-emerald-500/40 text-[10px] font-extrabold px-2.5 py-0.5 rounded-full uppercase">
+                        ✓ Stage Completed
+                      </span>
+                    ) : (
+                      <span className="bg-amber-500/20 text-amber-300 border border-amber-500/40 text-[10px] font-extrabold px-2.5 py-0.5 rounded-full uppercase">
+                        ⏳ Stage In Progress
+                      </span>
+                    )}
+                  </div>
+
+                  {activeStageAuditEvents.length > 0 ? (
+                    <div className="space-y-2 text-xs">
+                      {activeStageAuditEvents.map((evt, idx) => (
+                        <div key={idx} className="bg-slate-800/90 rounded-md p-3 border border-slate-700 space-y-1.5">
+                          <div className="flex items-center justify-between text-[11px]">
+                            <span className="font-bold text-emerald-400 flex items-center gap-1">
+                              <CheckCircle2 className="w-3.5 h-3.5 text-emerald-400" /> Action: {evt.action === 'CREATE' ? 'CASE INITIATED & CREATED' : evt.action}
+                            </span>
+                            <span className="text-slate-400">{formatDateTime(evt.created_at)}</span>
+                          </div>
+                          <p className="text-slate-200 text-xs italic bg-slate-900/80 p-2.5 rounded border border-slate-800 leading-relaxed">
+                            "{evt.remarks || 'Stage decision recorded and approved by officer.'}"
+                          </p>
+                          <div className="flex items-center justify-between text-[10px] text-slate-400 pt-1 border-t border-slate-800">
+                            <span>Officer: <strong className="text-slate-200">{evt.performed_by_name || 'Rajesh Sharma (DLAO)'}</strong></span>
+                            <span>Role: {evt.performed_by_role || 'DLAO'}</span>
+                          </div>
+                        </div>
+                      ))}
+                    </div>
+                  ) : (
+                    <div className="text-xs text-slate-300 bg-slate-800/60 p-3 rounded border border-slate-700 leading-relaxed">
+                      <p className="font-semibold text-white">Stage Status Details:</p>
+                      <p className="text-slate-400 text-[11px] mt-0.5">
+                        {activeStageIndex < currentStageIndex
+                          ? `Step ${activeStageIndex + 1} (${STAGE_LABELS[activeStageKey]}) was executed earlier in the statutory pipeline. All statutory notices, field verification reports, and evidentiary records for this step are archived below.`
+                          : activeStageIndex === currentStageIndex
+                          ? `Step ${activeStageIndex + 1} (${STAGE_LABELS[activeStageKey]}) is currently under active evaluation by the assigned officer. Use the Workflow Actions panel below to record a decision.`
+                          : `Step ${activeStageIndex + 1} (${STAGE_LABELS[activeStageKey]}) is upcoming. It will unlock after preceding statutory steps complete.`}
+                      </p>
+                    </div>
+                  )}
                 </div>
 
                 {/* 2-Column Inner Tasks & Documents Grid */}
@@ -1158,7 +1387,7 @@ export default function CaseDetailPage() {
                           <span className="text-neutral-400">{proof.date} • {proof.size}</span>
                           <button
                             onClick={() => setProofPreview(proof)}
-                            className="btn btn-secondary btn-sm text-[11px] px-2.5 py-1 flex items-center gap-1 text-blue-700 border-blue-200 hover:bg-blue-50"
+                            className="btn btn-secondary btn-sm text-[11px] px-2.5 py-1 flex items-center gap-1 text-blue-700 border-blue-200 hover:bg-blue-50 cursor-pointer"
                           >
                             <Eye className="w-3.5 h-3.5" /> View Proof
                           </button>
@@ -1239,83 +1468,133 @@ export default function CaseDetailPage() {
         <div className="space-y-6">
           {/* Audit Timeline Card */}
           <div className="card bg-white border border-neutral-200">
-            <div className="card-header bg-neutral-50/70 border-b border-neutral-100 py-3.5 px-5 flex items-center justify-between">
-              <h3 className="text-xs font-bold text-neutral-800 uppercase tracking-wider flex items-center gap-2">
-                <MessageSquare className="w-4 h-4 text-blue-700" />
-                AUDIT TIMELINE
-              </h3>
-              <span className="text-[11px] text-neutral-400 font-semibold">
-                {caseData.auditTimeline?.length || 0} Events
-              </span>
-            </div>
+            <div className="card-header bg-neutral-50/70 border-b border-neutral-100 py-3 px-5 flex flex-col gap-2">
+              <div className="flex items-center justify-between">
+                <h3 className="text-xs font-bold text-neutral-800 uppercase tracking-wider flex items-center gap-2">
+                  <MessageSquare className="w-4 h-4 text-blue-700" />
+                  AUDIT TIMELINE
+                </h3>
+                <span className="text-[11px] text-neutral-400 font-semibold">
+                  {caseData.auditTimeline?.length || 0} Total Events
+                </span>
+              </div>
 
-            <div className="p-5">
-              {(!caseData.auditTimeline || caseData.auditTimeline.length === 0) ? (
-                <p className="text-xs text-neutral-400 text-center py-6">No audit events logged yet.</p>
-              ) : (
-                <div className="relative space-y-4">
-                  {/* Vertical timeline connector */}
-                  <div className="absolute left-[11px] top-2 bottom-2 w-0.5 bg-neutral-200" />
-
-                  {caseData.auditTimeline.map((evt, idx) => (
-                    <div key={evt.id || idx} className="flex items-start gap-3.5 relative z-10">
-                      {/* Event Dot */}
-                      <div
-                        className={`w-6 h-6 rounded-full flex items-center justify-center text-[10px] font-bold text-white flex-shrink-0 ${
-                          evt.action === 'CREATE'
-                            ? 'bg-blue-600'
-                            : evt.action === 'APPROVE' || evt.action === 'COMPLETE'
-                            ? 'bg-emerald-600'
-                            : evt.action === 'SEND_BACK'
-                            ? 'bg-amber-500'
-                            : evt.action === 'REJECT'
-                            ? 'bg-red-600'
-                            : 'bg-indigo-600'
-                        }`}
-                      >
-                        {idx + 1}
-                      </div>
-
-                      <div className="flex-1 min-w-0 text-xs">
-                        <div className="flex items-center gap-2 flex-wrap">
-                          <span
-                            className={`px-2 py-0.5 rounded text-[10px] font-bold uppercase tracking-wider text-white ${
-                              evt.action === 'CREATE'
-                                ? 'bg-blue-600'
-                                : evt.action === 'APPROVE'
-                                ? 'bg-emerald-600'
-                                : evt.action === 'SEND_BACK'
-                                ? 'bg-amber-600'
-                                : 'bg-slate-700'
-                            }`}
-                          >
-                            {evt.action === 'CREATE' ? 'CREATED' : evt.action}
-                          </span>
-                          <span className="text-neutral-500 text-[11px] font-semibold">
-                            {STAGE_LABELS[evt.to_stage] || evt.to_stage}
-                          </span>
-                        </div>
-
-                        <p className="font-semibold text-neutral-900 mt-1 leading-snug">
-                          {evt.remarks || 'Stage action updated'}
-                        </p>
-
-                        <div className="flex items-center gap-2 text-[10px] text-neutral-400 mt-1">
-                          <span>by {evt.performed_by_name || 'Rajesh Sharma (DLAO)'}</span>
-                          <span>•</span>
-                          <span>{timeAgo(evt.created_at)}</span>
-                        </div>
-                      </div>
-                    </div>
-                  ))}
-                </div>
-              )}
-
-              <div className="mt-5 pt-3 border-t border-neutral-100 text-center">
-                <button className="text-xs font-bold text-blue-700 hover:underline flex items-center justify-center gap-1 mx-auto">
-                  View Full Audit Trail <ChevronRight className="w-3.5 h-3.5" />
+              {/* Filter Pills */}
+              <div className="flex items-center gap-1.5 pt-1">
+                <button
+                  type="button"
+                  onClick={() => setAuditFilter('ALL')}
+                  className={`px-2 py-0.5 rounded text-[10px] font-bold transition-colors cursor-pointer ${
+                    auditFilter === 'ALL'
+                      ? 'bg-blue-700 text-white shadow-xs'
+                      : 'bg-neutral-200 text-neutral-600 hover:bg-neutral-300'
+                  }`}
+                >
+                  All Events ({caseData.auditTimeline?.length || 0})
+                </button>
+                <button
+                  type="button"
+                  onClick={() => setAuditFilter('STAGE')}
+                  className={`px-2 py-0.5 rounded text-[10px] font-bold transition-colors cursor-pointer ${
+                    auditFilter === 'STAGE'
+                      ? 'bg-blue-700 text-white shadow-xs'
+                      : 'bg-neutral-200 text-neutral-600 hover:bg-neutral-300'
+                  }`}
+                >
+                  {STAGE_LABELS[activeStageKey]} Only ({activeStageAuditEvents.length})
                 </button>
               </div>
+            </div>
+
+            <div className="p-4">
+              {(() => {
+                const displayedTimeline = auditFilter === 'STAGE' ? activeStageAuditEvents : (caseData.auditTimeline || []);
+
+                if (displayedTimeline.length === 0) {
+                  return (
+                    <p className="text-xs text-neutral-400 text-center py-6 italic">
+                      {auditFilter === 'STAGE'
+                        ? `No audit decisions logged specifically for ${STAGE_LABELS[activeStageKey]} yet.`
+                        : 'No audit events logged yet.'}
+                    </p>
+                  );
+                }
+
+                // Show top 4 events in a compact scrollable container
+                const previewEvents = displayedTimeline.slice(0, 4);
+
+                return (
+                  <div className="space-y-3">
+                    <div className="relative space-y-3 max-h-[380px] overflow-y-auto pr-1">
+                      {/* Vertical timeline connector */}
+                      <div className="absolute left-[11px] top-2 bottom-2 w-0.5 bg-neutral-200" />
+
+                      {previewEvents.map((evt, idx) => (
+                        <div key={evt.id || idx} className="flex items-start gap-3 relative z-10">
+                          {/* Event Dot */}
+                          <div
+                            className={`w-5 h-5 rounded-full flex items-center justify-center text-[9px] font-bold text-white flex-shrink-0 mt-0.5 ${
+                              evt.action === 'CREATE'
+                                ? 'bg-blue-600'
+                                : evt.action === 'APPROVE' || evt.action === 'COMPLETE'
+                                ? 'bg-emerald-600'
+                                : evt.action === 'SEND_BACK'
+                                ? 'bg-amber-500'
+                                : evt.action === 'REJECT'
+                                ? 'bg-red-600'
+                                : 'bg-indigo-600'
+                            }`}
+                          >
+                            {idx + 1}
+                          </div>
+
+                          <div className="flex-1 min-w-0 text-xs bg-neutral-50 p-2.5 rounded-lg border border-neutral-100">
+                            <div className="flex items-center justify-between gap-1.5 flex-wrap">
+                              <span
+                                className={`px-1.5 py-0.5 rounded text-[9px] font-extrabold uppercase tracking-wide text-white ${
+                                  evt.action === 'CREATE'
+                                    ? 'bg-blue-600'
+                                    : evt.action === 'APPROVE'
+                                    ? 'bg-emerald-600'
+                                    : evt.action === 'SEND_BACK'
+                                    ? 'bg-amber-600'
+                                    : 'bg-slate-700'
+                                }`}
+                              >
+                                {evt.action === 'CREATE' ? 'CREATED' : evt.action}
+                              </span>
+                              <span className="text-neutral-500 text-[10px] font-semibold truncate">
+                                {STAGE_LABELS[evt.to_stage] || evt.to_stage}
+                              </span>
+                            </div>
+
+                            <p className="font-semibold text-neutral-900 mt-1 leading-snug line-clamp-2">
+                              {evt.remarks || 'Stage action updated'}
+                            </p>
+
+                            <div className="flex items-center justify-between text-[10px] text-neutral-400 mt-1 pt-1 border-t border-neutral-200/50">
+                              <span className="truncate">by {evt.performed_by_name || 'Rajesh Sharma (DLAO)'}</span>
+                              <span className="flex-shrink-0">{timeAgo(evt.created_at)}</span>
+                            </div>
+                          </div>
+                        </div>
+                      ))}
+                    </div>
+
+                    <div className="pt-2 border-t border-neutral-100">
+                      <button
+                        type="button"
+                        onClick={() => setShowFullAuditModal(true)}
+                        className="w-full btn btn-secondary text-xs font-bold text-blue-700 py-2 flex items-center justify-center gap-1.5 hover:bg-blue-50 border-blue-200 cursor-pointer"
+                      >
+                        <MessageSquare className="w-3.5 h-3.5 text-blue-600" />
+                        View Full Audit Trail ({caseData.auditTimeline?.length || 0} Events)
+                        <ChevronRight className="w-3.5 h-3.5" />
+                      </button>
+                    </div>
+                  </div>
+                );
+              })()}
             </div>
           </div>
 
@@ -1448,6 +1727,22 @@ export default function CaseDetailPage() {
           </div>
         </div>
       )}
+
+      {/* ─── Full Audit Trail Modal ───────────────────────────────── */}
+      {showFullAuditModal && (
+        <FullAuditModal
+          caseData={caseData}
+          onClose={() => setShowFullAuditModal(false)}
+        />
+      )}
+
+      {/* ─── Toast Notification Popup ─────────────────────────────── */}
+      {copiedToast && (
+        <div className="fixed bottom-6 right-6 z-50 bg-neutral-900 text-white text-xs font-semibold px-4 py-3 rounded-xl shadow-2xl flex items-center gap-2.5 fade-in border border-neutral-700">
+          <Check className="w-4 h-4 text-emerald-400" />
+          <span>{copiedToast}</span>
+        </div>
+      )}
     </div>
   );
 }
@@ -1550,6 +1845,147 @@ function TransitionModal({ action, caseData, onClose, onSuccess }) {
             </button>
           </div>
         </form>
+      </div>
+    </div>
+  );
+}
+
+// ─── Full Audit Trail Modal Component ──────────────────────────────
+function FullAuditModal({ caseData, onClose }) {
+  const [filterAction, setFilterAction] = useState('ALL');
+  const events = caseData.auditTimeline || [];
+
+  const filteredEvents = events.filter((evt) => {
+    if (filterAction === 'ALL') return true;
+    if (filterAction === 'DECISIONS') return ['APPROVE', 'FORWARD', 'COMPLETE'].includes(evt.action);
+    if (filterAction === 'RETURNS') return ['SEND_BACK', 'REJECT'].includes(evt.action);
+    return true;
+  });
+
+  return (
+    <div className="fixed inset-0 z-50 flex items-center justify-center bg-black/50 backdrop-blur-sm p-4">
+      <div className="bg-white rounded-xl shadow-2xl w-full max-w-2xl max-h-[90vh] flex flex-col overflow-hidden fade-in border border-neutral-200">
+        {/* Header */}
+        <div className="flex items-center justify-between px-6 py-4 bg-[#0f172a] text-white">
+          <div className="flex items-center gap-2.5">
+            <MessageSquare className="w-5 h-5 text-blue-400" />
+            <div>
+              <h3 className="text-sm font-bold text-white">Full Case Audit Trail &amp; History</h3>
+              <p className="text-[10px] text-slate-300 font-mono">Case Code: {caseData.case_code} • {events.length} Total Events Logged</p>
+            </div>
+          </div>
+          <button onClick={onClose} className="p-1 rounded text-slate-400 hover:text-white transition-colors cursor-pointer">
+            <X className="w-5 h-5" />
+          </button>
+        </div>
+
+        {/* Filter Bar */}
+        <div className="bg-slate-50 px-6 py-3 border-b border-neutral-200 flex items-center justify-between gap-3 text-xs">
+          <div className="flex items-center gap-1.5">
+            <span className="font-semibold text-neutral-600">Filter Events:</span>
+            <button
+              type="button"
+              onClick={() => setFilterAction('ALL')}
+              className={`px-2.5 py-1 rounded text-xs font-bold transition-all cursor-pointer ${
+                filterAction === 'ALL' ? 'bg-blue-700 text-white' : 'bg-neutral-200 text-neutral-700 hover:bg-neutral-300'
+              }`}
+            >
+              All Events ({events.length})
+            </button>
+            <button
+              type="button"
+              onClick={() => setFilterAction('DECISIONS')}
+              className={`px-2.5 py-1 rounded text-xs font-bold transition-all cursor-pointer ${
+                filterAction === 'DECISIONS' ? 'bg-emerald-700 text-white' : 'bg-neutral-200 text-neutral-700 hover:bg-neutral-300'
+              }`}
+            >
+              Approvals &amp; Forwards
+            </button>
+            <button
+              type="button"
+              onClick={() => setFilterAction('RETURNS')}
+              className={`px-2.5 py-1 rounded text-xs font-bold transition-all cursor-pointer ${
+                filterAction === 'RETURNS' ? 'bg-amber-700 text-white' : 'bg-neutral-200 text-neutral-700 hover:bg-neutral-300'
+              }`}
+            >
+              Returns &amp; Rejections
+            </button>
+          </div>
+
+          <span className="text-[11px] font-mono text-neutral-400">{filteredEvents.length} records shown</span>
+        </div>
+
+        {/* Event List Container */}
+        <div className="p-6 overflow-y-auto space-y-4 flex-1">
+          {filteredEvents.length === 0 ? (
+            <p className="text-xs text-neutral-400 text-center py-8 italic">No audit records match the selected filter.</p>
+          ) : (
+            <div className="relative space-y-4">
+              <div className="absolute left-[15px] top-3 bottom-3 w-0.5 bg-neutral-200" />
+
+              {filteredEvents.map((evt, idx) => (
+                <div key={evt.id || idx} className="flex items-start gap-4 relative z-10">
+                  <div
+                    className={`w-8 h-8 rounded-full flex items-center justify-center text-xs font-bold text-white flex-shrink-0 shadow-sm ${
+                      evt.action === 'CREATE'
+                        ? 'bg-blue-600'
+                        : evt.action === 'APPROVE' || evt.action === 'COMPLETE'
+                        ? 'bg-emerald-600'
+                        : evt.action === 'SEND_BACK'
+                        ? 'bg-amber-500'
+                        : evt.action === 'REJECT'
+                        ? 'bg-red-600'
+                        : 'bg-indigo-600'
+                    }`}
+                  >
+                    {idx + 1}
+                  </div>
+
+                  <div className="flex-1 bg-neutral-50 rounded-xl p-4 border border-neutral-200 space-y-2 text-xs">
+                    <div className="flex items-center justify-between gap-2 flex-wrap">
+                      <div className="flex items-center gap-2">
+                        <span
+                          className={`px-2.5 py-0.5 rounded text-[10px] font-extrabold uppercase tracking-wide text-white ${
+                            evt.action === 'CREATE'
+                              ? 'bg-blue-600'
+                              : evt.action === 'APPROVE'
+                              ? 'bg-emerald-600'
+                              : evt.action === 'SEND_BACK'
+                              ? 'bg-amber-600'
+                              : 'bg-slate-700'
+                          }`}
+                        >
+                          {evt.action === 'CREATE' ? 'CASE CREATED' : evt.action}
+                        </span>
+                        <span className="font-bold text-neutral-800 text-xs">
+                          {STAGE_LABELS[evt.to_stage] || evt.to_stage}
+                        </span>
+                      </div>
+                      <span className="text-[11px] font-mono text-neutral-400">{formatDateTime(evt.created_at)}</span>
+                    </div>
+
+                    <p className="text-neutral-800 bg-white p-3 rounded-lg border border-neutral-200/80 text-xs leading-relaxed italic">
+                      "{evt.remarks || 'Stage decision recorded.'}"
+                    </p>
+
+                    <div className="flex items-center justify-between text-[11px] text-neutral-500 pt-1 border-t border-neutral-200/60">
+                      <span>Performing Officer: <strong className="text-neutral-800">{evt.performed_by_name || 'Rajesh Sharma'}</strong></span>
+                      <span>Role: <strong className="text-neutral-800">{evt.performed_by_role || 'DLAO'}</strong></span>
+                    </div>
+                  </div>
+                </div>
+              ))}
+            </div>
+          )}
+        </div>
+
+        {/* Footer */}
+        <div className="px-6 py-3 border-t border-neutral-200 bg-neutral-50 flex items-center justify-between">
+          <span className="text-[11px] text-neutral-400">Authenticated Audit Log • BhoomiSetu Audit System</span>
+          <button type="button" onClick={onClose} className="btn btn-secondary text-xs px-4 py-1.5 cursor-pointer">
+            Close
+          </button>
+        </div>
       </div>
     </div>
   );
