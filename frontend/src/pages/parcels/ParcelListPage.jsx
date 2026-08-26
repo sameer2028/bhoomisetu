@@ -125,7 +125,7 @@ export default function ParcelListPage() {
             placeholder="Search by survey no. (e.g. 123/2), owner name, village, or parcel code..."
             value={search}
             onChange={(e) => setSearch(e.target.value)}
-            className="form-input pl-9 text-xs"
+            className="form-input form-input-search text-xs"
           />
         </div>
 

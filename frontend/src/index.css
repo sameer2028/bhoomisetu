@@ -88,6 +88,11 @@
   padding: 0;
 }
 
+html, body, main, nav, div, section {
+  scroll-behavior: smooth;
+  -webkit-overflow-scrolling: touch;
+}
+
 html {
   font-size: 16px;
   scroll-behavior: smooth;
@@ -105,8 +110,8 @@ body {
 
 /* ─── Custom Scrollbar ─────────────────────────────────── */
 ::-webkit-scrollbar {
-  width: 6px;
-  height: 6px;
+  width: 7px;
+  height: 7px;
 }
 
 ::-webkit-scrollbar-track {
@@ -114,8 +119,13 @@ body {
 }
 
 ::-webkit-scrollbar-thumb {
-  background: #cbd5e1;
+  background: rgba(148, 163, 184, 0.4);
   border-radius: 9999px;
+  transition: background 0.2s ease;
+}
+
+::-webkit-scrollbar-thumb:hover {
+  background: rgba(100, 116, 139, 0.7);
 }
 
 ::-webkit-scrollbar-thumb:hover {
@@ -219,6 +229,10 @@ h1, h2, h3, h4, h5, h6 {
 
 .form-input:focus {
   @apply outline-none border-blue-500 ring-2 ring-blue-500/20 bg-white;
+}
+
+.form-input-search {
+  padding-left: 2.75rem !important;
 }
 
 .form-label {

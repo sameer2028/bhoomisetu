@@ -145,7 +145,7 @@ export default function CaseListPage() {
               placeholder="Search by case code (e.g. CAS-...), project name, parcel, or assigned officer..."
               value={search}
               onChange={(e) => setSearch(e.target.value)}
-              className="form-input pl-9 text-xs"
+              className="form-input form-input-search text-xs"
             />
           </div>
 

@@ -95,7 +95,7 @@ export default function ProjectListPage() {
             placeholder="Search by project name, code (PRJ-...), agency, or district..."
             value={search}
             onChange={(e) => setSearch(e.target.value)}
-            className="form-input pl-9 text-xs"
+            className="form-input form-input-search text-xs"
           />
         </div>
 

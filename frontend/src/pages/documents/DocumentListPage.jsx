@@ -224,7 +224,7 @@ export default function DocumentListPage() {
                 placeholder="Search by title, code, survey number, file name..."
                 value={search}
                 onChange={(e) => { setSearch(e.target.value); setPage(1); }}
-                className="form-input pl-10 text-sm"
+                className="form-input form-input-search text-sm"
               />
             </div>
 
