@@ -76,66 +76,68 @@ export default function MapToolbar({
     filters.statuses.length > 0 || filters.withinCorridor;
 
   return (
-    <div className="bg-white border-b border-neutral-200 px-4 py-2.5 flex flex-col lg:flex-row lg:items-center gap-2.5 flex-shrink-0">
+    <div className="bg-white/95 backdrop-blur-md border-b border-slate-200/90 px-4 py-2.5 flex flex-col lg:flex-row lg:items-center gap-2.5 flex-shrink-0 shadow-subtle z-20">
       {/* Survey number / parcel search */}
       <div ref={boxRef} className="relative w-full lg:w-[290px] flex-shrink-0">
-        <Search className="w-3.5 h-3.5 text-neutral-400 absolute left-2.5 top-1/2 -translate-y-1/2 pointer-events-none" />
+        <Search className="w-3.5 h-3.5 text-slate-400 absolute left-2.5 top-1/2 -translate-y-1/2 pointer-events-none" />
         <input
           type="text"
           value={term}
           onChange={(e) => setTerm(e.target.value)}
           onFocus={() => results.length > 0 && setOpen(true)}
-          placeholder="Search survey no. / parcel / owner"
-          className="form-input !py-1.5 !pl-8 !pr-8 !text-xs"
+          placeholder="Search survey no. / parcel / owner..."
+          className="form-input !py-1.5 !pl-8 !pr-8 !text-xs bg-slate-50 border-slate-200 focus:bg-white"
         />
         {searching ? (
-          <Loader2 className="w-3.5 h-3.5 text-blue-500 absolute right-2.5 top-1/2 -translate-y-1/2 animate-spin" />
+          <Loader2 className="w-3.5 h-3.5 text-blue-600 absolute right-2.5 top-1/2 -translate-y-1/2 animate-spin" />
         ) : term ? (
           <button
+            type="button"
             onClick={() => { setTerm(''); setResults([]); setOpen(false); }}
-            className="absolute right-2 top-1/2 -translate-y-1/2 p-0.5 rounded text-neutral-400 hover:text-neutral-700"
+            className="absolute right-2 top-1/2 -translate-y-1/2 p-0.5 rounded text-slate-400 hover:text-slate-700"
           >
             <X className="w-3.5 h-3.5" />
           </button>
         ) : null}
 
         {open && (
-          <div className="absolute top-full left-0 right-0 mt-1 bg-white border border-neutral-200 rounded-lg shadow-xl z-[1200] max-h-72 overflow-y-auto">
+          <div className="absolute top-full left-0 right-0 mt-1.5 bg-white border border-slate-200 rounded-xl shadow-floating z-[1200] max-h-72 overflow-y-auto">
             {results.length === 0 ? (
-              <p className="px-3 py-3 text-xs text-neutral-400 text-center">
+              <p className="px-3 py-3 text-xs text-slate-400 text-center font-medium">
                 No parcel matches "{term}"
               </p>
             ) : (
-              <ul>
+              <ul className="divide-y divide-slate-100">
                 {results.map((r) => {
                   const style = getStatusStyle(r.acquisition_status);
                   return (
                     <li key={r.id}>
                       <button
+                        type="button"
                         onClick={() => handlePick(r)}
                         disabled={!r.has_geometry}
-                        className="w-full text-left px-3 py-2 hover:bg-blue-50 transition-colors border-b border-neutral-100 last:border-0 disabled:opacity-50"
+                        className="w-full text-left px-3.5 py-2.5 hover:bg-blue-50/70 transition-colors disabled:opacity-50"
                       >
                         <div className="flex items-center gap-2">
                           <span
                             className="w-2.5 h-2.5 rounded-sm border flex-shrink-0"
                             style={{ backgroundColor: style.fill, borderColor: style.stroke }}
                           />
-                          <span className="text-[11px] font-mono font-bold text-neutral-900">
+                          <span className="text-xs font-mono font-bold text-slate-900">
                             {r.parcel_code}
                           </span>
-                          <span className="text-[11px] text-neutral-600">
+                          <span className="text-xs text-slate-600 font-medium">
                             Survey {r.survey_number}
                           </span>
                           {!r.has_geometry && (
-                            <span className="text-[9px] text-amber-600 font-semibold">
+                            <span className="text-[9px] font-bold text-amber-700 bg-amber-50 px-1 py-0.2 rounded border border-amber-200">
                               NOT MAPPED
                             </span>
                           )}
                         </div>
-                        <p className="text-[10px] text-neutral-400 mt-0.5 truncate pl-4.5">
+                        <p className="text-[10.5px] text-slate-400 mt-0.5 truncate pl-4.5 font-medium">
                           {r.owner_name} &middot; {r.village}, {r.district}
-                          {r.project_code ? ` \u00b7 ${r.project_code}` : ''}
+                          {r.project_code ? ` \u00b7 [${r.project_code}]` : ''}
                         </p>
                       </button>
                     </li>
@@ -152,10 +154,10 @@ export default function MapToolbar({
         <select
           value={filters.projectId}
           onChange={(e) => onChangeFilter({ projectId: e.target.value })}
-          className="form-select !py-1.5 !text-xs w-full sm:w-[220px]"
+          className="form-select !py-1.5 !text-xs w-full sm:w-[220px] bg-slate-50 border-slate-200"
           title="Filter by project"
         >
-          <option value="">All Projects</option>
+          <option value="">All Infrastructure Projects</option>
           {projects.map((p) => (
             <option key={p.id} value={p.id}>
               [{p.project_code}] {p.name}
@@ -166,7 +168,7 @@ export default function MapToolbar({
         <select
           value={filters.state}
           onChange={(e) => onChangeFilter({ state: e.target.value, district: '', village: '' })}
-          className="form-select !py-1.5 !text-xs w-full sm:w-[150px]"
+          className="form-select !py-1.5 !text-xs w-full sm:w-[150px] bg-slate-50 border-slate-200"
           title="Filter by state"
         >
           <option value="">All States</option>
@@ -180,7 +182,7 @@ export default function MapToolbar({
         <select
           value={filters.district}
           onChange={(e) => onChangeFilter({ district: e.target.value, village: '' })}
-          className="form-select !py-1.5 !text-xs w-full sm:w-[150px]"
+          className="form-select !py-1.5 !text-xs w-full sm:w-[150px] bg-slate-50 border-slate-200"
           title="Filter by district"
         >
           <option value="">All Districts</option>
@@ -194,7 +196,7 @@ export default function MapToolbar({
         <select
           value={filters.village}
           onChange={(e) => onChangeFilter({ village: e.target.value })}
-          className="form-select !py-1.5 !text-xs w-full sm:w-[150px]"
+          className="form-select !py-1.5 !text-xs w-full sm:w-[150px] bg-slate-50 border-slate-200"
           title="Filter by village"
         >
           <option value="">All Villages</option>
@@ -206,16 +208,16 @@ export default function MapToolbar({
         </select>
 
         <label
-          className="flex items-center gap-1.5 px-2.5 py-1.5 rounded-lg border border-neutral-300 bg-white cursor-pointer hover:border-neutral-400 transition-colors"
+          className="flex items-center gap-1.5 px-2.5 py-1.5 rounded-lg border border-slate-200 bg-slate-50 cursor-pointer hover:border-slate-300 transition-colors"
           title="Spatial query: only parcels whose boundary intersects the project corridor"
         >
           <input
             type="checkbox"
             checked={filters.withinCorridor}
             onChange={(e) => onChangeFilter({ withinCorridor: e.target.checked })}
-            className="w-3 h-3 accent-blue-900"
+            className="w-3.5 h-3.5 accent-blue-700 rounded"
           />
-          <span className="text-[11px] font-medium text-neutral-700 whitespace-nowrap">
+          <span className="text-[11px] font-semibold text-slate-700 whitespace-nowrap">
             In corridor only
           </span>
         </label>
@@ -223,15 +225,16 @@ export default function MapToolbar({
 
       {/* Actions */}
       <div className="flex items-center gap-2 flex-shrink-0">
-        <span className="text-[11px] text-neutral-500 whitespace-nowrap flex items-center gap-1">
+        <span className="text-[11px] text-slate-500 whitespace-nowrap flex items-center gap-1 font-medium bg-slate-100 px-2 py-1 rounded-md">
           <MapPinned className="w-3.5 h-3.5 text-emerald-600" />
-          <strong className="text-neutral-800">{activeCount}</strong> mapped
+          <strong className="text-slate-900">{activeCount}</strong> mapped
         </span>
 
         {hasActiveFilters && (
           <button
+            type="button"
             onClick={onResetFilters}
-            className="btn btn-ghost !py-1.5 !px-2.5 !text-[11px] flex items-center gap-1"
+            className="btn btn-ghost !py-1.5 !px-2.5 !text-[11px] font-semibold flex items-center gap-1 text-slate-600 hover:text-slate-900"
             title="Clear all filters"
           >
             <SlidersHorizontal className="w-3.5 h-3.5" /> Reset
@@ -239,13 +242,15 @@ export default function MapToolbar({
         )}
 
         <button
+          type="button"
           onClick={onZoomToExtent}
-          className="btn btn-secondary !py-1.5 !px-2.5 !text-[11px] flex items-center gap-1"
+          className="btn btn-secondary !py-1.5 !px-2.5 !text-[11px] font-semibold flex items-center gap-1 shadow-sm"
           title="Zoom to the extent of the filtered parcels"
         >
-          <Maximize2 className="w-3.5 h-3.5" /> Fit
+          <Maximize2 className="w-3.5 h-3.5" /> Fit Bounds
         </button>
       </div>
     </div>
   );
 }
+
