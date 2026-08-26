@@ -6,42 +6,58 @@ export default function Header() {
   const { user, roleLabel } = useAuth();
 
   return (
-    <header className="h-16 bg-white border-b border-neutral-200 flex items-center justify-between px-6 flex-shrink-0">
-      {/* Left — Page context breadcrumb area */}
-      <div className="flex items-center gap-4">
-        <div id="header-breadcrumb" />
+    <header className="h-16 bg-white border-b border-slate-200/90 flex items-center justify-between px-6 flex-shrink-0 sticky top-0 z-30 shadow-subtle">
+      {/* Left — Breadcrumb area */}
+      <div className="flex items-center gap-3">
+        <div id="header-breadcrumb" className="text-xs font-semibold text-slate-500 flex items-center gap-1.5" />
       </div>
 
-      {/* Right — Actions */}
-      <div className="flex items-center gap-3">
-        {/* Search */}
+      {/* Right — Search & Actions */}
+      <div className="flex items-center gap-4">
+        {/* Global Search Input */}
         <div className="relative hidden md:block">
-          <Search className="w-4 h-4 text-neutral-400 absolute left-3 top-1/2 -translate-y-1/2" />
+          <Search className="w-4 h-4 text-slate-400 absolute left-3 top-1/2 -translate-y-1/2" />
           <input
             type="text"
-            placeholder="Search projects, parcels..."
-            className="form-input pl-9 pr-4 py-2 w-64 text-sm bg-neutral-50 border-neutral-200 focus:bg-white"
+            placeholder="Search cases, parcels, projects..."
+            className="form-input pl-9 pr-14 py-1.5 w-80 text-xs bg-slate-50 border-slate-200 rounded-xl focus:bg-white transition-all shadow-inner focus:shadow-none font-medium"
           />
+          <span className="absolute right-2.5 top-1/2 -translate-y-1/2 text-[10px] font-mono font-bold text-slate-500 bg-slate-200/70 px-1.5 py-0.5 rounded-md border border-slate-300/80">
+            Ctrl + K
+          </span>
         </div>
 
         {/* Notifications Bell */}
-        <button className="relative p-2 rounded-lg text-neutral-500 hover:bg-neutral-100 hover:text-neutral-700 transition-colors">
+        <button
+          type="button"
+          aria-label="View notifications"
+          className="relative p-2 rounded-xl text-slate-500 hover:bg-slate-100 hover:text-slate-800 transition-colors focus:outline-none"
+        >
           <Bell className="w-5 h-5" />
-          <span className="absolute top-1.5 right-1.5 w-2 h-2 bg-red-500 rounded-full" />
+          <span className="absolute top-1 right-1 w-4 h-4 bg-rose-600 text-white text-[9px] font-black rounded-full flex items-center justify-center ring-2 ring-white">
+            3
+          </span>
         </button>
 
-        {/* User pill clickable link to profile */}
-        <Link to="/profile" className="flex items-center gap-2 pl-3 border-l border-neutral-200 hover:opacity-80 transition-opacity cursor-pointer group">
-          <div className="text-right hidden sm:block">
-            <p className="text-sm font-medium text-neutral-800 group-hover:text-blue-600 transition-colors">{user?.full_name}</p>
-            <p className="text-[10px] text-neutral-400">{roleLabel}</p>
+        {/* User Profile Pill */}
+        <Link
+          to="/profile"
+          className="flex items-center gap-2.5 pl-3 border-l border-slate-200 hover:bg-slate-50 px-2 py-1.5 rounded-xl transition-all cursor-pointer group"
+        >
+          <div className="w-8 h-8 rounded-full bg-blue-600 text-white flex items-center justify-center text-xs font-black shadow-sm flex-shrink-0">
+            {user?.full_name?.split(' ').map((n) => n[0]).join('').slice(0, 2) || 'RS'}
           </div>
-          <div className="w-8 h-8 rounded-full bg-gradient-to-br from-blue-800 to-blue-600 flex items-center justify-center text-white text-xs font-bold shadow-sm">
-            {user?.full_name?.split(' ').map(n => n[0]).join('').slice(0, 2)}
+          <div className="text-left hidden sm:block">
+            <p className="text-xs font-bold text-slate-900 group-hover:text-blue-700 transition-colors leading-tight">
+              {user?.full_name || 'Rajesh Sharma'}
+            </p>
+            <p className="text-[10px] text-slate-500 font-medium">{roleLabel || 'District Land Acquisition Officer'}</p>
           </div>
         </Link>
       </div>
     </header>
   );
 }
+
+
 

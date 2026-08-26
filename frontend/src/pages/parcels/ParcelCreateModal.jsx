@@ -57,20 +57,24 @@ export default function ParcelCreateModal({ isOpen, onClose, onCreated, defaultP
   };
 
   return (
-    <div className="fixed inset-0 z-50 flex items-center justify-center bg-neutral-900/50 backdrop-blur-sm p-4 overflow-y-auto">
-      <div className="bg-white rounded-xl shadow-xl border border-neutral-200 w-full max-w-2xl overflow-hidden fade-in my-8">
+    <div className="fixed inset-0 z-50 flex items-center justify-center bg-slate-950/60 backdrop-blur-sm p-4 overflow-y-auto">
+      <div className="bg-white rounded-2xl shadow-floating border border-slate-200/90 w-full max-w-2xl overflow-hidden fade-in my-8">
         {/* Header */}
-        <div className="flex items-center justify-between px-6 py-4 border-b border-neutral-100 bg-neutral-50">
-          <div className="flex items-center gap-2">
-            <div className="w-8 h-8 rounded-lg bg-emerald-100 flex items-center justify-center text-emerald-700">
-              <MapPin className="w-4 h-4" />
+        <div className="flex items-center justify-between px-6 py-4 border-b border-slate-100 bg-slate-50/70">
+          <div className="flex items-center gap-3">
+            <div className="w-9 h-9 rounded-xl bg-emerald-100/80 border border-emerald-200 flex items-center justify-center text-emerald-700 shadow-sm">
+              <MapPin className="w-5 h-5" />
             </div>
             <div>
-              <h2 className="text-base font-bold text-neutral-900">Add New Land Parcel</h2>
-              <p className="text-xs text-neutral-500">Register land record parcel and assign to acquisition project</p>
+              <h2 className="text-sm font-bold text-slate-900 leading-tight">Add New Land Parcel</h2>
+              <p className="text-[11px] text-slate-500 font-medium">Register land record parcel and assign to acquisition project</p>
             </div>
           </div>
-          <button onClick={onClose} className="p-1 rounded-lg text-neutral-400 hover:bg-neutral-200 hover:text-neutral-600 transition-colors">
+          <button
+            type="button"
+            onClick={onClose}
+            className="p-1.5 rounded-lg text-slate-400 hover:bg-slate-200/70 hover:text-slate-700 transition-colors"
+          >
             <X className="w-5 h-5" />
           </button>
         </div>
@@ -78,8 +82,8 @@ export default function ParcelCreateModal({ isOpen, onClose, onCreated, defaultP
         {/* Form */}
         <form onSubmit={handleSubmit} className="p-6 space-y-4">
           {error && (
-            <div className="flex items-center gap-2 p-3 bg-red-50 border border-red-200 rounded-lg text-xs text-red-700">
-              <AlertCircle className="w-4 h-4 flex-shrink-0" />
+            <div className="flex items-center gap-2 p-3 bg-rose-50 border border-rose-200 rounded-lg text-xs font-semibold text-rose-800">
+              <AlertCircle className="w-4 h-4 flex-shrink-0 text-rose-600" />
               <span>{error}</span>
             </div>
           )}
@@ -228,12 +232,12 @@ export default function ParcelCreateModal({ isOpen, onClose, onCreated, defaultP
             </div>
           </div>
 
-          <div className="flex justify-end gap-3 pt-4 border-t border-neutral-100">
+          <div className="flex justify-end gap-2.5 pt-4 border-t border-slate-100">
             <button type="button" onClick={onClose} className="btn btn-secondary text-xs">
               Cancel
             </button>
-            <button type="submit" disabled={loading} className="btn btn-success text-xs flex items-center gap-1.5">
-              {loading ? <span className="spinner" /> : <MapPin className="w-4 h-4" />}
+            <button type="submit" disabled={loading} className="btn btn-success text-xs font-semibold flex items-center gap-1.5">
+              {loading ? <span className="spinner !border-white/30 !border-t-white" /> : <MapPin className="w-4 h-4" />}
               Save Land Parcel
             </button>
           </div>
@@ -242,3 +246,4 @@ export default function ParcelCreateModal({ isOpen, onClose, onCreated, defaultP
     </div>
   );
 }
+
