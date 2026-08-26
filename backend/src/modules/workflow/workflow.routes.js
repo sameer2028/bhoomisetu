@@ -168,7 +168,7 @@ router.post('/cases', authenticate, rbac(ROLES.DLAO, ROLES.PIA, ROLES.ADMIN), as
   try {
     const { project_id, parcel_id, priority, due_date, remarks } = req.body;
 
-    if (!project_id) {
+    if (!project_id || typeof project_id !== 'string' || project_id.trim() === '') {
       return apiResponse(res, {
         status: 400,
         success: false,
@@ -176,8 +176,13 @@ router.post('/cases', authenticate, rbac(ROLES.DLAO, ROLES.PIA, ROLES.ADMIN), as
       });
     }
 
+    const cleanProjectId = project_id.trim();
+    const cleanParcelId = parcel_id && typeof parcel_id === 'string' && parcel_id.trim() !== '' && parcel_id !== 'null' && parcel_id !== 'undefined' ? parcel_id.trim() : null;
+    const cleanDueDate = due_date && typeof due_date === 'string' && due_date.trim() !== '' && due_date !== 'null' && due_date !== 'undefined' ? due_date.trim() : null;
+    const cleanRemarks = remarks && typeof remarks === 'string' && remarks.trim() !== '' ? remarks.trim() : null;
+
     // Verify project exists
-    const project = await queryOne('SELECT id, name FROM projects WHERE id::text = $1', [project_id]);
+    const project = await queryOne('SELECT id, name FROM projects WHERE id::text = $1', [cleanProjectId]);
     if (!project) {
       return apiResponse(res, {
         status: 404,
@@ -187,8 +192,8 @@ router.post('/cases', authenticate, rbac(ROLES.DLAO, ROLES.PIA, ROLES.ADMIN), as
     }
 
     // Verify parcel if provided
-    if (parcel_id) {
-      const parcel = await queryOne('SELECT id FROM parcels WHERE id::text = $1', [parcel_id]);
+    if (cleanParcelId) {
+      const parcel = await queryOne('SELECT id FROM parcels WHERE id::text = $1', [cleanParcelId]);
       if (!parcel) {
         return apiResponse(res, {
           status: 404,
@@ -211,14 +216,14 @@ router.post('/cases', authenticate, rbac(ROLES.DLAO, ROLES.PIA, ROLES.ADMIN), as
       [
         id,
         caseCode,
-        project_id,
-        parcel_id || null,
+        cleanProjectId,
+        cleanParcelId,
         WORKFLOW_STAGES.PROJECT_PROPOSAL,
         req.user.id,
         CASE_STATUS.PENDING,
-        due_date || null,
+        cleanDueDate,
         validPriority,
-        remarks || null,
+        cleanRemarks,
       ]
     );
 
@@ -231,9 +236,9 @@ router.post('/cases', authenticate, rbac(ROLES.DLAO, ROLES.PIA, ROLES.ADMIN), as
         generateId(),
         id,
         WORKFLOW_STAGES.PROJECT_PROPOSAL,
-        WORKFLOW_ACTIONS.CREATE || 'CREATE',
+        WORKFLOW_ACTIONS.CREATE,
         req.user.id,
-        remarks || 'Case created',
+        cleanRemarks || 'Case created',
       ]
     );
 

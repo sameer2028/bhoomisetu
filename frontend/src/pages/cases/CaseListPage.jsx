@@ -340,10 +340,17 @@ function CreateCaseModal({ onClose, onCreated }) {
     setSubmitting(true);
     setError('');
     try {
-      await api.post('/workflow/cases', formData);
+      const payload = {
+        project_id: formData.project_id,
+        parcel_id: formData.parcel_id || undefined,
+        priority: formData.priority,
+        due_date: formData.due_date || undefined,
+        remarks: formData.remarks || undefined,
+      };
+      await api.post('/workflow/cases', payload);
       onCreated();
     } catch (err) {
-      setError(err.response?.data?.error || 'Failed to create case.');
+      setError(err.response?.data?.error || err.message || 'Failed to create case.');
     } finally {
       setSubmitting(false);
     }
