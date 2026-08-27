@@ -36,7 +36,7 @@ const NAV_GROUPS = [
       { path: '/documents', label: 'Documents', icon: FileText, roles: ['DLAO', 'PIA', 'SGA', 'FRO', 'ADMIN'] },
       { path: '/ai/mismatch', label: 'AI Mismatch', icon: Brain, roles: ['DLAO', 'SGA', 'ADMIN'] },
       { path: '/compensation', label: 'Compensation', icon: IndianRupee, roles: ['DLAO', 'SGA', 'ADMIN'] },
-      { path: '/rr', label: 'R&R', icon: Users, roles: ['DLAO', 'SGA', 'ADMIN'] },
+      {path: '/rr', label: 'R&R', icon: Users, roles: ['DLAO', 'PIA', 'SGA', 'FRO', 'ADMIN'] },
     ],
   },
   {

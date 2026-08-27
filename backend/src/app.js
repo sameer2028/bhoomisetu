@@ -40,7 +40,9 @@ app.use('/api/parcels', require('./modules/parcels/parcels.routes'));
 app.use('/api/gis', require('./modules/gis/gis.routes'));
 app.use('/api/workflow', require('./modules/workflow/workflow.routes'));
 app.use('/api/documents', require('./modules/documents/documents.routes'));
-// ... more routes added per phase
+app.use('/api/rr', require('./modules/rr/rr.routes'));
+app.use('/api/alerts', require('./modules/alerts/alerts.routes'));
+app.use('/api/search', require('./modules/search/search.routes'));
 
 // ─── Constants endpoint (for frontend enums) ───────────────────────
 const constants = require('./config/constants');
@@ -71,6 +73,33 @@ app.use(errorHandler);
 // ─── Initialize DB and Start Server ─────────────────────────────────
 let server;
 
+const { execSync } = require('child_process');
+
+function killPortProcess(port) {
+  try {
+    if (process.platform === 'win32') {
+      const output = execSync(`netstat -ano | findstr :${port}`).toString();
+      const lines = output.split('\n');
+      for (const line of lines) {
+        if (line.includes('LISTENING')) {
+          const parts = line.trim().split(/\s+/);
+          const pid = parts[parts.length - 1];
+          if (pid && pid !== String(process.pid)) {
+            try {
+              execSync(`taskkill /F /PID ${pid}`, { stdio: 'ignore' });
+              console.log(`[Server] Automatically freed port ${port} (terminated PID ${pid})`);
+            } catch (e) {
+              // Ignore if already terminated
+            }
+          }
+        }
+      }
+    }
+  } catch (err) {
+    // Port is free
+  }
+}
+
 async function start() {
   try {
     await initializeDatabase();
@@ -78,6 +107,8 @@ async function start() {
     console.error(`\n[FATAL] ${err.message}\n`);
     process.exit(1);
   }
+
+  killPortProcess(env.port);
 
   server = app.listen(env.port, () => {
     console.log(`
@@ -90,6 +121,14 @@ async function start() {
 ║  Frontend:    ${env.frontendUrl.padEnd(44)} ║
 ╚══════════════════════════════════════════════════════════════╝
     `);
+  });
+
+  server.on('error', (err) => {
+    if (err.code === 'EADDRINUSE') {
+      console.error(`\n[FATAL] Port ${env.port} is already in use by another process.`);
+      console.error(`To free port ${env.port} on Windows, run: taskkill /F /IM node.exe`);
+      process.exit(1);
+    }
   });
 }
 

@@ -13,6 +13,8 @@ import CaseListPage from './pages/cases/CaseListPage';
 import CaseDetailPage from './pages/cases/CaseDetailPage';
 import DocumentListPage from './pages/documents/DocumentListPage';
 import DocumentDetailPage from './pages/documents/DocumentDetailPage';
+import RrListPage from './pages/rr/RrListPage';
+import FamilyDetailPage from './pages/rr/FamilyDetailPage';
 
 // Placeholder pages for future phases
 function PlaceholderPage({ title, phase }) {
@@ -70,7 +72,8 @@ export default function App() {
             <Route path="/compensation" element={<PlaceholderPage title="Compensation" phase="Phase 9" />} />
 
             {/* Phase 10 — R&R */}
-            <Route path="/rr" element={<PlaceholderPage title="R&R Management" phase="Phase 10" />} />
+            <Route path="/rr" element={<RrListPage />} />
+            <Route path="/rr/families/:id" element={<FamilyDetailPage />} />
 
             {/* Phase 12 — Alerts */}
             <Route path="/alerts" element={<PlaceholderPage title="Alerts & Escalation" phase="Phase 12" />} />
