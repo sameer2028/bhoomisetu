@@ -246,14 +246,12 @@ CREATE TABLE IF NOT EXISTS document_versions (
 CREATE TABLE IF NOT EXISTS compensation (
   id                 UUID PRIMARY KEY DEFAULT gen_random_uuid(),
   parcel_id          UUID REFERENCES parcels(id) ON DELETE CASCADE,
-  case_id            UUID REFERENCES acquisition_cases(id) ON DELETE SET NULL,
-  amount_assessed    NUMERIC(15,2),
-  amount_approved    NUMERIC(15,2),
-  amount_paid        NUMERIC(15,2) DEFAULT 0,
-  payment_status     VARCHAR(20) NOT NULL DEFAULT 'NOT_ASSESSED'
-                       CHECK (payment_status IN ('NOT_ASSESSED','ASSESSED','APPROVED','PARTIALLY_PAID','FULLY_PAID')),
+  owner_name         TEXT,
+  assessed_amount    NUMERIC(15,2) NOT NULL DEFAULT 0,
+  paid_amount        NUMERIC(15,2) NOT NULL DEFAULT 0,
+  payment_status     VARCHAR(30) NOT NULL DEFAULT 'Pending'
+                       CHECK (payment_status IN ('Pending','Partially Paid','Fully Paid')),
   payment_date       DATE,
-  payment_reference  VARCHAR(100),
   remarks            TEXT,
   created_at         TIMESTAMPTZ NOT NULL DEFAULT now(),
   updated_at         TIMESTAMPTZ NOT NULL DEFAULT now()
@@ -415,6 +413,19 @@ BEGIN
     RAISE NOTICE 'projects.corridor widened to MultiPolygon';
   END IF;
 END $$;
+
+-- Phase 9 reconciliation for compensation table
+ALTER TABLE compensation ADD COLUMN IF NOT EXISTS owner_name      TEXT;
+ALTER TABLE compensation ADD COLUMN IF NOT EXISTS assessed_amount NUMERIC(15,2) DEFAULT 0;
+ALTER TABLE compensation ADD COLUMN IF NOT EXISTS paid_amount     NUMERIC(15,2) DEFAULT 0;
+ALTER TABLE compensation ADD COLUMN IF NOT EXISTS payment_status  VARCHAR(30) DEFAULT 'Pending';
+ALTER TABLE compensation ADD COLUMN IF NOT EXISTS payment_date    DATE;
+ALTER TABLE compensation ADD COLUMN IF NOT EXISTS remarks         TEXT;
+
+-- Reconcile payment_status check constraint to support 'Pending', 'Partially Paid', 'Fully Paid'
+ALTER TABLE compensation DROP CONSTRAINT IF EXISTS compensation_payment_status_check;
+ALTER TABLE compensation ADD CONSTRAINT compensation_payment_status_check
+  CHECK (payment_status IN ('Pending', 'Partially Paid', 'Fully Paid', 'NOT_ASSESSED', 'ASSESSED', 'APPROVED', 'PARTIALLY_PAID', 'FULLY_PAID'));
 
 -- ---------------------------------------------------------------------------
 --  Attribute indexes

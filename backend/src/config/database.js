@@ -129,6 +129,7 @@ async function initializeDatabase() {
   const { seedDocuments } = require('../seeds/seedDocuments');
   const { seedRr } = require('../seeds/seedRr');
   const seedAlerts = require('../seeds/seedAlerts');
+  const { seedCompensation } = require('../seeds/seedCompensation');
 
   await seedUsers();
   await seedProjects();
@@ -138,6 +139,7 @@ async function initializeDatabase() {
   await seedDocuments();
   await seedRr();
   await seedAlerts();
+  await seedCompensation();
 }
 
 async function closeDb() {
