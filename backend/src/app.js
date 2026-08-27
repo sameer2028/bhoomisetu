@@ -40,6 +40,7 @@ app.use('/api/parcels', require('./modules/parcels/parcels.routes'));
 app.use('/api/gis', require('./modules/gis/gis.routes'));
 app.use('/api/workflow', require('./modules/workflow/workflow.routes'));
 app.use('/api/documents', require('./modules/documents/documents.routes'));
+app.use('/api/compensation', require('./modules/compensation/compensation.routes'));
 // ... more routes added per phase
 
 // ─── Constants endpoint (for frontend enums) ───────────────────────
