@@ -1,83 +1,190 @@
 """
-data_adapter.py
+Generates sample "scanned" land record document images for testing
+the OCR + mismatch detection pipeline.
 
-Single point of contact between the AI service and its data sources.
-- get_parcel() reads REAL data from the live Postgres/Neon database.
-- get_document() reads MOCK local files, since real document uploads
-  don't exist yet (Phase 7 in progress).
+Each document simulates a survey report an officer might upload.
+Some intentionally MATCH the official parcel record, others
+intentionally DIFFER (area mismatch, village misspelling, etc.)
+so you have real test cases for Day 3-4 work.
 
-When Phase 7 lands, only get_document() needs to change.
+IMPORTANT: Edit the `official_parcel` dict below to match a REAL
+parcel row from your database (the one you tested with, survey
+number "123/2") so your test documents are grounded in real data.
 """
 
+from PIL import Image, ImageDraw, ImageFont
 import os
-import json
-from pathlib import Path
-import psycopg2
-import psycopg2.extras
-from dotenv import load_dotenv
 
-load_dotenv()
+OUTPUT_DIR = "sample_docs"
+os.makedirs(OUTPUT_DIR, exist_ok=True)
 
-DATABASE_URL = os.getenv("DATABASE_URL")
+# --- EDIT THIS to match a real row from your `parcels` table ---
+official_parcel = {
+    "survey_number": "123/2",
+    "area_acres": "1.25",
+    "village": "Rampur",
+    "owner_name": "Ram Kumar Singh",
+    "district": "Lucknow",
+}
+# -----------------------------------------------------------------
 
-# Path to your local mock documents folder
-MOCK_DOCS_DIR = Path(__file__).parent.parent / "data" / "sample_docs"
-MOCK_DOCS_INDEX = Path(__file__).parent.parent / "data" / "mock_parcels.json"
+# Font candidates across Mac, Windows, and Linux, tried in order.
+# Using a real TTF at a real size is essential for OCR to work well —
+# PIL's load_default() bitmap font is unusable for this purpose.
+BOLD_FONT_CANDIDATES = [
+    "/System/Library/Fonts/Supplemental/Arial Bold.ttf",       # Mac
+    "/System/Library/Fonts/Helvetica.ttc",                       # Mac
+    "C:\\Windows\\Fonts\\arialbd.ttf",                           # Windows
+    "/usr/share/fonts/truetype/dejavu/DejaVuSans-Bold.ttf",     # Linux
+]
+BODY_FONT_CANDIDATES = [
+    "/System/Library/Fonts/Supplemental/Courier New.ttf",       # Mac
+    "/System/Library/Fonts/Menlo.ttc",                            # Mac
+    "C:\\Windows\\Fonts\\consola.ttf",                           # Windows
+    "/usr/share/fonts/truetype/dejavu/DejaVuSansMono.ttf",      # Linux
+]
+SMALL_FONT_CANDIDATES = [
+    "/System/Library/Fonts/Supplemental/Arial Italic.ttf",      # Mac
+    "/System/Library/Fonts/Helvetica.ttc",                        # Mac
+    "C:\\Windows\\Fonts\\ariali.ttf",                            # Windows
+    "/usr/share/fonts/truetype/dejavu/DejaVuSans-Oblique.ttf",  # Linux
+]
 
 
-def get_db_connection():
-    """Open a new connection to the real Postgres database."""
-    if not DATABASE_URL:
-        raise RuntimeError("DATABASE_URL is not set. Check ai-service/.env")
-    return psycopg2.connect(DATABASE_URL, cursor_factory=psycopg2.extras.RealDictCursor)
-
-
-def get_parcel(parcel_id: str) -> dict | None:
-    """
-    Fetch a real parcel record from the live database by its ID.
-    Returns None if no matching parcel is found.
-    """
-    query = "SELECT * FROM parcels WHERE id = %s;"
-    conn = get_db_connection()
+def _first_working_font(candidates, size):
+    for path in candidates:
+        try:
+            return ImageFont.truetype(path, size)
+        except Exception:
+            continue
+    # Last resort: PIL ships a real (non-bitmap) default in recent
+    # versions that accepts a size argument. If that also fails,
+    # we're truly out of options, but this should not happen.
     try:
-        with conn.cursor() as cur:
-            cur.execute(query, (parcel_id,))
-            row = cur.fetchone()
-            return dict(row) if row else None
-    finally:
-        conn.close()
+        return ImageFont.load_default(size=size)
+    except TypeError:
+        return ImageFont.load_default()
 
 
-def get_parcel_by_survey_number(survey_number: str) -> dict | None:
-    """
-    Fetch a real parcel record by survey number instead of UUID —
-    often easier to work with when testing manually.
-    """
-    query = "SELECT * FROM parcels WHERE survey_number = %s;"
-    conn = get_db_connection()
-    try:
-        with conn.cursor() as cur:
-            cur.execute(query, (survey_number,))
-            row = cur.fetchone()
-            return dict(row) if row else None
-    finally:
-        conn.close()
+def _load_fonts():
+    font_title = _first_working_font(BOLD_FONT_CANDIDATES, 30)
+    font_body = _first_working_font(BODY_FONT_CANDIDATES, 24)
+    font_small = _first_working_font(SMALL_FONT_CANDIDATES, 17)
+    return font_title, font_body, font_small
 
 
-def get_document(document_filename: str) -> Path:
-    """
-    MOCKED: returns the file path to a local sample document.
-    Replace this with a real file-storage lookup once Phase 7
-    document uploads exist (e.g. reading from backend/uploads/).
-    """
-    doc_path = MOCK_DOCS_DIR / document_filename
-    if not doc_path.exists():
-        raise FileNotFoundError(f"Mock document not found: {doc_path}")
-    return doc_path
+def render_document(filename, title, fields, note=""):
+    """Render a simple typed 'survey report' style document as an image."""
+    W, H = 1400, 1000  # higher resolution improves OCR accuracy significantly
+    img = Image.new("RGB", (W, H), color=(255, 255, 255))
+    draw = ImageDraw.Draw(img)
+
+    font_title, font_body, font_small = _load_fonts()
+
+    # Header
+    draw.rectangle([(50, 50), (W - 50, 160)], outline=(0, 0, 0), width=3)
+    draw.text((80, 75), "LAND SURVEY REPORT", font=font_title, fill=(0, 0, 0))
+
+    draw.text((80, 190), title, font=font_body, fill=(0, 0, 0))
+    draw.line([(80, 245), (W - 80, 245)], fill=(0, 0, 0), width=2)
+
+    y = 300
+    for label, value in fields.items():
+        draw.text((100, y), f"{label}:", font=font_body, fill=(0, 0, 0))
+        draw.text((500, y), str(value), font=font_body, fill=(0, 0, 0))
+        y += 80
+
+    if note:
+        draw.text((80, H - 90), note, font=font_small, fill=(90, 90, 90))
+
+    path = os.path.join(OUTPUT_DIR, filename)
+    img.save(path)
+    print(f"Created {path}")
 
 
-def list_mock_documents() -> list[str]:
-    """Helper: list all mock documents currently available for testing."""
-    if not MOCK_DOCS_DIR.exists():
-        return []
-    return [f.name for f in MOCK_DOCS_DIR.iterdir() if f.is_file()]
+# 1. EXACT MATCH — clean document, everything agrees with official record
+render_document(
+    "doc_001_clean_match.png",
+    "Survey conducted: 12-Jan-2026",
+    {
+        "Survey No": official_parcel["survey_number"],
+        "Area": f"{official_parcel['area_acres']} acres",
+        "Village": official_parcel["village"],
+        "Owner": official_parcel["owner_name"],
+        "District": official_parcel["district"],
+    },
+    note="Test case: should be marked VERIFIED (no mismatch)",
+)
+
+# 2. AREA MISMATCH — document says less area than official record
+render_document(
+    "doc_002_area_mismatch.png",
+    "Survey conducted: 15-Jan-2026",
+    {
+        "Survey No": official_parcel["survey_number"],
+        "Area": "1.05 acres",  # official is 1.25
+        "Village": official_parcel["village"],
+        "Owner": official_parcel["owner_name"],
+        "District": official_parcel["district"],
+    },
+    note="Test case: AREA mismatch, 0.20 acres difference",
+)
+
+# 3. SURVEY NUMBER MISMATCH — typo/transcription error
+render_document(
+    "doc_003_survey_number_mismatch.png",
+    "Survey conducted: 18-Jan-2026",
+    {
+        "Survey No": "123/3",  # official is 123/2
+        "Area": f"{official_parcel['area_acres']} acres",
+        "Village": official_parcel["village"],
+        "Owner": official_parcel["owner_name"],
+        "District": official_parcel["district"],
+    },
+    note="Test case: SURVEY NUMBER mismatch (exact-match field)",
+)
+
+# 4. VILLAGE NAME VARIATION — spelling variant, tests fuzzy matching
+render_document(
+    "doc_004_village_fuzzy_mismatch.png",
+    "Survey conducted: 20-Jan-2026",
+    {
+        "Survey No": official_parcel["survey_number"],
+        "Area": f"{official_parcel['area_acres']} acres",
+        "Village": "Rampoor",  # official is "Rampur" - close but not exact
+        "Owner": official_parcel["owner_name"],
+        "District": official_parcel["district"],
+    },
+    note="Test case: VILLAGE spelling variant, tests fuzzy match tolerance",
+)
+
+# 5. OWNER NAME VARIATION — shortened/different name format
+render_document(
+    "doc_005_owner_name_mismatch.png",
+    "Survey conducted: 22-Jan-2026",
+    {
+        "Survey No": official_parcel["survey_number"],
+        "Area": f"{official_parcel['area_acres']} acres",
+        "Village": official_parcel["village"],
+        "Owner": "R. K. Singh",  # official is "Ram Kumar Singh"
+        "District": official_parcel["district"],
+    },
+    note="Test case: OWNER NAME variation, tests fuzzy match tolerance",
+)
+
+# 6. MULTIPLE MISMATCHES — realistic worst-case document
+render_document(
+    "doc_006_multiple_mismatches.png",
+    "Survey conducted: 25-Jan-2026",
+    {
+        "Survey No": official_parcel["survey_number"],
+        "Area": "0.95 acres",  # official is 1.25
+        "Village": "Rampoor",   # official is "Rampur"
+        "Owner": official_parcel["owner_name"],
+        "District": official_parcel["district"],
+    },
+    note="Test case: MULTIPLE mismatches (area + village) in one document",
+)
+
+print("\nDone. 6 sample documents created in ./sample_docs/")
+print("Copy this whole folder into: ai-service/data/sample_docs/")
