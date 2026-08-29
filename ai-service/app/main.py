@@ -1,22 +1,53 @@
-import os
-from fastapi import FastAPI
+"""
+main.py
+
+Real FastAPI endpoints for the AI service, matching the /api/ai
+routes defined in the architecture doc. Wires together:
+  ocr.py -> extractor.py -> comparator.py -> risk.py
+using data_adapter.py as the single point of contact with data
+(real DB for parcels/projects, mock files for documents until
+Phase 7 lands).
+"""
+
+from fastapi import FastAPI, HTTPException
+from pydantic import BaseModel
 from dotenv import load_dotenv
-from app.data_adapter import get_parcel_by_survey_number, get_db_connection
+
+from app.data_adapter import (
+    get_db_connection,
+    get_parcel,
+    get_parcel_by_survey_number,
+    get_document,
+    get_project_risk_inputs,
+    save_risk_score,
+    save_mismatches,
+)
+from app.ocr import extract_text
+from app.extractor import extract_fields
+from app.comparator import compare_fields
+from app.risk import calculate_risk_score
 
 load_dotenv()
 
 app = FastAPI(title="NLA AI Service", version="1.0.0")
 
 
+# ---------- Request/response shapes ----------
+
+class CompareRequest(BaseModel):
+    document_filename: str   # mock document filename, e.g. "doc_002_area_mismatch.png"
+    parcel_id: str            # real parcel UUID from the database
+    document_id: str | None = None   # optional real document UUID, if known
+
+# ---------- Health / status ----------
+
 @app.get("/")
 def read_root():
-    """Health check endpoint."""
     return {"message": "NLA AI Service is running"}
 
 
 @app.get("/health")
 def health_check():
-    """Check database connectivity."""
     try:
         conn = get_db_connection()
         conn.close()
@@ -27,25 +58,91 @@ def health_check():
 
 @app.get("/api/ai/status")
 def ai_status():
-    """AI Service status."""
     return {"service": "NLA AI Service", "status": "operational"}
 
 
-# Document processing endpoints (Phase 8) — stubs, built out Day 3+
-@app.post("/api/ai/process-document")
-def process_document(file_path: str):
-    return {"message": "Document processing endpoint", "file_path": file_path}
+# ---------- Feature 1: Document extraction ----------
+
+@app.post("/api/ai/extract")
+def extract_document(document_filename: str):
+    """
+    Runs OCR + field extraction on a document.
+    document_filename refers to a file in data/sample_docs/ for now
+    (mocked, since real document uploads don't exist yet).
+    """
+    try:
+        file_path = get_document(document_filename)
+        raw_text = extract_text(file_path)
+        fields = extract_fields(raw_text)
+        return {
+            "document_filename": document_filename,
+            "raw_text": raw_text,
+            "extracted_fields": fields,
+        }
+    except FileNotFoundError:
+        raise HTTPException(status_code=404, detail=f"Document not found: {document_filename}")
+    except Exception as e:
+        raise HTTPException(status_code=500, detail=f"Extraction failed: {e}")
 
 
-@app.post("/api/ai/extract-text")
-def extract_text(document_id: str):
-    return {"message": "Text extraction endpoint", "document_id": document_id}
+# ---------- Feature 1: Comparison / mismatch detection ----------
+
+@app.post("/api/ai/compare")
+def compare_document(request: CompareRequest):
+    try:
+        file_path = get_document(request.document_filename)
+        raw_text = extract_text(file_path)
+        extracted = extract_fields(raw_text)
+    except FileNotFoundError:
+        raise HTTPException(status_code=404, detail=f"Document not found: {request.document_filename}")
+
+    official_parcel = get_parcel(request.parcel_id)
+    if official_parcel is None:
+        raise HTTPException(status_code=404, detail=f"Parcel not found: {request.parcel_id}")
+
+    mismatches = compare_fields(extracted, official_parcel)
+
+    saved = save_mismatches(
+        mismatches=mismatches,
+        parcel_id=request.parcel_id,
+        document_id=request.document_id,
+    )
+
+    return {
+        "document_filename": request.document_filename,
+        "parcel_id": request.parcel_id,
+        "extracted_fields": extracted,
+        "mismatches": mismatches,
+        "verified": len(mismatches) == 0,
+        "saved_records": saved,
+    }
+
+# ---------- Feature 2: Risk scoring ----------
+
+@app.post("/api/ai/risk-score/{project_id}")
+def get_risk_score(project_id: str):
+    try:
+        risk_inputs = get_project_risk_inputs(project_id)
+        result = calculate_risk_score(risk_inputs)
+
+        saved = save_risk_score(
+            project_id=project_id,
+            score=result["score"],
+            risk_level=result["risk_level"],
+            factors=result["factors"],
+        )
+
+        return {
+            "project_id": project_id,
+            **result,
+            "saved_record_id": saved["id"],
+            "calculated_at": saved["calculated_at"].isoformat(),
+        }
+    except Exception as e:
+        raise HTTPException(status_code=500, detail=f"Risk calculation failed: {e}")
 
 
-@app.get("/api/ai/analysis/{document_id}")
-def get_analysis(document_id: str):
-    return {"message": "Analysis retrieval endpoint", "document_id": document_id}
-
+# ---------- Debug/dev helper (safe to keep for now) ----------
 
 @app.get("/test-db")
 def test_db_connection():
