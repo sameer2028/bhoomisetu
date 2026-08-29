@@ -1,190 +1,240 @@
-"""
-Generates sample "scanned" land record document images for testing
-the OCR + mismatch detection pipeline.
+"""Database access helpers for the AI service.
 
-Each document simulates a survey report an officer might upload.
-Some intentionally MATCH the official parcel record, others
-intentionally DIFFER (area mismatch, village misspelling, etc.)
-so you have real test cases for Day 3-4 work.
-
-IMPORTANT: Edit the `official_parcel` dict below to match a REAL
-parcel row from your database (the one you tested with, survey
-number "123/2") so your test documents are grounded in real data.
+These functions connect to PostgreSQL using the DATABASE_URL from the
+project .env file and expose the data needed by the AI risk logic.
 """
 
-from PIL import Image, ImageDraw, ImageFont
 import os
 
-OUTPUT_DIR = "sample_docs"
-os.makedirs(OUTPUT_DIR, exist_ok=True)
+import psycopg2
+import psycopg2.extras
+from dotenv import load_dotenv
 
-# --- EDIT THIS to match a real row from your `parcels` table ---
-official_parcel = {
-    "survey_number": "123/2",
-    "area_acres": "1.25",
-    "village": "Rampur",
-    "owner_name": "Ram Kumar Singh",
-    "district": "Lucknow",
-}
-# -----------------------------------------------------------------
-
-# Font candidates across Mac, Windows, and Linux, tried in order.
-# Using a real TTF at a real size is essential for OCR to work well —
-# PIL's load_default() bitmap font is unusable for this purpose.
-BOLD_FONT_CANDIDATES = [
-    "/System/Library/Fonts/Supplemental/Arial Bold.ttf",       # Mac
-    "/System/Library/Fonts/Helvetica.ttc",                       # Mac
-    "C:\\Windows\\Fonts\\arialbd.ttf",                           # Windows
-    "/usr/share/fonts/truetype/dejavu/DejaVuSans-Bold.ttf",     # Linux
-]
-BODY_FONT_CANDIDATES = [
-    "/System/Library/Fonts/Supplemental/Courier New.ttf",       # Mac
-    "/System/Library/Fonts/Menlo.ttc",                            # Mac
-    "C:\\Windows\\Fonts\\consola.ttf",                           # Windows
-    "/usr/share/fonts/truetype/dejavu/DejaVuSansMono.ttf",      # Linux
-]
-SMALL_FONT_CANDIDATES = [
-    "/System/Library/Fonts/Supplemental/Arial Italic.ttf",      # Mac
-    "/System/Library/Fonts/Helvetica.ttc",                        # Mac
-    "C:\\Windows\\Fonts\\ariali.ttf",                            # Windows
-    "/usr/share/fonts/truetype/dejavu/DejaVuSans-Oblique.ttf",  # Linux
-]
+load_dotenv()
 
 
-def _first_working_font(candidates, size):
-    for path in candidates:
-        try:
-            return ImageFont.truetype(path, size)
-        except Exception:
-            continue
-    # Last resort: PIL ships a real (non-bitmap) default in recent
-    # versions that accepts a size argument. If that also fails,
-    # we're truly out of options, but this should not happen.
+def get_db_connection():
+    """Return a PostgreSQL connection using the app's configured DATABASE_URL."""
+    database_url = os.getenv("DATABASE_URL")
+    if not database_url:
+        raise RuntimeError("DATABASE_URL is not set. Check ai-service/.env")
+    return psycopg2.connect(database_url)
+
+
+def get_parcel(parcel_id: str):
+    """Fetch a parcel by its database ID."""
+    conn = get_db_connection()
     try:
-        return ImageFont.load_default(size=size)
-    except TypeError:
-        return ImageFont.load_default()
+        with conn.cursor() as cur:
+            cur.execute(
+                """
+                SELECT *
+                FROM parcels
+                WHERE id = %s
+                LIMIT 1;
+                """,
+                (parcel_id,),
+            )
+            row = cur.fetchone()
+            if row is None:
+                return None
+            columns = [desc[0] for desc in cur.description]
+            return dict(zip(columns, row))
+    finally:
+        conn.close()
 
 
-def _load_fonts():
-    font_title = _first_working_font(BOLD_FONT_CANDIDATES, 30)
-    font_body = _first_working_font(BODY_FONT_CANDIDATES, 24)
-    font_small = _first_working_font(SMALL_FONT_CANDIDATES, 17)
-    return font_title, font_body, font_small
+def get_parcel_by_survey_number(survey_number: str):
+    """Fetch a parcel by survey number or return None if it does not exist."""
+    conn = get_db_connection()
+    try:
+        with conn.cursor() as cur:
+            cur.execute(
+                """
+                SELECT *
+                FROM parcels
+                WHERE survey_number = %s
+                LIMIT 1;
+                """,
+                (survey_number,),
+            )
+            row = cur.fetchone()
+            if row is None:
+                return None
+            columns = [desc[0] for desc in cur.description]
+            return dict(zip(columns, row))
+    finally:
+        conn.close()
 
 
-def render_document(filename, title, fields, note=""):
-    """Render a simple typed 'survey report' style document as an image."""
-    W, H = 1400, 1000  # higher resolution improves OCR accuracy significantly
-    img = Image.new("RGB", (W, H), color=(255, 255, 255))
-    draw = ImageDraw.Draw(img)
-
-    font_title, font_body, font_small = _load_fonts()
-
-    # Header
-    draw.rectangle([(50, 50), (W - 50, 160)], outline=(0, 0, 0), width=3)
-    draw.text((80, 75), "LAND SURVEY REPORT", font=font_title, fill=(0, 0, 0))
-
-    draw.text((80, 190), title, font=font_body, fill=(0, 0, 0))
-    draw.line([(80, 245), (W - 80, 245)], fill=(0, 0, 0), width=2)
-
-    y = 300
-    for label, value in fields.items():
-        draw.text((100, y), f"{label}:", font=font_body, fill=(0, 0, 0))
-        draw.text((500, y), str(value), font=font_body, fill=(0, 0, 0))
-        y += 80
-
-    if note:
-        draw.text((80, H - 90), note, font=font_small, fill=(90, 90, 90))
-
-    path = os.path.join(OUTPUT_DIR, filename)
-    img.save(path)
-    print(f"Created {path}")
+def get_document(filename: str) -> str:
+    """Return the absolute path to a sample document for AI processing."""
+    base_dir = os.path.abspath(
+        os.path.join(os.path.dirname(__file__), "..", "data", "sample_docs")
+    )
+    file_path = os.path.join(base_dir, filename)
+    if not os.path.exists(file_path):
+        raise FileNotFoundError(filename)
+    return file_path
 
 
-# 1. EXACT MATCH — clean document, everything agrees with official record
-render_document(
-    "doc_001_clean_match.png",
-    "Survey conducted: 12-Jan-2026",
-    {
-        "Survey No": official_parcel["survey_number"],
-        "Area": f"{official_parcel['area_acres']} acres",
-        "Village": official_parcel["village"],
-        "Owner": official_parcel["owner_name"],
-        "District": official_parcel["district"],
-    },
-    note="Test case: should be marked VERIFIED (no mismatch)",
-)
+def get_project_risk_inputs(project_id: str) -> dict:
+    """
+    Aggregates real data from the database into the shape
+    risk.calculate_risk_score() expects:
+        total_cases, overdue_cases,
+        total_compensation_assessed, total_compensation_paid,
+        unresolved_mismatches, total_mismatches,
+        total_rr_activities, completed_rr_activities
+    """
+    conn = get_db_connection()
+    try:
+        with conn.cursor() as cur:
+            # Cases + overdue count
+            cur.execute(
+                """
+                SELECT COUNT(*) AS total,
+                       COUNT(*) FILTER (WHERE is_overdue = true) AS overdue
+                FROM acquisition_cases
+                WHERE project_id = %s;
+                """,
+                (project_id,),
+            )
+            cases = cur.fetchone()
 
-# 2. AREA MISMATCH — document says less area than official record
-render_document(
-    "doc_002_area_mismatch.png",
-    "Survey conducted: 15-Jan-2026",
-    {
-        "Survey No": official_parcel["survey_number"],
-        "Area": "1.05 acres",  # official is 1.25
-        "Village": official_parcel["village"],
-        "Owner": official_parcel["owner_name"],
-        "District": official_parcel["district"],
-    },
-    note="Test case: AREA mismatch, 0.20 acres difference",
-)
+            # Compensation assessed vs paid, across all parcels in this project
+            cur.execute(
+                """
+                SELECT COALESCE(SUM(c.amount_assessed), 0) AS assessed,
+                       COALESCE(SUM(c.amount_paid), 0) AS paid
+                FROM compensation c
+                JOIN parcels p ON c.parcel_id = p.id
+                WHERE p.project_id = %s;
+                """,
+                (project_id,),
+            )
+            compensation = cur.fetchone()
 
-# 3. SURVEY NUMBER MISMATCH — typo/transcription error
-render_document(
-    "doc_003_survey_number_mismatch.png",
-    "Survey conducted: 18-Jan-2026",
-    {
-        "Survey No": "123/3",  # official is 123/2
-        "Area": f"{official_parcel['area_acres']} acres",
-        "Village": official_parcel["village"],
-        "Owner": official_parcel["owner_name"],
-        "District": official_parcel["district"],
-    },
-    note="Test case: SURVEY NUMBER mismatch (exact-match field)",
-)
+            # Mismatches — total and unresolved, across documents linked to this project
+            cur.execute(
+                """
+                SELECT COUNT(*) AS total,
+                       COUNT(*) FILTER (WHERE status = 'DETECTED') AS unresolved
+                FROM ai_mismatches m
+                JOIN documents d ON m.document_id = d.id
+                WHERE d.project_id = %s;
+                """,
+                (project_id,),
+            )
+            mismatches = cur.fetchone()
 
-# 4. VILLAGE NAME VARIATION — spelling variant, tests fuzzy matching
-render_document(
-    "doc_004_village_fuzzy_mismatch.png",
-    "Survey conducted: 20-Jan-2026",
-    {
-        "Survey No": official_parcel["survey_number"],
-        "Area": f"{official_parcel['area_acres']} acres",
-        "Village": "Rampoor",  # official is "Rampur" - close but not exact
-        "Owner": official_parcel["owner_name"],
-        "District": official_parcel["district"],
-    },
-    note="Test case: VILLAGE spelling variant, tests fuzzy match tolerance",
-)
+            # R&R activities for families linked to this project
+            cur.execute(
+                """
+                SELECT COUNT(*) AS total,
+                       COUNT(*) FILTER (WHERE status = 'COMPLETED') AS completed
+                FROM rr_activities r
+                JOIN families f ON r.family_id = f.id
+                WHERE f.project_id = %s;
+                """,
+                (project_id,),
+            )
+            rr = cur.fetchone()
 
-# 5. OWNER NAME VARIATION — shortened/different name format
-render_document(
-    "doc_005_owner_name_mismatch.png",
-    "Survey conducted: 22-Jan-2026",
-    {
-        "Survey No": official_parcel["survey_number"],
-        "Area": f"{official_parcel['area_acres']} acres",
-        "Village": official_parcel["village"],
-        "Owner": "R. K. Singh",  # official is "Ram Kumar Singh"
-        "District": official_parcel["district"],
-    },
-    note="Test case: OWNER NAME variation, tests fuzzy match tolerance",
-)
+            return {
+                "total_cases": cases[0] or 0,
+                "overdue_cases": cases[1] or 0,
+                "total_compensation_assessed": float(compensation[0] or 0),
+                "total_compensation_paid": float(compensation[1] or 0),
+                "total_mismatches": mismatches[0] or 0,
+                "unresolved_mismatches": mismatches[1] or 0,
+                "total_rr_activities": rr[0] or 0,
+                "completed_rr_activities": rr[1] or 0,
+            }
+    finally:
+        conn.close()
 
-# 6. MULTIPLE MISMATCHES — realistic worst-case document
-render_document(
-    "doc_006_multiple_mismatches.png",
-    "Survey conducted: 25-Jan-2026",
-    {
-        "Survey No": official_parcel["survey_number"],
-        "Area": "0.95 acres",  # official is 1.25
-        "Village": "Rampoor",   # official is "Rampur"
-        "Owner": official_parcel["owner_name"],
-        "District": official_parcel["district"],
-    },
-    note="Test case: MULTIPLE mismatches (area + village) in one document",
-)
 
-print("\nDone. 6 sample documents created in ./sample_docs/")
-print("Copy this whole folder into: ai-service/data/sample_docs/")
+def save_risk_score(
+    project_id: str, score: float, risk_level: str, factors: dict
+) -> dict:
+    """
+    Inserts a new risk score record into the real risk_scores table.
+    Each call creates a NEW row (not an update) — this preserves
+    history, letting you see how a project's risk changed over time
+    via calculated_at.
+    """
+    query = """
+        INSERT INTO risk_scores (project_id, score, risk_level, factors, model_version)
+        VALUES (%s, %s, %s, %s, %s)
+        RETURNING id, project_id, score, risk_level, factors, model_version, calculated_at;
+    """
+    conn = get_db_connection()
+    try:
+        with conn.cursor() as cur:
+            cur.execute(
+                query,
+                (
+                    project_id,
+                    score,
+                    risk_level,
+                    psycopg2.extras.Json(factors),
+                    "weighted-formula-v1",
+                ),
+            )
+            row = cur.fetchone()
+            conn.commit()
+            if row is None:
+                return None
+            columns = [desc[0] for desc in cur.description]
+            return dict(zip(columns, row))
+    finally:
+        conn.close()
+
+
+def save_mismatches(
+    mismatches: list[dict], parcel_id: str, document_id: str | None = None
+) -> list[dict]:
+    """
+    Inserts detected mismatches into the real ai_mismatches table.
+    document_id is optional and nullable — since real document uploads
+    (Phase 7) may not be fully wired yet, you can pass None until a
+    real document row exists to link against.
+    """
+    if not mismatches:
+        return []
+
+    query = """
+        INSERT INTO ai_mismatches
+            (document_id, parcel_id, field_name, official_value,
+             extracted_value, difference, severity, explanation, status)
+        VALUES (%s, %s, %s, %s, %s, %s, %s, %s, %s)
+        RETURNING id, field_name, severity, detected_at;
+    """
+    conn = get_db_connection()
+    saved_records = []
+    try:
+        with conn.cursor() as cur:
+            for m in mismatches:
+                cur.execute(
+                    query,
+                    (
+                        document_id,
+                        parcel_id,
+                        m["field_name"],
+                        m["official_value"],
+                        m["extracted_value"],
+                        m["difference"],
+                        m["severity"],
+                        m["explanation"],
+                        m["status"],
+                    ),
+                )
+                row = cur.fetchone()
+                if row is not None:
+                    columns = [desc[0] for desc in cur.description]
+                    saved_records.append(dict(zip(columns, row)))
+            conn.commit()
+        return saved_records
+    finally:
+        conn.close()

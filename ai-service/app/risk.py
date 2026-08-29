@@ -1,115 +1,372 @@
 """
 risk.py
 
-Calculates project-level risk scores based on four weighted factors:
-1. Overdue Statutory Cases (Max 35 points)
-2. Pending Compensation Disbursement (Max 25 points)
-3. Rehabilitation & Resettlement Delays (Max 20 points)
-4. AI Cadastral Document Discrepancies (Max 20 points)
+Transparent, rule-based project risk scoring.
 
-Total Score = 0 - 100
-Risk Levels:
-- LOW: 0 - 39
-- MEDIUM: 40 - 64
-- HIGH: 65 - 100
+This is NOT a trained ML model. The score is calculated using four
+explainable factors:
+
+1. Overdue cases                 -> max 30 points
+2. Pending compensation          -> max 30 points
+3. Unresolved AI mismatches      -> max 25 points
+4. R&R delays                    -> max 15 points
+
+Total possible score = 100.
+
+The output matches the expected risk_scores structure:
+
+{
+    "score": float,
+    "risk_level": str,
+    "factors": {
+        ...
+    }
+}
 """
 
-from typing import Dict, Any, Tuple
+from typing import Any
 
 
-def calculate_risk_score(
-    overdue_cases_count: int = 0,
-    total_assessed_comp: float = 0.0,
-    total_paid_comp: float = 0.0,
-    delayed_rr_count: int = 0,
-    open_mismatches_count: int = 0,
-) -> Tuple[float, str, Dict[str, Any]]:
+# ---------------------------------------------------------------------------
+# WEIGHTS
+# ---------------------------------------------------------------------------
+# These are policy decisions and should be easy to explain to judges/admins.
+WEIGHTS = {
+    "overdue_cases": 30.0,
+    "pending_compensation": 30.0,
+    "unresolved_mismatches": 25.0,
+    "rr_delays": 15.0,
+}
+
+TOTAL_MAX_SCORE = sum(WEIGHTS.values())
+
+
+# ---------------------------------------------------------------------------
+# RISK LEVEL THRESHOLDS
+# ---------------------------------------------------------------------------
+RISK_LEVEL_THRESHOLDS = [
+    (75.0, "CRITICAL"),
+    (50.0, "HIGH"),
+    (25.0, "MEDIUM"),
+    (0.0, "LOW"),
+]
+
+
+# ---------------------------------------------------------------------------
+# HELPER FUNCTIONS
+# ---------------------------------------------------------------------------
+def _safe_non_negative(value: Any) -> float:
     """
-    Computes weighted risk score and returns (score, risk_level, factor_breakdown).
+    Convert a value to float and prevent negative values.
+
+    Invalid/non-numeric values are treated as 0.
     """
-    # 1. Overdue Cases Factor (Max 35 pts)
-    if overdue_cases_count == 0:
-        case_score = 5.0
-        case_label = "All statutory workflow cases on schedule"
-    elif overdue_cases_count == 1:
-        case_score = 15.0
-        case_label = "1 statutory case approaching/past deadline"
-    elif overdue_cases_count == 2:
-        case_score = 25.0
-        case_label = "2 statutory cases overdue past statutory deadline"
-    else:
-        case_score = 35.0
-        case_label = f"{overdue_cases_count} statutory cases overdue past statutory deadline"
+    try:
+        return max(0.0, float(value))
+    except (TypeError, ValueError):
+        return 0.0
 
-    # 2. Pending Compensation Factor (Max 25 pts)
-    if total_assessed_comp > 0:
-        unpaid = max(0.0, total_assessed_comp - total_paid_comp)
-        unpaid_ratio = unpaid / total_assessed_comp
-        comp_score = round(min(25.0, unpaid_ratio * 25.0), 1)
-        if unpaid > 0:
-            comp_cr = unpaid / 10000000.0  # 1 Crore = 10,000,000
-            comp_label = f"₹{comp_cr:.2f} Cr pending compensation disbursement"
-        else:
-            comp_label = "Compensation disbursements fully cleared"
-    else:
-        comp_score = 8.0
-        comp_label = "Initial compensation assessment underway"
 
-    # 3. R&R Delays Factor (Max 20 pts)
-    if delayed_rr_count == 0:
-        rr_score = 4.0
-        rr_label = "No rehabilitation disputes or delays logged"
-    elif delayed_rr_count == 1:
-        rr_score = 12.0
-        rr_label = "1 rehabilitation activity delayed"
-    else:
-        rr_score = 20.0
-        rr_label = f"{delayed_rr_count} rehabilitation/resettlement activities delayed"
+def _safe_ratio(numerator: float, denominator: float) -> float:
+    """
+    Calculate numerator / denominator safely.
 
-    # 4. AI Document Mismatches Factor (Max 20 pts)
-    if open_mismatches_count == 0:
-        mismatch_score = 3.0
-        mismatch_label = "All cadastral title documents verified"
-    elif open_mismatches_count == 1:
-        mismatch_score = 10.0
-        mismatch_label = "1 active cadastral document discrepancy"
-    else:
-        mismatch_score = 20.0
-        mismatch_label = f"{open_mismatches_count} active cadastral document discrepancies"
+    The returned ratio is always constrained to [0, 1].
 
-    total_score = round(min(100.0, case_score + comp_score + rr_score + mismatch_score), 1)
+    Examples:
+        0 / 100   -> 0.0
+        25 / 100  -> 0.25
+        100 / 100 -> 1.0
+        150 / 100 -> 1.0   (clamped)
+        anything / 0 -> 0.0
+    """
+    if denominator <= 0:
+        return 0.0
 
-    if total_score >= 65.0:
-        risk_level = "HIGH"
-    elif total_score >= 40.0:
-        risk_level = "MEDIUM"
-    else:
-        risk_level = "LOW"
+    ratio = numerator / denominator
+    return min(max(ratio, 0.0), 1.0)
 
-    factors = {
-        "overdue_cases": {
-            "score": case_score,
-            "max": 35.0,
-            "count": overdue_cases_count,
-            "label": case_label,
-        },
-        "pending_compensation": {
-            "score": comp_score,
-            "max": 25.0,
-            "label": comp_label,
-        },
-        "rr_issues": {
-            "score": rr_score,
-            "max": 20.0,
-            "count": delayed_rr_count,
-            "label": rr_label,
-        },
-        "document_mismatches": {
-            "score": mismatch_score,
-            "max": 20.0,
-            "count": open_mismatches_count,
-            "label": mismatch_label,
-        },
+
+# ---------------------------------------------------------------------------
+# MAIN FUNCTION
+# ---------------------------------------------------------------------------
+def calculate_risk_score(project_data: dict) -> dict:
+    """
+    Calculate the project risk score.
+
+    Expected project_data:
+
+        total_cases: int
+        overdue_cases: int
+
+        total_compensation_assessed: float
+        total_compensation_paid: float
+
+        unresolved_mismatches: int
+        total_mismatches: int
+
+        total_rr_activities: int
+        completed_rr_activities: int
+
+    Returns:
+        {
+            "score": float,
+            "risk_level": str,
+            "factors": dict
+        }
+    """
+
+    if not isinstance(project_data, dict):
+        raise TypeError("project_data must be a dictionary")
+
+    factors = {}
+
+    # ---------------------------------------------------------------
+    # 1. Overdue Cases
+    # ---------------------------------------------------------------
+    overdue_points, overdue_detail = _score_overdue_cases(project_data)
+    factors["overdue_cases"] = overdue_detail
+
+    # ---------------------------------------------------------------
+    # 2. Pending Compensation
+    # ---------------------------------------------------------------
+    compensation_points, compensation_detail = (
+        _score_pending_compensation(project_data)
+    )
+    factors["pending_compensation"] = compensation_detail
+
+    # ---------------------------------------------------------------
+    # 3. Unresolved AI Mismatches
+    # ---------------------------------------------------------------
+    mismatch_points, mismatch_detail = (
+        _score_unresolved_mismatches(project_data)
+    )
+    factors["unresolved_mismatches"] = mismatch_detail
+
+    # ---------------------------------------------------------------
+    # 4. R&R Delays
+    # ---------------------------------------------------------------
+    rr_points, rr_detail = _score_rr_delays(project_data)
+    factors["rr_delays"] = rr_detail
+
+    # ---------------------------------------------------------------
+    # Final Score
+    # ---------------------------------------------------------------
+    total_score = round(
+        overdue_points
+        + compensation_points
+        + mismatch_points
+        + rr_points,
+        2,
+    )
+
+    # Final safety clamp.
+    total_score = min(max(total_score, 0.0), TOTAL_MAX_SCORE)
+
+    risk_level = _risk_level_for_score(total_score)
+
+    return {
+        "score": total_score,
+        "risk_level": risk_level,
+        "factors": factors,
     }
 
-    return total_score, risk_level, factors
+
+# ---------------------------------------------------------------------------
+# FACTOR 1: OVERDUE CASES
+# ---------------------------------------------------------------------------
+def _score_overdue_cases(data: dict) -> tuple[float, dict]:
+    """
+    Formula:
+
+        overdue_ratio = overdue_cases / total_cases
+
+        overdue_points =
+            overdue_ratio * 30
+    """
+
+    total = _safe_non_negative(data.get("total_cases", 0))
+    overdue = _safe_non_negative(data.get("overdue_cases", 0))
+
+    # Overdue cases cannot logically exceed total cases.
+    overdue = min(overdue, total)
+
+    overdue_ratio = _safe_ratio(overdue, total)
+
+    points = round(
+        overdue_ratio * WEIGHTS["overdue_cases"],
+        2,
+    )
+
+    return points, {
+        "overdue_cases": int(overdue),
+        "total_cases": int(total),
+        "overdue_pct": round(overdue_ratio * 100, 1),
+        "points_contributed": points,
+        "max_points": WEIGHTS["overdue_cases"],
+    }
+
+
+# ---------------------------------------------------------------------------
+# FACTOR 2: PENDING COMPENSATION
+# ---------------------------------------------------------------------------
+def _score_pending_compensation(data: dict) -> tuple[float, dict]:
+    """
+    Formula:
+
+        pending = assessed - paid
+
+        pending_ratio = pending / assessed
+
+        compensation_points =
+            pending_ratio * 30
+
+    Example:
+        Assessed = 10 crore
+        Paid     = 7 crore
+
+        Pending = 3 crore
+
+        Pending ratio = 3 / 10 = 0.30
+
+        Points = 0.30 * 30 = 9
+    """
+
+    assessed = _safe_non_negative(
+        data.get("total_compensation_assessed", 0)
+    )
+
+    paid = _safe_non_negative(
+        data.get("total_compensation_paid", 0)
+    )
+
+    # Payment cannot logically exceed assessed compensation.
+    paid = min(paid, assessed)
+
+    pending = max(0.0, assessed - paid)
+
+    pending_ratio = _safe_ratio(pending, assessed)
+
+    points = round(
+        pending_ratio * WEIGHTS["pending_compensation"],
+        2,
+    )
+
+    return points, {
+        "compensation_assessed": assessed,
+        "compensation_paid": paid,
+        "compensation_pending": pending,
+        "pending_pct": round(pending_ratio * 100, 1),
+        "points_contributed": points,
+        "max_points": WEIGHTS["pending_compensation"],
+    }
+
+
+# ---------------------------------------------------------------------------
+# FACTOR 3: UNRESOLVED AI MISMATCHES
+# ---------------------------------------------------------------------------
+def _score_unresolved_mismatches(data: dict) -> tuple[float, dict]:
+    """
+    Formula:
+
+        unresolved_ratio =
+            unresolved_mismatches / total_mismatches
+
+        mismatch_points =
+            unresolved_ratio * 25
+    """
+
+    unresolved = _safe_non_negative(
+        data.get("unresolved_mismatches", 0)
+    )
+
+    total = _safe_non_negative(
+        data.get("total_mismatches", 0)
+    )
+
+    # Unresolved mismatches cannot logically exceed total mismatches.
+    unresolved = min(unresolved, total)
+
+    unresolved_ratio = _safe_ratio(unresolved, total)
+
+    points = round(
+        unresolved_ratio * WEIGHTS["unresolved_mismatches"],
+        2,
+    )
+
+    return points, {
+        "unresolved_mismatches": int(unresolved),
+        "total_mismatches": int(total),
+        "unresolved_pct": round(unresolved_ratio * 100, 1),
+        "points_contributed": points,
+        "max_points": WEIGHTS["unresolved_mismatches"],
+    }
+
+
+# ---------------------------------------------------------------------------
+# FACTOR 4: R&R DELAYS
+# ---------------------------------------------------------------------------
+def _score_rr_delays(data: dict) -> tuple[float, dict]:
+    """
+    Formula:
+
+        incomplete = total_rr_activities - completed_rr_activities
+
+        incomplete_ratio =
+            incomplete / total_rr_activities
+
+        rr_points =
+            incomplete_ratio * 15
+    """
+
+    total = _safe_non_negative(
+        data.get("total_rr_activities", 0)
+    )
+
+    completed = _safe_non_negative(
+        data.get("completed_rr_activities", 0)
+    )
+
+    # Completed activities cannot exceed total activities.
+    completed = min(completed, total)
+
+    incomplete = max(0.0, total - completed)
+
+    incomplete_ratio = _safe_ratio(incomplete, total)
+
+    points = round(
+        incomplete_ratio * WEIGHTS["rr_delays"],
+        2,
+    )
+
+    return points, {
+        "total_rr_activities": int(total),
+        "completed_rr_activities": int(completed),
+        "incomplete_rr_activities": int(incomplete),
+        "incomplete_pct": round(incomplete_ratio * 100, 1),
+        "points_contributed": points,
+        "max_points": WEIGHTS["rr_delays"],
+    }
+
+
+# ---------------------------------------------------------------------------
+# RISK LEVEL
+# ---------------------------------------------------------------------------
+def _risk_level_for_score(score: float) -> str:
+    """
+    Convert a numerical risk score into a risk category.
+
+        0  - 24.99  -> LOW
+        25 - 49.99  -> MEDIUM
+        50 - 74.99  -> HIGH
+        75 - 100    -> CRITICAL
+    """
+
+    score = min(max(float(score), 0.0), TOTAL_MAX_SCORE)
+
+    for threshold, level in RISK_LEVEL_THRESHOLDS:
+        if score >= threshold:
+            return level
+
+    # This should never be reached because 0.0 is the lowest threshold.
+    return "LOW"
