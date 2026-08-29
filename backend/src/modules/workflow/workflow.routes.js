@@ -17,16 +17,16 @@ const router = express.Router();
 // ─── Stage transition map ───────────────────────────────────────────
 // Defines which actions are allowed at each stage and where they lead.
 const TRANSITION_MAP = {
-  PROJECT_PROPOSAL:    { APPROVE: 'LAND_IDENTIFICATION', REJECT: null },
-  LAND_IDENTIFICATION: { FORWARD: 'VERIFICATION',       SEND_BACK: 'PROJECT_PROPOSAL' },
-  VERIFICATION:        { FORWARD: 'APPROVAL',           SEND_BACK: 'LAND_IDENTIFICATION' },
-  APPROVAL:            { APPROVE: 'NOTIFICATION',       REJECT: null, SEND_BACK: 'VERIFICATION' },
-  NOTIFICATION:        { FORWARD: 'COMPENSATION' },
-  COMPENSATION:        { FORWARD: 'AWARD',              SEND_BACK: 'NOTIFICATION' },
-  AWARD:               { FORWARD: 'PAYMENT' },
-  PAYMENT:             { FORWARD: 'POSSESSION',         SEND_BACK: 'AWARD' },
-  POSSESSION:          { FORWARD: 'RR' },
-  RR:                  { COMPLETE: 'CLOSURE' },
+  PROJECT_PROPOSAL:    { APPROVE: 'LAND_IDENTIFICATION', FORWARD: 'LAND_IDENTIFICATION', REJECT: null },
+  LAND_IDENTIFICATION: { FORWARD: 'VERIFICATION',       APPROVE: 'VERIFICATION',       SEND_BACK: 'PROJECT_PROPOSAL' },
+  VERIFICATION:        { FORWARD: 'APPROVAL',           APPROVE: 'APPROVAL',           SEND_BACK: 'LAND_IDENTIFICATION' },
+  APPROVAL:            { APPROVE: 'NOTIFICATION',       FORWARD: 'NOTIFICATION',       REJECT: null, SEND_BACK: 'VERIFICATION' },
+  NOTIFICATION:        { FORWARD: 'COMPENSATION',       APPROVE: 'COMPENSATION' },
+  COMPENSATION:        { FORWARD: 'AWARD',              APPROVE: 'AWARD',              SEND_BACK: 'NOTIFICATION' },
+  AWARD:               { FORWARD: 'PAYMENT',            APPROVE: 'PAYMENT' },
+  PAYMENT:             { FORWARD: 'POSSESSION',         APPROVE: 'POSSESSION',         SEND_BACK: 'AWARD' },
+  POSSESSION:          { FORWARD: 'RR',                 APPROVE: 'RR' },
+  RR:                  { COMPLETE: 'CLOSURE',           FORWARD: 'CLOSURE',            APPROVE: 'CLOSURE' },
   CLOSURE:             {}, // Terminal — no transitions allowed
 };
 
@@ -434,10 +434,12 @@ router.post('/cases/:id/transition', authenticate, rbac(ROLES.DLAO, ROLES.SGA, R
     const finalStage = toStage || fromStage; // On reject, stay at current stage
 
     await withTransaction(async (client) => {
-      // Compute overdue flag in JS to avoid PG parameter type ambiguity
-      const isOverdue = caseRecord.due_date
+      // Compute overdue flag in JS to avoid PG parameter type ambiguity — must be strictly boolean
+      const isOverdue = Boolean(
+        caseRecord.due_date
         && new Date(caseRecord.due_date) < new Date()
-        && !['COMPLETED', 'REJECTED'].includes(newStatus);
+        && !['COMPLETED', 'REJECTED'].includes(newStatus)
+      );
 
       // Update the case
       await client.query(
