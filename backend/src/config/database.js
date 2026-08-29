@@ -120,7 +120,7 @@ async function initializeDatabase() {
   console.log(`[DB] PostGIS ${rows[0].postgis}`);
   console.log('[DB] Schema applied from database/init.sql');
 
-  // Seed synthetic demo data (each seeder is idempotent)
+  // Seed synthetic demo data (seed in dependency order)
   const { seedUsers } = require('../seeds/seedUsers');
   const { seedProjects } = require('../seeds/seedProjects');
   const { seedParcels } = require('../seeds/seedParcels');
@@ -134,12 +134,14 @@ async function initializeDatabase() {
   await seedUsers();
   await seedProjects();
   await seedParcels();
-  await seedGis();
-  await seedWorkflow();
-  await seedDocuments();
-  await seedRr();
-  await seedAlerts();
-  await seedCompensation();
+  await Promise.all([
+    seedGis(),
+    seedWorkflow(),
+    seedDocuments(),
+    seedRr(),
+    seedAlerts(),
+    seedCompensation(),
+  ]);
 }
 
 async function closeDb() {

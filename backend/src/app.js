@@ -21,6 +21,28 @@ app.use(morgan('dev'));
 // ─── Static file serving for uploads ────────────────────────────────
 app.use('/uploads', express.static(path.join(__dirname, '..', 'uploads')));
 
+// ─── Database Readiness Middleware ───────────────────────────────
+let dbReady = false;
+let dbError = null;
+
+app.use(async (req, res, next) => {
+  if (req.path === '/api/health') return next();
+  if (dbError) {
+    return res.status(500).json({ success: false, error: `Database initialization error: ${dbError.message}` });
+  }
+  if (!dbReady) {
+    let waited = 0;
+    while (!dbReady && !dbError && waited < 300) {
+      await new Promise((r) => setTimeout(r, 100));
+      waited++;
+    }
+    if (!dbReady && !dbError) {
+      return res.status(503).json({ success: false, error: 'Database initializing. Please retry in a few seconds.' });
+    }
+  }
+  next();
+});
+
 // ─── Health Check ───────────────────────────────────────────────────
 app.get('/api/health', (req, res) => {
   res.json({
@@ -29,6 +51,7 @@ app.get('/api/health', (req, res) => {
     timestamp: new Date().toISOString(),
     version: '1.0.0',
     environment: env.nodeEnv,
+    dbReady,
   });
 });
 
@@ -102,13 +125,6 @@ function killPortProcess(port) {
 }
 
 async function start() {
-  try {
-    await initializeDatabase();
-  } catch (err) {
-    console.error(`\n[FATAL] ${err.message}\n`);
-    process.exit(1);
-  }
-
   killPortProcess(env.port);
 
   server = app.listen(env.port, () => {
@@ -131,6 +147,14 @@ async function start() {
       process.exit(1);
     }
   });
+
+  try {
+    await initializeDatabase();
+    dbReady = true;
+  } catch (err) {
+    dbError = err;
+    console.error(`\n[FATAL] Database initialization failed: ${err.message}\n`);
+  }
 }
 
 start();
