@@ -6,6 +6,7 @@ const { ROLES } = require('../config/constants');
  * Usage: rbac() — allows any authenticated user.
  */
 function rbac(...allowedRoles) {
+  const roles = allowedRoles.flat();
   return (req, res, next) => {
     if (!req.user) {
       return res.status(401).json({
@@ -15,7 +16,7 @@ function rbac(...allowedRoles) {
     }
 
     // If no roles specified, allow any authenticated user
-    if (allowedRoles.length === 0) {
+    if (roles.length === 0) {
       return next();
     }
 
@@ -24,10 +25,10 @@ function rbac(...allowedRoles) {
       return next();
     }
 
-    if (!allowedRoles.includes(req.user.role)) {
+    if (!roles.includes(req.user.role)) {
       return res.status(403).json({
         success: false,
-        error: `Access denied. Required role(s): ${allowedRoles.join(', ')}`,
+        error: `Access denied. Required role(s): ${roles.join(', ')}`,
       });
     }
 

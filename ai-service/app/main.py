@@ -29,7 +29,19 @@ from app.risk import calculate_risk_score
 
 load_dotenv()
 
-app = FastAPI(title="NLA AI Service", version="1.0.0")
+app = FastAPI(
+    title="National Land Acquisition AI Microservice",
+    description="OCR, Document Field Extraction, Cadastral Discrepancy Comparison, and Project Risk Scoring",
+    version="1.0.0",
+)
+
+app.add_middleware(
+    CORSMiddleware,
+    allow_origins=["*"],
+    allow_credentials=True,
+    allow_methods=["*"],
+    allow_headers=["*"],
+)
 
 
 # ---------- Request/response shapes ----------
@@ -144,10 +156,51 @@ def get_risk_score(project_id: str):
 
 # ---------- Debug/dev helper (safe to keep for now) ----------
 
-@app.get("/test-db")
-def test_db_connection():
-    parcel = get_parcel_by_survey_number("123/2")
-    return {"parcel": parcel}
+    try:
+        raw_text = extract_text(file_path)
+        extracted = extract_fields_with_confidence(raw_text)
+        mismatches = []
+        if req.official_parcel:
+            mismatches = compare_fields(extracted["fields"], req.official_parcel)
+
+        return {
+            "success": True,
+            "raw_text": raw_text,
+            "extracted_fields": extracted["fields"],
+            "missing_fields": extracted["missing_fields"],
+            "fully_extracted": extracted["fully_extracted"],
+            "has_mismatches": len(mismatches) > 0,
+            "mismatch_count": len(mismatches),
+            "mismatches": mismatches,
+        }
+    except Exception as e:
+        raise HTTPException(status_code=500, detail=f"Document processing failed: {str(e)}")
+
+
+@app.post("/api/ai/calculate-risk", response_model=RiskScoreResponse)
+def api_calculate_risk(
+    overdue_cases_count: int = 0,
+    total_assessed_comp: float = 0.0,
+    total_paid_comp: float = 0.0,
+    delayed_rr_count: int = 0,
+    open_mismatches_count: int = 0,
+):
+    """
+    Computes weighted 4-factor risk score for a project.
+    """
+    score, risk_level, factors = calculate_risk_score(
+        overdue_cases_count=overdue_cases_count,
+        total_assessed_comp=total_assessed_comp,
+        total_paid_comp=total_paid_comp,
+        delayed_rr_count=delayed_rr_count,
+        open_mismatches_count=open_mismatches_count,
+    )
+    return RiskScoreResponse(
+        score=score,
+        risk_level=risk_level,
+        factors=factors,
+        model_version="v1.2-weighted",
+    )
 
 
 if __name__ == "__main__":

@@ -11,6 +11,12 @@ import ParcelDetailPage from './pages/parcels/ParcelDetailPage';
 import GisPage from './pages/gis/GisPage';
 import CaseListPage from './pages/cases/CaseListPage';
 import CaseDetailPage from './pages/cases/CaseDetailPage';
+import DocumentListPage from './pages/documents/DocumentListPage';
+import DocumentDetailPage from './pages/documents/DocumentDetailPage';
+import RrListPage from './pages/rr/RrListPage';
+import FamilyDetailPage from './pages/rr/FamilyDetailPage';
+import CompensationListPage from './pages/compensation/CompensationListPage';
+import MismatchListPage from './pages/ai/MismatchListPage';
 
 // Placeholder pages for future phases
 function PlaceholderPage({ title, phase }) {
@@ -58,16 +64,18 @@ export default function App() {
             <Route path="/cases/:id" element={<CaseDetailPage />} />
 
             {/* Phase 7 — Documents */}
-            <Route path="/documents" element={<PlaceholderPage title="Documents" phase="Phase 7" />} />
+            <Route path="/documents" element={<DocumentListPage />} />
+            <Route path="/documents/:id" element={<DocumentDetailPage />} />
 
-            {/* Phase 8 — AI */}
-            <Route path="/ai/mismatch" element={<PlaceholderPage title="AI Mismatch Detection" phase="Phase 8" />} />
+            {/* Phase 8 — AI Document Mismatch */}
+            <Route path="/ai/mismatch" element={<MismatchListPage />} />
 
             {/* Phase 9 — Compensation */}
-            <Route path="/compensation" element={<PlaceholderPage title="Compensation" phase="Phase 9" />} />
+            <Route path="/compensation" element={<CompensationListPage />} />
 
             {/* Phase 10 — R&R */}
-            <Route path="/rr" element={<PlaceholderPage title="R&R Management" phase="Phase 10" />} />
+            <Route path="/rr" element={<RrListPage />} />
+            <Route path="/rr/families/:id" element={<FamilyDetailPage />} />
 
             {/* Phase 12 — Alerts */}
             <Route path="/alerts" element={<PlaceholderPage title="Alerts & Escalation" phase="Phase 12" />} />

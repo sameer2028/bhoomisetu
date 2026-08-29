@@ -21,6 +21,28 @@ app.use(morgan('dev'));
 // ─── Static file serving for uploads ────────────────────────────────
 app.use('/uploads', express.static(path.join(__dirname, '..', 'uploads')));
 
+// ─── Database Readiness Middleware ───────────────────────────────
+let dbReady = false;
+let dbError = null;
+
+app.use(async (req, res, next) => {
+  if (req.path === '/api/health') return next();
+  if (dbError) {
+    return res.status(500).json({ success: false, error: `Database initialization error: ${dbError.message}` });
+  }
+  if (!dbReady) {
+    let waited = 0;
+    while (!dbReady && !dbError && waited < 300) {
+      await new Promise((r) => setTimeout(r, 100));
+      waited++;
+    }
+    if (!dbReady && !dbError) {
+      return res.status(503).json({ success: false, error: 'Database initializing. Please retry in a few seconds.' });
+    }
+  }
+  next();
+});
+
 // ─── Health Check ───────────────────────────────────────────────────
 app.get('/api/health', (req, res) => {
   res.json({
@@ -29,6 +51,7 @@ app.get('/api/health', (req, res) => {
     timestamp: new Date().toISOString(),
     version: '1.0.0',
     environment: env.nodeEnv,
+    dbReady,
   });
 });
 
@@ -39,7 +62,12 @@ app.use('/api/projects', require('./modules/projects/projects.routes'));
 app.use('/api/parcels', require('./modules/parcels/parcels.routes'));
 app.use('/api/gis', require('./modules/gis/gis.routes'));
 app.use('/api/workflow', require('./modules/workflow/workflow.routes'));
-// ... more routes added per phase
+app.use('/api/documents', require('./modules/documents/documents.routes'));
+app.use('/api/rr', require('./modules/rr/rr.routes'));
+app.use('/api/alerts', require('./modules/alerts/alerts.routes'));
+app.use('/api/search', require('./modules/search/search.routes'));
+app.use('/api/compensation', require('./modules/compensation/compensation.routes'));
+app.use('/api/ai', require('./modules/ai/ai.routes'));
 
 // ─── Constants endpoint (for frontend enums) ───────────────────────
 const constants = require('./config/constants');
@@ -70,13 +98,35 @@ app.use(errorHandler);
 // ─── Initialize DB and Start Server ─────────────────────────────────
 let server;
 
-async function start() {
+const { execSync } = require('child_process');
+
+function killPortProcess(port) {
   try {
-    await initializeDatabase();
+    if (process.platform === 'win32') {
+      const output = execSync(`netstat -ano | findstr :${port}`).toString();
+      const lines = output.split('\n');
+      for (const line of lines) {
+        if (line.includes('LISTENING')) {
+          const parts = line.trim().split(/\s+/);
+          const pid = parts[parts.length - 1];
+          if (pid && pid !== String(process.pid)) {
+            try {
+              execSync(`taskkill /F /PID ${pid}`, { stdio: 'ignore' });
+              console.log(`[Server] Automatically freed port ${port} (terminated PID ${pid})`);
+            } catch (e) {
+              // Ignore if already terminated
+            }
+          }
+        }
+      }
+    }
   } catch (err) {
-    console.error(`\n[FATAL] ${err.message}\n`);
-    process.exit(1);
+    // Port is free
   }
+}
+
+async function start() {
+  killPortProcess(env.port);
 
   server = app.listen(env.port, () => {
     console.log(`
@@ -90,6 +140,22 @@ async function start() {
 ╚══════════════════════════════════════════════════════════════╝
     `);
   });
+
+  server.on('error', (err) => {
+    if (err.code === 'EADDRINUSE') {
+      console.error(`\n[FATAL] Port ${env.port} is already in use by another process.`);
+      console.error(`To free port ${env.port} on Windows, run: taskkill /F /IM node.exe`);
+      process.exit(1);
+    }
+  });
+
+  try {
+    await initializeDatabase();
+    dbReady = true;
+  } catch (err) {
+    dbError = err;
+    console.error(`\n[FATAL] Database initialization failed: ${err.message}\n`);
+  }
 }
 
 start();
