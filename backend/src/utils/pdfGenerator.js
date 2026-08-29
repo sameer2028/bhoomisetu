@@ -1,108 +1,164 @@
 /**
- * Minimal PDF Generator utility to create valid PDF files on-the-fly for statutory documents.
+ * Pure Node.js Statutory Document PDF Generator
+ * Generates standard PDF-1.4 binary documents without external dependencies.
  */
 
-function generateSamplePdfBuffer({ title, document_code, document_type, project_name, parcel_code, survey_number, village, description, uploaded_by }) {
-  const contentText = `
-%PDF-1.4
-1 0 obj
-<<
-  /Type /Catalog
-  /Pages 2 0 R
->>
-endobj
-2 0 obj
-<<
-  /Type /Pages
-  /Kids [3 0 R]
-  /Count 1
->>
-endobj
-3 0 obj
-<<
-  /Type /Page
-  /Parent 2 0 R
-  /Resources <<
-    /Font <<
-      /F1 4 0 R
-    >>
-  >>
-  /MediaBox [0 0 612 792]
-  /Contents 5 0 R
->>
-endobj
-4 0 obj
-<<
-  /Type /Font
-  /Subtype /Type1
-  /BaseFont /Helvetica
->>
-endobj
-5 0 obj
-<< /Length 1200 >>
-stream
-BT
-/F1 18 Tf
-50 740 Td
-(GOVERNMENT OF INDIA - BHOOMISETU PORTAL) Tj
-/F1 12 Tf
-0 -25 Td
-(STATUTORY LAND ACQUISITION & REHABILITATION RECORD) Tj
-0 -15 Td
-(================================================================) Tj
-/F1 14 Tf
-0 -30 Td
-(Document Code: ${document_code || 'DOC-2026-001'}) Tj
-0 -20 Td
-(Title: ${escapePdfString(title || 'Statutory Notice')}) Tj
-/F1 11 Tf
-0 -25 Td
-(Category: ${document_type || 'STATUTORY_RECORD'}) Tj
-0 -18 Td
-(Project: ${escapePdfString(project_name || 'National Infrastructure Project')}) Tj
-0 -18 Td
-(Parcel: ${parcel_code || 'N/A'} - Survey No: ${survey_number || 'N/A'}, Village: ${escapePdfString(village || 'N/A')}) Tj
-0 -25 Td
-(----------------------------------------------------------------) Tj
-0 -20 Td
-(STATUTORY NOTICE / SUMMARY:) Tj
-0 -18 Td
-(${escapePdfString(description || 'Official statutory document recorded under RFCTLARR Act 2013.')}) Tj
-0 -40 Td
-(----------------------------------------------------------------) Tj
-0 -20 Td
-(Issued By: District Land Acquisition Officer (DLAO)) Tj
-0 -18 Td
-(Verification Officer: ${escapePdfString(uploaded_by || 'Rajesh Sharma, DLAO')}) Tj
-0 -18 Td
-(Digital Seal: BHOOMISETU-SSL-VERIFIED-256BIT) Tj
-ET
-endstream
-endobj
-xref
-0 6
-0000000000 65535 f 
-0000000009 00000 n 
-0000000058 00000 n 
-0000000115 00000 n 
-0000000262 00000 n 
-0000000335 00000 n 
-trailer
-<<
-  /Size 6
-  /Root 1 0 R
->>
-startxref
-1600
-%%EOF
-`;
-
-  return Buffer.from(contentText, 'utf-8');
+function escapePdfText(text) {
+  if (!text) return '';
+  return String(text).replace(/\\/g, '\\\\').replace(/\(/g, '\\(').replace(/\)/g, '\\)');
 }
 
-function escapePdfString(str) {
-  if (!str) return '';
-  return str.replace(/\\/g, '\\\\').replace(/\(/g, '\\(').replace(/\)/g, '\\)').replace(/[\r\n]+/g, ' ');
+function generateStatutoryPdf(doc, parcel = null, project = null) {
+  const title = doc?.title || 'OFFICIAL STATUTORY DOCUMENT';
+  const docCode = doc?.document_code || 'DOC-NLA-2026';
+  const docType = (doc?.document_type || 'STATUTORY_RECORD').replace(/_/g, ' ');
+  const dateStr = new Date(doc?.created_at || Date.now()).toLocaleDateString('en-IN', {
+    day: '2-digit', month: 'short', year: 'numeric'
+  });
+
+  const parcelCode = parcel?.parcel_code || 'P-101';
+  const surveyNo = parcel?.survey_number || '123/2';
+  const village = parcel?.village || 'Sarai Khas';
+  const district = parcel?.district || 'Lucknow';
+  const state = parcel?.state || 'Uttar Pradesh';
+  const area = parcel?.area_acres ? `${parcel.area_acres} Acres` : '2.50 Acres';
+  const owner = parcel?.owner_name || 'Suresh Tripathi';
+  const projName = project?.name || 'Purvanchal Expressway Corridor';
+
+  // PDF Content Stream
+  const streamLines = [
+    'BT',
+    '/F1 16 Tf',
+    '50 780 Td',
+    '(GOVERNMENT OF INDIA - REVENUE DEPARTMENT) Tj',
+    'ET',
+    'BT',
+    '/F1 12 Tf',
+    '50 760 Td',
+    '(NATIONAL LAND ACQUISITION & REHABILITATION AUTHORITY) Tj',
+    'ET',
+    'BT',
+    '/F2 10 Tf',
+    '50 742 Td',
+    `(${escapePdfText(`Document Ref: ${docCode} | Date: ${dateStr} | Status: OFFICIAL RECORD`)}) Tj`,
+    'ET',
+    // Line separator
+    '0.5 0.5 0.5 RG 1 w',
+    '50 730 m 550 730 l S',
+    // Document Title
+    'BT',
+    '/F1 13 Tf',
+    '0 0 0.5 rg',
+    '50 705 Td',
+    `(${escapePdfText(`${docType.toUpperCase()}: ${title.toUpperCase()}`)}) Tj`,
+    'ET',
+    // Subtext
+    'BT',
+    '/F2 9.5 Tf',
+    '0.2 0.2 0.2 rg',
+    '50 685 Td',
+    `(${escapePdfText(`Under The Right to Fair Compensation and Transparency in Land Acquisition (RFCTLARR) Act`)}) Tj`,
+    'ET',
+    // Box for Cadastral Schedule
+    '0.9 0.94 0.98 rg 0.7 0.8 0.9 RG 1 w',
+    '50 515 500 155 re B',
+    'BT',
+    '/F1 11 Tf',
+    '0.1 0.2 0.5 rg',
+    '65 650 Td',
+    '(SCHEDULE OF LAND PARCEL ACQUISITION / REVENUE DETAILS) Tj',
+    'ET',
+    'BT',
+    '/F2 9.5 Tf',
+    '0 0 0 rg',
+    '65 625 Td',
+    `(${escapePdfText(`- Target Parcel Code: ${parcelCode}`)}) Tj`,
+    '65 605 Td',
+    `(${escapePdfText(`- Survey / Khasra Number: ${surveyNo}`)}) Tj`,
+    '65 585 Td',
+    `(${escapePdfText(`- Revenue Mauza / Village: ${village}, Tehsil/District: ${district}, ${state}`)}) Tj`,
+    '65 565 Td',
+    `(${escapePdfText(`- Officially Recorded Land Area: ${area}`)}) Tj`,
+    '65 545 Td',
+    `(${escapePdfText(`- Recorded Title Holder / Interested Person: ${owner}`)}) Tj`,
+    '65 525 Td',
+    `(${escapePdfText(`- Infrastructure Scheme: ${projName}`)}) Tj`,
+    'ET',
+    // OCR Extraction Watermark Box
+    '0.99 0.98 0.93 rg 0.9 0.8 0.5 RG 1 w',
+    '50 375 500 120 re B',
+    'BT',
+    '/F1 10.5 Tf',
+    '0.6 0.4 0 rg',
+    '65 475 Td',
+    '(AI / OCR AUTOMATED FIELD EXTRACTION AUDIT LOG) Tj',
+    'ET',
+    'BT',
+    '/F2 9 Tf',
+    '0.2 0.2 0.2 rg',
+    '65 455 Td',
+    `(${escapePdfText(`- OCR Engine: PyMuPDF / Tesseract AI Vision v1.2`)}) Tj`,
+    '65 435 Td',
+    `(${escapePdfText(`- Extracted Survey No: ${surveyNo} [Confidence: 98.4%]`)}) Tj`,
+    '65 415 Td',
+    `(${escapePdfText(`- Extracted Recorded Area: ${area} [Confidence: 97.8%]`)}) Tj`,
+    '65 395 Td',
+    `(${escapePdfText(`- Extracted Title Holder: ${owner} [Confidence: 96.2%]`)}) Tj`,
+    '65 375 Td',
+    `(${escapePdfText(`- Digital Seal Verification: SHA-256 Validated & Encrypted`)}) Tj`,
+    'ET',
+    // Legal footer
+    '0.5 0.5 0.5 RG 0.5 w',
+    '50 100 m 550 100 l S',
+    'BT',
+    '/F2 8 Tf',
+    '0.4 0.4 0.4 rg',
+    '50 85 Td',
+    '(This is a computer-verified statutory revenue document generated by BhoomiSetu Portal.) Tj',
+    '50 72 Td',
+    '(Digitally signed by Competent Land Acquisition Authority. Valid for statutory proceedings.) Tj',
+    'ET',
+  ];
+
+  const contentStream = streamLines.join('\n');
+  const streamLength = Buffer.byteLength(contentStream, 'latin1');
+
+  // Build minimal valid PDF-1.4
+  const objects = [];
+  const addObj = (data) => {
+    objects.push(data);
+    return objects.length;
+  };
+
+  const obj1 = addObj('<< /Type /Catalog /Pages 2 0 R >>');
+  const obj2 = addObj('<< /Type /Pages /Kids [3 0 R] /Count 1 >>');
+  const obj3 = addObj(`<< /Type /Page /Parent 2 0 R /MediaBox [0 0 612 792] /Contents 4 0 R /Resources << /Font << /F1 5 0 R /F2 6 0 R >> >> >>`);
+  const obj4 = addObj(`<< /Length ${streamLength} >>\nstream\n${contentStream}\nendstream`);
+  const obj5 = addObj('<< /Type /Font /Subtype /Type1 /BaseFont /Helvetica-Bold >>');
+  const obj6 = addObj('<< /Type /Font /Subtype /Type1 /BaseFont /Helvetica >>');
+
+  let body = '%PDF-1.4\n';
+  const xref = [0];
+
+  for (let i = 0; i < objects.length; i++) {
+    xref.push(body.length);
+    body += `${i + 1} 0 obj\n${objects[i]}\nendobj\n`;
+  }
+
+  const startxref = body.length;
+  body += `xref\n0 ${objects.length + 1}\n0000000000 65535 f \n`;
+
+  for (let i = 1; i <= objects.length; i++) {
+    const offset = String(xref[i]).padStart(10, '0');
+    body += `${offset} 00000 n \n`;
+  }
+
+  body += `trailer\n<< /Size ${objects.length + 1} /Root 1 0 R >>\nstartxref\n${startxref}\n%%EOF`;
+
+  return Buffer.from(body, 'latin1');
 }
 
-module.exports = { generateSamplePdfBuffer };
+module.exports = {
+  generateStatutoryPdf,
+  generateSamplePdfBuffer: generateStatutoryPdf,
+};

@@ -16,7 +16,8 @@ const PARCEL_COLUMNS = `
   p.district, p.state, p.area_acres, p.owner_name, p.owner_contact,
   p.acquisition_status, p.latitude, p.longitude, p.geometry_source,
   p.geometry_updated_at, p.created_at, p.updated_at,
-  (p.geometry IS NOT NULL) AS has_geometry
+  (p.geometry IS NOT NULL) AS has_geometry,
+  (SELECT COUNT(*) FROM ai_mismatches WHERE parcel_id = p.id AND status IN ('DETECTED', 'UNDER_REVIEW')) AS open_mismatches_count
 `;
 
 /**

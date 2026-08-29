@@ -15,6 +15,7 @@ import {
   AlertTriangle,
   Clock,
   Map as MapIcon,
+  Flag,
 } from 'lucide-react';
 
 export default function ParcelListPage() {
@@ -198,7 +199,21 @@ export default function ParcelListPage() {
               <tbody className="divide-y divide-slate-100">
                 {parcels.map((parcel) => (
                   <tr key={parcel.id} className="hover:bg-blue-50/40 transition-colors">
-                    <td className="font-mono font-bold text-blue-900 text-xs">{parcel.parcel_code}</td>
+                    <td>
+                      <div className="flex items-center gap-1.5">
+                        <span className="font-mono font-bold text-blue-900 text-xs">{parcel.parcel_code}</span>
+                        {Number(parcel.open_mismatches_count) > 0 && (
+                          <Link
+                            to={`/ai/mismatch?search=${parcel.parcel_code}`}
+                            className="inline-flex items-center gap-1 px-1.5 py-0.5 rounded bg-rose-100 text-rose-800 border border-rose-200 text-[10px] font-extrabold hover:bg-rose-200 transition-colors"
+                            title={`${parcel.open_mismatches_count} open discrepancy flag(s) — Click to inspect in AI Verification`}
+                          >
+                            <Flag className="w-2.5 h-2.5 fill-rose-600 text-rose-600" />
+                            <span>{parcel.open_mismatches_count}</span>
+                          </Link>
+                        )}
+                      </div>
+                    </td>
                     <td className="font-bold text-slate-900 text-xs">{parcel.survey_number}</td>
                     <td>
                       <div className="font-semibold text-slate-800 text-xs">{parcel.village}</div>

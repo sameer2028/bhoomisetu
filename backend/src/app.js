@@ -67,6 +67,7 @@ app.use('/api/rr', require('./modules/rr/rr.routes'));
 app.use('/api/alerts', require('./modules/alerts/alerts.routes'));
 app.use('/api/search', require('./modules/search/search.routes'));
 app.use('/api/compensation', require('./modules/compensation/compensation.routes'));
+app.use('/api/ai', require('./modules/ai/ai.routes'));
 
 // ─── Constants endpoint (for frontend enums) ───────────────────────
 const constants = require('./config/constants');

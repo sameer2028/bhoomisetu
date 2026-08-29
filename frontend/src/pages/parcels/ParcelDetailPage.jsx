@@ -20,6 +20,8 @@ import {
   Globe,
   Map,
   Compass,
+  Sparkles,
+  Flag,
 } from 'lucide-react';
 
 export default function ParcelDetailPage() {
@@ -446,6 +448,50 @@ export default function ParcelDetailPage() {
               ) : (
                 <p className="text-xs text-slate-400 italic">This parcel is not yet linked to any project.</p>
               )}
+            </div>
+
+            {/* AI Document Discrepancies Card */}
+            <div className="card p-6 border-l-4 border-l-amber-500">
+              <div className="flex items-center justify-between mb-3">
+                <h2 className="text-xs font-bold uppercase tracking-wider text-slate-900 flex items-center gap-1.5">
+                  <Sparkles className="w-4 h-4 text-amber-500" /> AI Document Verification
+                </h2>
+                <Link
+                  to={`/ai/mismatch?search=${parcel.parcel_code}`}
+                  className="text-[11px] font-bold text-blue-700 hover:underline flex items-center gap-1"
+                >
+                  View in AI Portal &rarr;
+                </Link>
+              </div>
+              <div className="p-3 rounded-xl bg-slate-50 border border-slate-100 text-xs">
+                {Number(parcel.open_mismatches_count) > 0 ? (
+                  <div className="space-y-2">
+                    <div className="flex items-center gap-2 font-bold text-rose-700">
+                      <Flag className="w-3.5 h-3.5 fill-rose-600 text-rose-600" />
+                      <span>{parcel.open_mismatches_count} Active Discrepancy Flag(s)</span>
+                    </div>
+                    <p className="text-[11px] text-slate-600">
+                      Disagreements detected between uploaded title deeds/surveys and master cadastral records.
+                    </p>
+                    <Link
+                      to={`/ai/mismatch?search=${parcel.parcel_code}`}
+                      className="btn btn-secondary btn-sm text-xs font-semibold w-full mt-2 justify-center"
+                    >
+                      Review Flagged Fields &rarr;
+                    </Link>
+                  </div>
+                ) : (
+                  <div className="space-y-1">
+                    <div className="flex items-center gap-1.5 font-bold text-emerald-700">
+                      <CheckCircle className="w-3.5 h-3.5 text-emerald-600" />
+                      <span>All Documents Verified</span>
+                    </div>
+                    <p className="text-[11px] text-slate-500">
+                      No unresolved field discrepancies recorded for this parcel.
+                    </p>
+                  </div>
+                )}
+              </div>
             </div>
 
             <div className="card p-6">

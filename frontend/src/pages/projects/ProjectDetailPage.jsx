@@ -19,6 +19,12 @@ import {
   Map as MapIcon,
   Route,
   ShieldCheck,
+  AlertTriangle,
+  Sparkles,
+  ChevronDown,
+  ChevronUp,
+  RefreshCw,
+  Flame,
 } from 'lucide-react';
 
 export default function ProjectDetailPage() {
@@ -32,32 +38,62 @@ export default function ProjectDetailPage() {
   const [errorMsg, setErrorMsg] = useState('');
   const [saving, setSaving] = useState(false);
 
+  // Risk Score State
+  const [riskData, setRiskData] = useState(null);
+  const [isRiskExpanded, setIsRiskExpanded] = useState(true);
+  const [recalculatingRisk, setRecalculatingRisk] = useState(false);
+
   const fetchProject = useCallback(async () => {
     setLoading(true);
     try {
-      const res = await api.get(`/projects/${id}`);
-      const p = res.data.data;
-      setProject(p);
-      setFormData({
-        name: p.name || '',
-        description: p.description || '',
-        project_type: p.project_type || '',
-        implementing_agency: p.implementing_agency || '',
-        state: p.state || '',
-        district: p.district || '',
-        taluk: p.taluk || '',
-        total_area_required: p.total_area_required || '',
-        total_area_acquired: p.total_area_acquired || '',
-        status: p.status || 'PROPOSED',
-        start_date: p.start_date || '',
-        expected_end_date: p.expected_end_date || '',
-      });
+      const [projRes, riskRes] = await Promise.allSettled([
+        api.get(`/projects/${id}`),
+        api.get(`/ai/risk-scores/${id}`),
+      ]);
+
+      if (projRes.status === 'fulfilled') {
+        const p = projRes.value.data.data;
+        setProject(p);
+        setFormData({
+          name: p.name || '',
+          description: p.description || '',
+          project_type: p.project_type || '',
+          implementing_agency: p.implementing_agency || '',
+          state: p.state || '',
+          district: p.district || '',
+          taluk: p.taluk || '',
+          total_area_required: p.total_area_required || '',
+          total_area_acquired: p.total_area_acquired || '',
+          status: p.status || 'PROPOSED',
+          start_date: p.start_date || '',
+          expected_end_date: p.expected_end_date || '',
+        });
+      }
+
+      if (riskRes.status === 'fulfilled' && riskRes.value.data?.data?.risk) {
+        setRiskData(riskRes.value.data.data.risk);
+      }
     } catch (err) {
       console.error('Failed to fetch project:', err);
     } finally {
       setLoading(false);
     }
   }, [id]);
+
+  const handleRecalculateRisk = async () => {
+    setRecalculatingRisk(true);
+    try {
+      const res = await api.post(`/ai/risk-scores/${id}/recalculate`);
+      if (res.data?.data?.risk) {
+        setRiskData(res.data.data.risk);
+        setSuccessMsg('Risk score recomputed successfully from live project metrics!');
+      }
+    } catch (err) {
+      console.error('Failed to recalculate risk:', err);
+    } finally {
+      setRecalculatingRisk(false);
+    }
+  };
 
   useEffect(() => {
     fetchProject();
@@ -140,6 +176,29 @@ export default function ProjectDetailPage() {
           </div>
 
           <div className="flex flex-wrap items-center gap-3">
+            {/* Risk Score Badge */}
+            {riskData && (
+              <span
+                className={`px-3 py-1.5 rounded-lg text-xs font-extrabold uppercase tracking-wider flex items-center gap-1.5 shadow-sm ${
+                  riskData.risk_level === 'HIGH' || riskData.risk_level === 'CRITICAL'
+                    ? 'bg-rose-50 text-rose-800 border border-rose-300'
+                    : riskData.risk_level === 'MEDIUM'
+                    ? 'bg-amber-50 text-amber-800 border border-amber-300'
+                    : 'bg-emerald-50 text-emerald-800 border border-emerald-300'
+                }`}
+                title="AI Project Risk Index (0-100)"
+              >
+                <AlertTriangle className={`w-3.5 h-3.5 ${
+                  riskData.risk_level === 'HIGH' || riskData.risk_level === 'CRITICAL'
+                    ? 'text-rose-600'
+                    : riskData.risk_level === 'MEDIUM'
+                    ? 'text-amber-600'
+                    : 'text-emerald-600'
+                }`} />
+                <span>Risk Score: {riskData.score}/100 • {riskData.risk_level} RISK</span>
+              </span>
+            )}
+
             <span className={`px-3 py-1.5 rounded-lg text-xs font-bold uppercase tracking-wider flex items-center gap-1.5 ${
               project.status === 'IN_PROGRESS' ? 'bg-indigo-50 text-indigo-800 border border-indigo-200' :
               project.status === 'COMPLETED' ? 'bg-emerald-50 text-emerald-800 border border-emerald-200' :
@@ -380,6 +439,123 @@ export default function ProjectDetailPage() {
                 </div>
               </div>
             </div>
+
+            {/* AI Risk Score Breakdown Card */}
+            {riskData && (
+              <div className="card p-6 md:p-8 border-l-4 border-l-rose-600 bg-white">
+                <div className="flex flex-col sm:flex-row sm:items-center justify-between gap-3 mb-4">
+                  <div>
+                    <div className="flex items-center gap-2">
+                      <h2 className="text-sm font-bold uppercase tracking-wider text-slate-900 flex items-center gap-2">
+                        <Sparkles className="w-4 h-4 text-amber-500" /> AI Project Risk Assessment Breakdown
+                      </h2>
+                      <span className={`px-2 py-0.5 rounded text-[11px] font-extrabold ${
+                        riskData.risk_level === 'HIGH' || riskData.risk_level === 'CRITICAL'
+                          ? 'bg-rose-100 text-rose-800'
+                          : riskData.risk_level === 'MEDIUM'
+                          ? 'bg-amber-100 text-amber-800'
+                          : 'bg-emerald-100 text-emerald-800'
+                      }`}>
+                        {riskData.score} / 100 ({riskData.risk_level} RISK)
+                      </span>
+                    </div>
+                    <p className="text-xs text-slate-500 mt-1 font-medium">
+                      Multi-factor statutory bottleneck analysis • Why this score?
+                    </p>
+                  </div>
+
+                  <div className="flex items-center gap-2">
+                    <button
+                      onClick={handleRecalculateRisk}
+                      disabled={recalculatingRisk}
+                      className="btn btn-secondary btn-sm text-xs font-semibold flex items-center gap-1.5"
+                      title="Recalculate risk score from live database metrics"
+                    >
+                      <RefreshCw className={`w-3.5 h-3.5 ${recalculatingRisk ? 'animate-spin' : ''}`} />
+                      {recalculatingRisk ? 'Computing...' : 'Recalculate Score'}
+                    </button>
+                  </div>
+                </div>
+
+                <div className="space-y-4 pt-2">
+                  {/* Factor 1: Overdue Cases */}
+                  <div>
+                    <div className="flex justify-between items-center text-xs mb-1">
+                      <span className="font-bold text-slate-800">1. Statutory Overdue Cases (Max 35 pts)</span>
+                      <span className="font-extrabold text-rose-700">
+                        {riskData.factors?.overdue_cases?.score || 0} / 35 pts
+                      </span>
+                    </div>
+                    <div className="w-full bg-slate-100 rounded-full h-2.5 overflow-hidden ring-1 ring-slate-200/50">
+                      <div
+                        className="h-full bg-rose-600 rounded-full transition-all duration-500"
+                        style={{ width: `${Math.min(100, ((riskData.factors?.overdue_cases?.score || 0) / 35) * 100)}%` }}
+                      />
+                    </div>
+                    <p className="text-[11px] text-slate-500 mt-1">
+                      {riskData.factors?.overdue_cases?.label || 'Statutory review timelines'}
+                    </p>
+                  </div>
+
+                  {/* Factor 2: Pending Compensation */}
+                  <div>
+                    <div className="flex justify-between items-center text-xs mb-1">
+                      <span className="font-bold text-slate-800">2. Pending Compensation Disbursement (Max 25 pts)</span>
+                      <span className="font-extrabold text-amber-700">
+                        {riskData.factors?.pending_compensation?.score || 0} / 25 pts
+                      </span>
+                    </div>
+                    <div className="w-full bg-slate-100 rounded-full h-2.5 overflow-hidden ring-1 ring-slate-200/50">
+                      <div
+                        className="h-full bg-amber-500 rounded-full transition-all duration-500"
+                        style={{ width: `${Math.min(100, ((riskData.factors?.pending_compensation?.score || 0) / 25) * 100)}%` }}
+                      />
+                    </div>
+                    <p className="text-[11px] text-slate-500 mt-1">
+                      {riskData.factors?.pending_compensation?.label || 'Award disbursement progress'}
+                    </p>
+                  </div>
+
+                  {/* Factor 3: R&R Delays */}
+                  <div>
+                    <div className="flex justify-between items-center text-xs mb-1">
+                      <span className="font-bold text-slate-800">3. Rehabilitation &amp; Resettlement Delays (Max 20 pts)</span>
+                      <span className="font-extrabold text-indigo-700">
+                        {riskData.factors?.rr_issues?.score || 0} / 20 pts
+                      </span>
+                    </div>
+                    <div className="w-full bg-slate-100 rounded-full h-2.5 overflow-hidden ring-1 ring-slate-200/50">
+                      <div
+                        className="h-full bg-indigo-600 rounded-full transition-all duration-500"
+                        style={{ width: `${Math.min(100, ((riskData.factors?.rr_issues?.score || 0) / 20) * 100)}%` }}
+                      />
+                    </div>
+                    <p className="text-[11px] text-slate-500 mt-1">
+                      {riskData.factors?.rr_issues?.label || 'Family rehabilitation entitlements'}
+                    </p>
+                  </div>
+
+                  {/* Factor 4: AI Document Discrepancies */}
+                  <div>
+                    <div className="flex justify-between items-center text-xs mb-1">
+                      <span className="font-bold text-slate-800">4. AI Document Discrepancies (Max 20 pts)</span>
+                      <span className="font-extrabold text-purple-700">
+                        {riskData.factors?.document_mismatches?.score || 0} / 20 pts
+                      </span>
+                    </div>
+                    <div className="w-full bg-slate-100 rounded-full h-2.5 overflow-hidden ring-1 ring-slate-200/50">
+                      <div
+                        className="h-full bg-purple-600 rounded-full transition-all duration-500"
+                        style={{ width: `${Math.min(100, ((riskData.factors?.document_mismatches?.score || 0) / 20) * 100)}%` }}
+                      />
+                    </div>
+                    <p className="text-[11px] text-slate-500 mt-1">
+                      {riskData.factors?.document_mismatches?.label || 'Unresolved title deed / survey mismatches'}
+                    </p>
+                  </div>
+                </div>
+              </div>
+            )}
 
             <div className="card p-6 md:p-8">
               <h2 className="text-sm font-bold uppercase tracking-wider text-slate-900 mb-4 flex items-center gap-2">

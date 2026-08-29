@@ -16,6 +16,7 @@ import DocumentDetailPage from './pages/documents/DocumentDetailPage';
 import RrListPage from './pages/rr/RrListPage';
 import FamilyDetailPage from './pages/rr/FamilyDetailPage';
 import CompensationListPage from './pages/compensation/CompensationListPage';
+import MismatchListPage from './pages/ai/MismatchListPage';
 
 // Placeholder pages for future phases
 function PlaceholderPage({ title, phase }) {
@@ -66,8 +67,8 @@ export default function App() {
             <Route path="/documents" element={<DocumentListPage />} />
             <Route path="/documents/:id" element={<DocumentDetailPage />} />
 
-            {/* Phase 8 — AI */}
-            <Route path="/ai/mismatch" element={<PlaceholderPage title="AI Mismatch Detection" phase="Phase 8" />} />
+            {/* Phase 8 — AI Document Mismatch */}
+            <Route path="/ai/mismatch" element={<MismatchListPage />} />
 
             {/* Phase 9 — Compensation */}
             <Route path="/compensation" element={<CompensationListPage />} />

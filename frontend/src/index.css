@@ -464,3 +464,12 @@ h1, h2, h3, h4, h5, h6 {
   transition: fill-opacity 150ms ease, stroke-width 150ms ease;
 }
 
+/* ─── Global Modals & Dialog Overlays ─────────────────────────────────── */
+.modal-backdrop {
+  @apply fixed inset-0 z-50 flex items-center justify-center p-3 sm:p-4 pointer-events-none;
+}
+
+.modal-dialog {
+  @apply relative z-10 w-full bg-white rounded-xl shadow-2xl border border-slate-300 ring-1 ring-black/10 overflow-hidden flex flex-col pointer-events-auto my-auto;
+}
+

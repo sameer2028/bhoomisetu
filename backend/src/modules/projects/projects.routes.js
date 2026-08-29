@@ -52,9 +52,17 @@ router.get('/', authenticate, async (req, res, next) => {
               p.corridor_width_m, p.created_at, p.updated_at,
               u.full_name AS creator_name,
               ROUND((p.total_area_acquired / NULLIF(p.total_area_required, 0)) * 100, 2) AS acquisition_progress_pct,
-              (p.corridor IS NOT NULL) AS has_corridor
+              (p.corridor IS NOT NULL) AS has_corridor,
+              r.score AS risk_score, r.risk_level, r.factors AS risk_factors
          FROM projects p
          LEFT JOIN users u ON p.created_by = u.id
+         LEFT JOIN LATERAL (
+           SELECT score, risk_level, factors
+           FROM risk_scores
+           WHERE project_id = p.id
+           ORDER BY calculated_at DESC
+           LIMIT 1
+         ) r ON true
          ${where}
          ORDER BY p.created_at DESC
          LIMIT $${params.length + 1} OFFSET $${params.length + 2}`,
@@ -170,9 +178,17 @@ router.get('/:id', authenticate, async (req, res, next) => {
               (SELECT COUNT(*) FROM acquisition_cases WHERE project_id = p.id) AS total_cases,
               (SELECT COUNT(*) FROM families WHERE project_id = p.id) AS total_families,
               (p.corridor IS NOT NULL) AS has_corridor,
-              ROUND((ST_Length(p.centerline::geography) / 1000.0)::numeric, 2) AS corridor_length_km
+              ROUND((ST_Length(p.centerline::geography) / 1000.0)::numeric, 2) AS corridor_length_km,
+              r.score AS risk_score, r.risk_level, r.factors AS risk_factors
          FROM projects p
          LEFT JOIN users u ON p.created_by = u.id
+         LEFT JOIN LATERAL (
+           SELECT score, risk_level, factors
+           FROM risk_scores
+           WHERE project_id = p.id
+           ORDER BY calculated_at DESC
+           LIMIT 1
+         ) r ON true
         WHERE p.id::text = $1 OR p.project_code = $1`,
       [req.params.id]
     );
