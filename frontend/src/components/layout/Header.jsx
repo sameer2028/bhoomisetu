@@ -82,7 +82,7 @@ export default function Header() {
       }
       setIsNotificationsOpen(false);
 
-      if (alertItem.case_id) navigate('/workflow');
+      if (alertItem.case_id) navigate('/cases');
       else if (alertItem.parcel_id) navigate('/parcels');
       else if (alertItem.project_id) navigate('/projects');
       else navigate('/alerts');
@@ -311,7 +311,7 @@ export default function Header() {
                         <div
                           key={c.id}
                           onClick={() => {
-                            navigate('/workflow');
+                            navigate('/cases');
                             setIsSearchOpen(false);
                           }}
                           className="p-2 rounded-lg hover:bg-slate-100 cursor-pointer flex items-center justify-between"
