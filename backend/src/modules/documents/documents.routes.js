@@ -127,9 +127,21 @@ router.get('/', authenticate, async (req, res, next) => {
       conditions.push(`d.access_level != 'CONFIDENTIAL'`);
     }
 
+    // Role-based jurisdiction filtering
+    if ((req.user.role === ROLES.DLAO || req.user.role === ROLES.FRO) && req.user.district) {
+      params.push(req.user.district);
+      conditions.push(`pr.district = $${params.length}`);
+    }
+
     const where = conditions.length ? `WHERE ${conditions.join(' AND ')}` : '';
 
-    const countRow = await queryOne(`SELECT COUNT(*) AS count FROM documents d ${where}`, params);
+    const countRow = await queryOne(
+      `SELECT COUNT(*) AS count 
+         FROM documents d 
+         LEFT JOIN projects pr ON d.project_id = pr.id 
+         ${where}`, 
+      params
+    );
 
     const documents = await queryRows(
       `SELECT d.*,

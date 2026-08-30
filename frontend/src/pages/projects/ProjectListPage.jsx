@@ -1,4 +1,4 @@
-import { useState, useEffect, useCallback } from 'react';
+import { useState, useEffect, useCallback, useMemo } from 'react';
 import { Link } from 'react-router-dom';
 import { useAuth } from '../../contexts/AuthContext';
 import api from '../../services/api';
@@ -24,6 +24,9 @@ export default function ProjectListPage() {
   const [loading, setLoading] = useState(true);
   const [search, setSearch] = useState('');
   const [statusFilter, setStatusFilter] = useState('');
+  const [typeFilter, setTypeFilter] = useState('');
+  const [sortBy, setSortBy] = useState('newest');
+  const [activeOnly, setActiveOnly] = useState(false);
   const [isCreateOpen, setIsCreateOpen] = useState(false);
 
   const fetchProjects = useCallback(async () => {
@@ -32,6 +35,7 @@ export default function ProjectListPage() {
       const params = {};
       if (search) params.search = search;
       if (statusFilter) params.status = statusFilter;
+      if (typeFilter) params.project_type = typeFilter;
 
       const res = await api.get('/projects', { params });
       setProjects(res.data.data || []);
@@ -40,11 +44,28 @@ export default function ProjectListPage() {
     } finally {
       setLoading(false);
     }
-  }, [search, statusFilter]);
+  }, [search, statusFilter, typeFilter]);
 
   useEffect(() => {
     fetchProjects();
   }, [fetchProjects]);
+
+  const sortedProjects = useMemo(() => {
+    let list = [...projects];
+    if (activeOnly) {
+      list = list.filter(p => p.status === 'IN_PROGRESS' || p.status === 'APPROVED');
+    }
+    if (sortBy === 'newest') {
+      list.sort((a, b) => new Date(b.created_at || 0) - new Date(a.created_at || 0));
+    } else if (sortBy === 'oldest') {
+      list.sort((a, b) => new Date(a.created_at || 0) - new Date(b.created_at || 0));
+    } else if (sortBy === 'area') {
+      list.sort((a, b) => (b.total_area_required || 0) - (a.total_area_required || 0));
+    } else if (sortBy === 'name') {
+      list.sort((a, b) => (a.name || '').localeCompare(b.name || ''));
+    }
+    return list;
+  }, [projects, sortBy, activeOnly]);
 
   const getStatusBadge = (status) => {
     switch (status) {
@@ -71,9 +92,11 @@ export default function ProjectListPage() {
       <div className="flex flex-col sm:flex-row sm:items-center justify-between gap-4">
         <div className="page-header mb-0">
           <h1 className="page-title flex items-center gap-2">
-            <FolderKanban className="w-6 h-6 text-blue-700" /> Infrastructure Projects Portfolio
+            <FolderKanban className="w-6 h-6 text-blue-700" /> Infrastructure Projects
           </h1>
-          <p className="page-subtitle">National &amp; State Land Acquisition Infrastructure Pipeline</p>
+          <p className="page-subtitle">
+            Track and manage statutory infrastructure land acquisition portfolios
+          </p>
         </div>
 
         {canCreate && (
@@ -86,34 +109,142 @@ export default function ProjectListPage() {
         )}
       </div>
 
-      {/* Filter & Search Bar */}
-      <div className="card p-4 flex flex-col sm:flex-row items-center gap-3">
-        <div className="relative flex-1 w-full">
-          <Search className="w-4 h-4 text-slate-400 absolute left-3 top-1/2 -translate-y-1/2" />
+      {/* Stats Bar */}
+      <div className="grid grid-cols-2 sm:grid-cols-4 gap-3.5">
+        <div className="kpi-card kpi-card-green">
+          <div className="flex items-center gap-2.5 mb-2">
+            <div className="p-2 rounded-xl bg-emerald-50 text-emerald-700">
+              <FolderKanban className="w-4 h-4" />
+            </div>
+            <div>
+              <p className="text-[10px] font-bold text-slate-500 uppercase tracking-wider">Total Projects</p>
+              <p className="text-xl font-black text-slate-900 leading-none mt-0.5">{projects.length}</p>
+            </div>
+          </div>
+          <p className="text-[10px] text-slate-400">All registered portfolios</p>
+        </div>
+
+        <div className="kpi-card kpi-card-blue">
+          <div className="flex items-center gap-2.5 mb-2">
+            <div className="p-2 rounded-xl bg-blue-50 text-blue-700">
+              <TrendingUp className="w-4 h-4" />
+            </div>
+            <div>
+              <p className="text-[10px] font-bold text-slate-500 uppercase tracking-wider">In Progress</p>
+              <p className="text-xl font-black text-indigo-700 leading-none mt-0.5">
+                {projects.filter(p => p.status === 'IN_PROGRESS').length}
+              </p>
+            </div>
+          </div>
+          <p className="text-[10px] text-slate-400">Active acquisition phase</p>
+        </div>
+
+        <div className="kpi-card kpi-card-amber">
+          <div className="flex items-center gap-2.5 mb-2">
+            <div className="p-2 rounded-xl bg-amber-50 text-amber-700">
+              <Clock className="w-4 h-4" />
+            </div>
+            <div>
+              <p className="text-[10px] font-bold text-slate-500 uppercase tracking-wider">Pending Action</p>
+              <p className="text-xl font-black text-amber-600 leading-none mt-0.5">
+                {projects.filter(p => p.status === 'PROPOSED' || p.status === 'APPROVED').length}
+              </p>
+            </div>
+          </div>
+          <p className="text-[10px] text-slate-400">Awaiting gazette/clearance</p>
+        </div>
+
+        <div className="kpi-card kpi-card-green">
+          <div className="flex items-center gap-2.5 mb-2">
+            <div className="p-2 rounded-xl bg-teal-50 text-teal-700">
+              <CheckCircle2 className="w-4 h-4" />
+            </div>
+            <div>
+              <p className="text-[10px] font-bold text-slate-500 uppercase tracking-wider">Completed</p>
+              <p className="text-xl font-black text-teal-700 leading-none mt-0.5">
+                {projects.filter(p => p.status === 'COMPLETED').length}
+              </p>
+            </div>
+          </div>
+          <p className="text-[10px] text-slate-400">Fully acquired &amp; handed over</p>
+        </div>
+      </div>
+
+      {/* Modern Compact Horizontal Enterprise Filter Bar */}
+      <div className="bg-white rounded-2xl border border-slate-200/90 shadow-card p-3 flex flex-wrap lg:flex-nowrap items-center gap-2.5">
+        {/* Search */}
+        <div className="relative flex-1 min-w-[220px] w-full lg:w-auto">
+          <Search className="w-4 h-4 text-slate-400 absolute left-3.5 top-1/2 -translate-y-1/2" />
           <input
             type="text"
             placeholder="Search by project name, code (PRJ-...), agency, or district..."
             value={search}
             onChange={(e) => setSearch(e.target.value)}
-            className="form-input form-input-search text-xs"
+            className="form-input form-input-search text-xs w-full"
           />
         </div>
 
-        <div className="flex items-center gap-2 w-full sm:w-auto">
-          <Filter className="w-4 h-4 text-slate-400 hidden sm:block" />
-          <select
-            value={statusFilter}
-            onChange={(e) => setStatusFilter(e.target.value)}
-            className="form-select text-xs w-full sm:w-48"
-          >
-            <option value="">All Statuses</option>
-            <option value="PROPOSED">Proposed</option>
-            <option value="APPROVED">Approved</option>
-            <option value="IN_PROGRESS">In Progress</option>
-            <option value="COMPLETED">Completed</option>
-            <option value="CLOSED">Closed</option>
-          </select>
-        </div>
+        {/* Dropdowns & Controls */}
+        <select
+          value={statusFilter}
+          onChange={(e) => setStatusFilter(e.target.value)}
+          className="form-select text-xs w-auto min-w-[140px]"
+        >
+          <option value="">All Statuses</option>
+          <option value="PROPOSED">Proposed</option>
+          <option value="APPROVED">Approved</option>
+          <option value="IN_PROGRESS">In Progress</option>
+          <option value="COMPLETED">Completed</option>
+          <option value="CLOSED">Closed</option>
+        </select>
+
+        <select
+          value={typeFilter}
+          onChange={(e) => setTypeFilter(e.target.value)}
+          className="form-select text-xs w-auto min-w-[150px]"
+        >
+          <option value="">All Project Types</option>
+          <option value="HIGHWAY">Highway / Expressway</option>
+          <option value="RAILWAY">Railway Corridor</option>
+          <option value="AIRPORT">Airport &amp; Aviation</option>
+          <option value="INDUSTRIAL">Industrial Corridor</option>
+          <option value="URBAN">Urban Infrastructure</option>
+        </select>
+
+        <select
+          value={sortBy}
+          onChange={(e) => setSortBy(e.target.value)}
+          className="form-select text-xs w-auto min-w-[150px]"
+        >
+          <option value="newest">Sort: Newest First</option>
+          <option value="oldest">Sort: Oldest First</option>
+          <option value="area">Sort: Required Area</option>
+          <option value="name">Sort: Project Name</option>
+        </select>
+
+        <label className="flex items-center gap-1.5 px-3 py-2 rounded-lg bg-slate-50 border border-slate-200 hover:bg-slate-100 cursor-pointer select-none text-xs font-semibold text-slate-700 whitespace-nowrap transition-colors flex-shrink-0">
+          <input
+            type="checkbox"
+            checked={activeOnly}
+            onChange={(e) => setActiveOnly(e.target.checked)}
+            className="w-3.5 h-3.5 rounded text-blue-600 focus:ring-blue-500 border-slate-300"
+          />
+          <FolderKanban className={`w-3.5 h-3.5 ${activeOnly ? 'text-blue-600' : 'text-slate-400'}`} />
+          <span className={activeOnly ? 'text-blue-700 font-bold' : ''}>Active Only</span>
+        </label>
+
+        <button
+          onClick={() => {
+            setSearch('');
+            setStatusFilter('');
+            setTypeFilter('');
+            setSortBy('newest');
+            setActiveOnly(false);
+          }}
+          className="btn btn-secondary btn-sm text-xs font-semibold flex items-center gap-1.5 flex-shrink-0"
+        >
+          <Filter className="w-3.5 h-3.5 text-slate-400" /> Filters
+        </button>
       </div>
 
       {/* Projects Grid */}
@@ -122,21 +253,21 @@ export default function ProjectListPage() {
           <div className="spinner spinner-lg mb-3" />
           <p className="text-xs text-slate-500 font-medium">Loading acquisition projects...</p>
         </div>
-      ) : projects.length === 0 ? (
+      ) : sortedProjects.length === 0 ? (
         <div className="card p-12 text-center">
           <div className="w-14 h-14 rounded-2xl bg-slate-100 flex items-center justify-center mx-auto mb-3 text-slate-400">
             <FolderKanban className="w-7 h-7" />
           </div>
           <h3 className="text-base font-bold text-slate-800">No Projects Found</h3>
           <p className="text-xs text-slate-500 mt-1 max-w-sm mx-auto">
-            {search || statusFilter
+            {search || statusFilter || typeFilter || activeOnly
               ? 'No projects match your active search filters. Try clearing your filters.'
               : 'No land acquisition projects exist in the platform yet.'}
           </p>
         </div>
       ) : (
         <div className="grid grid-cols-1 md:grid-cols-2 gap-6">
-          {projects.map((project) => {
+          {sortedProjects.map((project) => {
             const reqArea = project.total_area_required || 0;
             const acqArea = project.total_area_acquired || 0;
             const pct = reqArea > 0 ? Math.min(100, Math.round((acqArea / reqArea) * 100)) : 0;
@@ -192,13 +323,12 @@ export default function ProjectListPage() {
                     </div>
                     <div className="w-full bg-slate-100 rounded-full h-2.5 overflow-hidden ring-1 ring-slate-200/50">
                       <div
-                        className={`h-full transition-all duration-500 rounded-full ${
-                          pct === 100
+                        className={`h-full transition-all duration-500 rounded-full ${pct === 100
                             ? 'bg-gradient-to-r from-emerald-500 to-teal-600'
                             : pct > 40
-                            ? 'bg-gradient-to-r from-blue-600 to-indigo-600'
-                            : 'bg-gradient-to-r from-amber-500 to-orange-500'
-                        }`}
+                              ? 'bg-gradient-to-r from-blue-600 to-indigo-600'
+                              : 'bg-gradient-to-r from-amber-500 to-orange-500'
+                          }`}
                         style={{ width: `${pct}%` }}
                       />
                     </div>

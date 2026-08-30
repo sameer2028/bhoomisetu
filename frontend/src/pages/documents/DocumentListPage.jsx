@@ -4,7 +4,7 @@ import api from '../../services/api';
 import {
   FileText, Upload, Search, Filter, ChevronLeft, ChevronRight,
   Eye, Download, Shield, ShieldAlert, ShieldCheck, Clock, X,
-  FolderOpen, Layers, FileWarning, AlertCircle, FileCheck,
+  FolderOpen, Layers, FileWarning, AlertCircle, FileCheck, Lock,
 } from 'lucide-react';
 
 const DOC_TYPE_LABELS = {
@@ -174,36 +174,94 @@ export default function DocumentListPage() {
 
   const hasFilters = search || docTypeFilter || accessFilter || projectFilter || parcelFilter || caseFilter;
 
+  const landRecordsCount = documents.filter(d => d.document_type === 'LAND_RECORD').length;
+  const notificationsCount = documents.filter(d => d.document_type === 'NOTIFICATION').length;
+  const awardOrdersCount = documents.filter(d => d.document_type === 'AWARD_ORDER' || d.document_type === 'COMPENSATION_DOC').length;
+
   return (
-    <div>
+    <div className="space-y-6">
       {/* Page Header */}
-      <div className="page-header flex flex-col sm:flex-row sm:items-center sm:justify-between gap-4">
-        <div>
+      <div className="flex flex-col sm:flex-row sm:items-center justify-between gap-4">
+        <div className="page-header mb-0">
           <h1 className="page-title flex items-center gap-2">
             <FileText className="w-6 h-6 text-emerald-700" />
             Statutory Document Repository
           </h1>
           <p className="page-subtitle">
-            Centralized e-Governance storage for Gazette notifications, SIA reports, Award orders, and Land Records
+            Centralized e-Governance repository for Gazette notifications, SIA reports, Award orders, and Land Titles
           </p>
         </div>
         <button
           onClick={() => setShowUpload(true)}
-          className="btn text-white font-bold flex items-center gap-2"
-          style={{ background: '#1e6b3e' }}
+          className="btn btn-primary text-xs font-semibold flex items-center gap-2 self-start sm:self-auto"
         >
           <Upload className="w-4 h-4" />
           Upload Document
         </button>
       </div>
 
+      {/* Standard KPI Stats Bar */}
+      <div className="grid grid-cols-2 sm:grid-cols-4 gap-3.5">
+        <div className="kpi-card kpi-card-blue">
+          <div className="flex items-center gap-2.5 mb-2">
+            <div className="p-2 rounded-xl bg-blue-50 text-blue-700">
+              <FileText className="w-4 h-4" />
+            </div>
+            <div>
+              <p className="text-[10px] font-bold text-slate-500 uppercase tracking-wider">Total Documents</p>
+              <p className="text-xl font-black text-slate-900 leading-none mt-0.5">{meta.total || documents.length}</p>
+            </div>
+          </div>
+          <p className="text-[10px] text-slate-400">Archived official records</p>
+        </div>
+
+        <div className="kpi-card kpi-card-amber">
+          <div className="flex items-center gap-2.5 mb-2">
+            <div className="p-2 rounded-xl bg-amber-50 text-amber-700">
+              <Layers className="w-4 h-4" />
+            </div>
+            <div>
+              <p className="text-[10px] font-bold text-slate-500 uppercase tracking-wider">Gazette Notifications</p>
+              <p className="text-xl font-black text-amber-700 leading-none mt-0.5">{notificationsCount}</p>
+            </div>
+          </div>
+          <p className="text-[10px] text-slate-400">Sec 4 &amp; Sec 11 statutory gazettes</p>
+        </div>
+
+        <div className="kpi-card kpi-card-green">
+          <div className="flex items-center gap-2.5 mb-2">
+            <div className="p-2 rounded-xl bg-emerald-50 text-emerald-700">
+              <ShieldCheck className="w-4 h-4" />
+            </div>
+            <div>
+              <p className="text-[10px] font-bold text-slate-500 uppercase tracking-wider">Land Titles (ROR)</p>
+              <p className="text-xl font-black text-emerald-700 leading-none mt-0.5">{landRecordsCount}</p>
+            </div>
+          </div>
+          <p className="text-[10px] text-slate-400">Verified cadastral extracts</p>
+        </div>
+
+        <div className="kpi-card kpi-card-purple">
+          <div className="flex items-center gap-2.5 mb-2">
+            <div className="p-2 rounded-xl bg-purple-50 text-purple-700">
+              <FileCheck className="w-4 h-4" />
+            </div>
+            <div>
+              <p className="text-[10px] font-bold text-slate-500 uppercase tracking-wider">Award Orders</p>
+              <p className="text-xl font-black text-purple-800 leading-none mt-0.5">{awardOrdersCount}</p>
+            </div>
+          </div>
+          <p className="text-[10px] text-slate-400">Compensation &amp; possession awards</p>
+        </div>
+      </div>
+
       {/* Active Pre-filter Indicator */}
       {(projectFilter || parcelFilter || caseFilter) && (
-        <div className="mb-4 p-3 rounded-lg bg-emerald-50 border border-emerald-200 flex items-center justify-between text-xs text-emerald-900">
+        <div className="p-3 rounded-xl bg-emerald-50 border border-emerald-200 flex items-center justify-between text-xs text-emerald-900">
           <div className="flex items-center gap-2">
             <FileCheck className="w-4 h-4 text-emerald-700" />
             <span>
-              Pre-filtered for specific entity: <strong>{projectFilter ? 'Project' : parcelFilter ? 'Parcel' : 'Workflow Case'}</strong>
+              Filtered for linked entity: <strong>{projectFilter ? 'Project' : parcelFilter ? 'Parcel' : 'Workflow Case'}</strong>
             </span>
           </div>
           <button onClick={clearFilters} className="text-emerald-700 hover:underline font-bold">
@@ -212,87 +270,71 @@ export default function DocumentListPage() {
         </div>
       )}
 
-      {/* Search & Filters Bar */}
-      <div className="card mb-6">
-        <div className="card-body">
-          <div className="flex flex-col sm:flex-row gap-3">
-            {/* Search */}
-            <div className="relative flex-1">
-              <Search className="absolute left-3 top-1/2 -translate-y-1/2 w-4 h-4 text-neutral-400" />
-              <input
-                type="text"
-                placeholder="Search by title, code, survey number, file name..."
-                value={search}
-                onChange={(e) => { setSearch(e.target.value); setPage(1); }}
-                className="form-input form-input-search text-sm"
-              />
-            </div>
-
-            {/* Filter Toggles */}
-            <div className="flex gap-2">
-              <button
-                onClick={() => setShowFilters(!showFilters)}
-                className={`btn ${showFilters ? 'btn-primary' : 'btn-secondary'} flex items-center gap-2 text-sm`}
-              >
-                <Filter className="w-4 h-4" />
-                Filters {hasFilters ? '•' : ''}
-              </button>
-              {hasFilters && (
-                <button onClick={clearFilters} className="btn btn-secondary flex items-center gap-1 text-sm text-red-600">
-                  <X className="w-3.5 h-3.5" />
-                  Clear
-                </button>
-              )}
-            </div>
-          </div>
-
-          {/* Extended Filters */}
-          {showFilters && (
-            <div className="grid grid-cols-1 sm:grid-cols-3 gap-3 mt-4 pt-4 border-t border-neutral-100">
-              <div>
-                <label className="form-label text-xs font-bold">Document Type</label>
-                <select
-                  value={docTypeFilter}
-                  onChange={(e) => { setDocTypeFilter(e.target.value); setPage(1); }}
-                  className="form-input text-xs"
-                >
-                  <option value="">All Document Types</option>
-                  {Object.entries(DOC_TYPE_LABELS).map(([key, label]) => (
-                    <option key={key} value={key}>{label}</option>
-                  ))}
-                </select>
-              </div>
-
-              <div>
-                <label className="form-label text-xs font-bold">Access Classification</label>
-                <select
-                  value={accessFilter}
-                  onChange={(e) => { setAccessFilter(e.target.value); setPage(1); }}
-                  className="form-input text-xs"
-                >
-                  <option value="">All Access Levels</option>
-                  <option value="PUBLIC">Public Access</option>
-                  <option value="RESTRICTED">Restricted (Officer Only)</option>
-                  <option value="CONFIDENTIAL">Confidential (Secretariat)</option>
-                </select>
-              </div>
-
-              <div>
-                <label className="form-label text-xs font-bold">Filter by Infrastructure Project</label>
-                <select
-                  value={projectFilter}
-                  onChange={(e) => { setProjectFilter(e.target.value); setPage(1); }}
-                  className="form-input text-xs"
-                >
-                  <option value="">All Projects</option>
-                  {projects.map(p => (
-                    <option key={p.id} value={p.id}>{p.project_code} — {p.name}</option>
-                  ))}
-                </select>
-              </div>
-            </div>
-          )}
+      {/* Modern Compact Horizontal Enterprise Filter Bar */}
+      <div className="bg-white rounded-2xl border border-slate-200/90 shadow-card p-3 flex flex-wrap lg:flex-nowrap items-center gap-2.5">
+        {/* Search */}
+        <div className="relative flex-1 min-w-[220px] w-full lg:w-auto">
+          <Search className="w-4 h-4 text-slate-400 absolute left-3.5 top-1/2 -translate-y-1/2" />
+          <input
+            type="text"
+            placeholder="Search by title, code, survey number, file name..."
+            value={search}
+            onChange={(e) => { setSearch(e.target.value); setPage(1); }}
+            className="form-input form-input-search text-xs w-full"
+          />
         </div>
+
+        {/* Dropdowns & Controls */}
+        <select
+          value={docTypeFilter}
+          onChange={(e) => { setDocTypeFilter(e.target.value); setPage(1); }}
+          className="form-select text-xs w-auto min-w-[160px]"
+        >
+          <option value="">All Document Types</option>
+          {Object.entries(DOC_TYPE_LABELS).map(([key, label]) => (
+            <option key={key} value={key}>{label}</option>
+          ))}
+        </select>
+
+        <select
+          value={accessFilter}
+          onChange={(e) => { setAccessFilter(e.target.value); setPage(1); }}
+          className="form-select text-xs w-auto min-w-[140px]"
+        >
+          <option value="">All Access Levels</option>
+          <option value="PUBLIC">Public</option>
+          <option value="RESTRICTED">Restricted</option>
+          <option value="CONFIDENTIAL">Confidential</option>
+        </select>
+
+        <select
+          value={projectFilter}
+          onChange={(e) => { setProjectFilter(e.target.value); setPage(1); }}
+          className="form-select text-xs w-auto min-w-[160px]"
+        >
+          <option value="">All Projects</option>
+          {projects.map((p) => (
+            <option key={p.id} value={p.id}>{p.name}</option>
+          ))}
+        </select>
+
+        <label className="flex items-center gap-1.5 px-3 py-2 rounded-lg bg-slate-50 border border-slate-200 hover:bg-slate-100 cursor-pointer select-none text-xs font-semibold text-slate-700 whitespace-nowrap transition-colors flex-shrink-0">
+          <input
+            type="checkbox"
+            checked={accessFilter === 'CONFIDENTIAL'}
+            onChange={(e) => { setAccessFilter(e.target.checked ? 'CONFIDENTIAL' : ''); setPage(1); }}
+            className="w-3.5 h-3.5 rounded text-amber-600 focus:ring-amber-500 border-slate-300"
+          />
+          <Lock className={`w-3.5 h-3.5 ${accessFilter === 'CONFIDENTIAL' ? 'text-amber-600' : 'text-slate-400'}`} />
+          <span className={accessFilter === 'CONFIDENTIAL' ? 'text-amber-700 font-bold' : ''}>Confidential</span>
+        </label>
+
+        <button
+          onClick={clearFilters}
+          className="btn btn-secondary btn-sm text-xs font-semibold flex items-center gap-1.5 flex-shrink-0"
+        >
+          <Filter className="w-3.5 h-3.5 text-slate-400" /> Filters
+        </button>
       </div>
 
       {/* Error Banner */}

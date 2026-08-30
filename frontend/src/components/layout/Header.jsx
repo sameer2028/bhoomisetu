@@ -151,9 +151,9 @@ export default function Header() {
 
   const totalResults = searchResults
     ? (searchResults.projects?.length || 0) +
-      (searchResults.parcels?.length || 0) +
-      (searchResults.cases?.length || 0) +
-      (searchResults.families?.length || 0)
+    (searchResults.parcels?.length || 0) +
+    (searchResults.cases?.length || 0) +
+    (searchResults.families?.length || 0)
     : 0;
 
   return (
@@ -406,9 +406,8 @@ export default function Header() {
                       <div
                         key={a.id}
                         onClick={() => handleAlertClick(a)}
-                        className={`p-3 cursor-pointer hover:bg-slate-50 transition-colors flex items-start gap-2.5 ${
-                          !a.is_read ? 'bg-blue-50/40' : ''
-                        }`}
+                        className={`p-3 cursor-pointer hover:bg-slate-50 transition-colors flex items-start gap-2.5 ${!a.is_read ? 'bg-blue-50/40' : ''
+                          }`}
                       >
                         <AlertTriangle className={`w-4 h-4 mt-0.5 flex-shrink-0 ${a.priority === 'CRITICAL' ? 'text-rose-600' : 'text-amber-500'}`} />
                         <div className="flex-1 space-y-0.5">

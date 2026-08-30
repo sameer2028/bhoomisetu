@@ -45,8 +45,8 @@
   --color-danger-700: #b91c1c;
 
   /* Neutral Surface & Borders */
-  --color-neutral-50: #f8fafc;
-  --color-neutral-100: #f1f5f9;
+  --color-neutral-50: #ffffff;
+  --color-neutral-100: #f8fafc;
   --color-neutral-200: #e2e8f0;
   --color-neutral-300: #cbd5e1;
   --color-neutral-400: #94a3b8;
@@ -82,13 +82,20 @@
 }
 
 /* ─── Base Reset ───────────────────────────────────────── */
-*, *::before, *::after {
+*,
+*::before,
+*::after {
   box-sizing: border-box;
   margin: 0;
   padding: 0;
 }
 
-html, body, main, nav, div, section {
+html,
+body,
+main,
+nav,
+div,
+section {
   scroll-behavior: smooth;
   -webkit-overflow-scrolling: touch;
 }
@@ -102,7 +109,7 @@ html {
 
 body {
   font-family: 'Plus Jakarta Sans', Inter, -apple-system, BlinkMacSystemFont, 'Segoe UI', sans-serif;
-  background-color: #f8fafc;
+  background-color: #ffffff;
   color: #1e293b;
   line-height: 1.55;
   letter-spacing: -0.01em;
@@ -133,7 +140,12 @@ body {
 }
 
 /* ─── Typography ───────────────────────────────────────── */
-h1, h2, h3, h4, h5, h6 {
+h1,
+h2,
+h3,
+h4,
+h5,
+h6 {
   font-weight: 700;
   line-height: 1.25;
   color: #0f172a;
@@ -147,16 +159,45 @@ h1, h2, h3, h4, h5, h6 {
   @apply inline-flex items-center gap-1.5 px-2.5 py-1 rounded-md text-xs font-semibold tracking-wide uppercase transition-colors;
 }
 
-.badge-proposed { @apply bg-amber-50 text-amber-800 border border-amber-200/80; }
-.badge-notified { @apply bg-orange-50 text-orange-800 border border-orange-200/80; }
-.badge-under-acquisition { @apply bg-blue-50 text-blue-800 border border-blue-200/80; }
-.badge-acquired { @apply bg-emerald-50 text-emerald-800 border border-emerald-200/80; }
-.badge-possession-taken { @apply bg-teal-50 text-teal-800 border border-teal-200/80; }
-.badge-rr-issue { @apply bg-rose-50 text-rose-800 border border-rose-200/80; }
-.badge-pending { @apply bg-amber-50 text-amber-800 border border-amber-200/80; }
-.badge-completed { @apply bg-emerald-50 text-emerald-800 border border-emerald-200/80; }
-.badge-overdue { @apply bg-rose-50 text-rose-800 border border-rose-200/80; }
-.badge-in-progress { @apply bg-indigo-50 text-indigo-800 border border-indigo-200/80; }
+.badge-proposed {
+  @apply bg-amber-50 text-amber-800 border border-amber-200/80;
+}
+
+.badge-notified {
+  @apply bg-orange-50 text-orange-800 border border-orange-200/80;
+}
+
+.badge-under-acquisition {
+  @apply bg-blue-50 text-blue-800 border border-blue-200/80;
+}
+
+.badge-acquired {
+  @apply bg-emerald-50 text-emerald-800 border border-emerald-200/80;
+}
+
+.badge-possession-taken {
+  @apply bg-teal-50 text-teal-800 border border-teal-200/80;
+}
+
+.badge-rr-issue {
+  @apply bg-rose-50 text-rose-800 border border-rose-200/80;
+}
+
+.badge-pending {
+  @apply bg-amber-50 text-amber-800 border border-amber-200/80;
+}
+
+.badge-completed {
+  @apply bg-emerald-50 text-emerald-800 border border-emerald-200/80;
+}
+
+.badge-overdue {
+  @apply bg-rose-50 text-rose-800 border border-rose-200/80;
+}
+
+.badge-in-progress {
+  @apply bg-indigo-50 text-indigo-800 border border-indigo-200/80;
+}
 
 /* Cards */
 .card {
@@ -320,7 +361,9 @@ h1, h2, h3, h4, h5, h6 {
 
 /* Loading Spinner */
 @keyframes spin {
-  to { transform: rotate(360deg); }
+  to {
+    transform: rotate(360deg);
+  }
 }
 
 .spinner {
@@ -336,8 +379,15 @@ h1, h2, h3, h4, h5, h6 {
 
 /* Fade In Animation */
 @keyframes fadeIn {
-  from { opacity: 0; transform: translateY(6px); }
-  to { opacity: 1; transform: translateY(0); }
+  from {
+    opacity: 0;
+    transform: translateY(6px);
+  }
+
+  to {
+    opacity: 1;
+    transform: translateY(0);
+  }
 }
 
 .fade-in {
@@ -346,8 +396,15 @@ h1, h2, h3, h4, h5, h6 {
 
 /* Slide In Animation */
 @keyframes slideInRight {
-  from { opacity: 0; transform: translateX(16px); }
-  to { opacity: 1; transform: translateX(0); }
+  from {
+    opacity: 0;
+    transform: translateX(16px);
+  }
+
+  to {
+    opacity: 1;
+    transform: translateX(0);
+  }
 }
 
 .slide-in {
@@ -472,4 +529,3 @@ h1, h2, h3, h4, h5, h6 {
 .modal-dialog {
   @apply relative z-10 w-full bg-white rounded-xl shadow-2xl border border-slate-300 ring-1 ring-black/10 overflow-hidden flex flex-col pointer-events-auto my-auto;
 }
-

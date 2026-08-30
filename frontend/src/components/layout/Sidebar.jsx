@@ -36,7 +36,7 @@ const NAV_GROUPS = [
       { path: '/documents', label: 'Documents', icon: FileText, roles: ['DLAO', 'PIA', 'SGA', 'FRO', 'ADMIN'] },
       { path: '/ai/mismatch', label: 'AI Mismatch', icon: Brain, roles: ['DLAO', 'SGA', 'ADMIN'] },
       { path: '/compensation', label: 'Compensation', icon: IndianRupee, roles: ['DLAO', 'SGA', 'ADMIN'] },
-      {path: '/rr', label: 'R&R', icon: Users, roles: ['DLAO', 'PIA', 'SGA', 'FRO', 'ADMIN'] },
+      { path: '/rr', label: 'R&R', icon: Users, roles: ['DLAO', 'PIA', 'SGA', 'FRO', 'ADMIN'] },
     ],
   },
   {
@@ -61,9 +61,8 @@ export default function Sidebar({ collapsed, setCollapsed }) {
 
   return (
     <aside
-      className={`fixed left-0 top-0 bottom-0 z-40 flex flex-col bg-[#0b192c] text-white shadow-2xl transition-all duration-300 ease-in-out ${
-        collapsed ? 'w-[72px]' : 'w-[260px]'
-      }`}
+      className={`fixed left-0 top-0 bottom-0 z-40 flex flex-col bg-[#0b192c] text-white shadow-2xl transition-all duration-300 ease-in-out ${collapsed ? 'w-[72px]' : 'w-[260px]'
+        }`}
     >
       {/* Top Logo & Title */}
       <div className="flex items-center gap-3 px-4 h-16 border-b border-slate-800/80 flex-shrink-0">
@@ -106,16 +105,14 @@ export default function Sidebar({ collapsed, setCollapsed }) {
                     key={item.path}
                     to={item.path}
                     title={collapsed ? item.label : undefined}
-                    className={`flex items-center gap-3 px-3.5 py-2.5 rounded-xl text-xs font-semibold transition-all duration-200 group relative ${
-                      isActive
+                    className={`flex items-center gap-3 px-3.5 py-2.5 rounded-xl text-xs font-semibold transition-all duration-200 group relative ${isActive
                         ? 'bg-blue-600 text-white shadow-md font-bold'
                         : 'text-slate-300 hover:bg-slate-800/70 hover:text-white'
-                    }`}
+                      }`}
                   >
                     <Icon
-                      className={`w-4 h-4 flex-shrink-0 transition-colors ${
-                        isActive ? 'text-white' : 'text-slate-400 group-hover:text-slate-200'
-                      }`}
+                      className={`w-4 h-4 flex-shrink-0 transition-colors ${isActive ? 'text-white' : 'text-slate-400 group-hover:text-slate-200'
+                        }`}
                     />
                     {!collapsed && <span className="truncate">{item.label}</span>}
                   </Link>
@@ -152,18 +149,16 @@ export default function Sidebar({ collapsed, setCollapsed }) {
           <button
             onClick={handleLogout}
             title="Logout"
-            className={`flex items-center gap-2 py-2 rounded-xl text-xs font-semibold text-slate-400 hover:bg-rose-950/40 hover:text-rose-400 border border-transparent transition-all ${
-              collapsed ? 'w-full justify-center px-0' : 'px-3 flex-1'
-            }`}
+            className={`flex items-center gap-2 py-2 rounded-xl text-xs font-semibold text-slate-400 hover:bg-rose-950/40 hover:text-rose-400 border border-transparent transition-all ${collapsed ? 'w-full justify-center px-0' : 'px-3 flex-1'
+              }`}
           >
             <LogOut className="w-4 h-4 flex-shrink-0" />
             {!collapsed && <span>Logout</span>}
           </button>
           <button
             onClick={() => setCollapsed(!collapsed)}
-            className={`p-2 rounded-xl text-slate-400 hover:bg-slate-800 hover:text-white transition-colors ${
-              collapsed ? 'w-full flex justify-center' : ''
-            }`}
+            className={`p-2 rounded-xl text-slate-400 hover:bg-slate-800 hover:text-white transition-colors ${collapsed ? 'w-full flex justify-center' : ''
+              }`}
             title={collapsed ? 'Expand sidebar' : 'Collapse sidebar'}
           >
             {collapsed ? <ChevronRight className="w-4 h-4" /> : <ChevronLeft className="w-4 h-4" />}

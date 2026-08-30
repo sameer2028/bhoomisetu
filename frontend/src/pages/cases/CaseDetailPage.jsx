@@ -1036,6 +1036,7 @@ export default function CaseDetailPage() {
               <p className="text-[11px] font-semibold text-slate-400 uppercase tracking-wider">Assigned Officer</p>
               <p className="text-xs font-bold text-slate-900 truncate">
                 {caseData.assigned_officer_name || 'Rajesh Sharma'}
+                {caseData.assigned_officer_district && <span className="text-slate-400 font-normal"> ({caseData.assigned_officer_district})</span>}
               </p>
               <p className="text-[11px] text-slate-500 font-medium">({caseData.assigned_officer_role || 'DLAO'})</p>
             </div>

@@ -50,10 +50,43 @@ export default function RunCheckModal({ isOpen, onClose, onCheckCompleted }) {
     loadData();
   }, [isOpen]);
 
+  const BENCHMARKS = [
+    {
+      id: 'doc_002_area_mismatch.png',
+      title: '🎯 [Benchmark #1] Area Discrepancy (Doc: 1.05 Acres vs Parcel: 1.25 Acres)',
+      badge: 'High Severity Flag',
+    },
+    {
+      id: 'doc_003_survey_number_mismatch.png',
+      title: '🎯 [Benchmark #2] Survey Number Typo (Doc: #123/3 vs Parcel: #123/2)',
+      badge: 'Critical Severity Flag',
+    },
+    {
+      id: 'doc_005_owner_name_mismatch.png',
+      title: '🎯 [Benchmark #3] Owner Title Mismatch (Doc: R.K. Singh vs Master Record)',
+      badge: 'Medium Severity Flag',
+    },
+    {
+      id: 'doc_004_village_fuzzy_mismatch.png',
+      title: '🎯 [Benchmark #4] Village Spelling Transliteration (Doc: Rampoor vs Rampur)',
+      badge: 'Low Severity Flag',
+    },
+    {
+      id: 'doc_006_multiple_mismatches.png',
+      title: '🎯 [Benchmark #5] Multiple Discrepancies (Acreage Deficit + Village Variant)',
+      badge: 'Multiple Flags',
+    },
+    {
+      id: 'doc_001_clean_match.png',
+      title: '✅ [Benchmark #6] Clean Gazette Survey (Exact Cadastral Match)',
+      badge: 'Zero Discrepancy',
+    },
+  ];
+
   const handleDocChange = (e) => {
     const docId = e.target.value;
     setSelectedDocId(docId);
-    if (docId) {
+    if (docId && !docId.startsWith('doc_')) {
       const doc = documents.find((d) => d.id === docId);
       if (doc && doc.parcel_id) {
         setSelectedParcelId(doc.parcel_id);
@@ -117,7 +150,7 @@ export default function RunCheckModal({ isOpen, onClose, onCheckCompleted }) {
         </div>
 
         {/* Body */}
-        <div className="p-3 space-y-2.5 bg-slate-50/50">
+        <div className="p-3 space-y-2.5 bg-slate-50/50 max-h-[85vh] overflow-y-auto">
           {errorMsg && (
             <div className="flex items-center gap-1.5 p-1.5 bg-rose-50 border border-rose-200 rounded-md text-[11px] font-semibold text-rose-800">
               <AlertCircle className="w-3.5 h-3.5 text-rose-600 flex-shrink-0" /> {errorMsg}
@@ -131,43 +164,51 @@ export default function RunCheckModal({ isOpen, onClose, onCheckCompleted }) {
             </div>
           ) : (
             <form onSubmit={handleRunCheck} className="space-y-2.5">
-              {/* Document Selector */}
+              {/* Document Selector with Optgroups */}
               <div>
                 <label className="form-label text-[10px] flex items-center justify-between mb-0.5">
                   <span className="flex items-center gap-1 font-bold text-slate-700">
-                    <FileText className="w-3 h-3 text-blue-700" /> Select Source Document
+                    <FileText className="w-3 h-3 text-blue-700" /> Select Source Document / Benchmark Scenario
                   </span>
-                  <span className="text-[9px] text-slate-400 font-normal">PDF or Image</span>
+                  <span className="text-[9px] text-slate-400 font-normal">PDF or Scanned Report</span>
                 </label>
                 <select
                   value={selectedDocId}
                   onChange={handleDocChange}
-                  className="form-select text-[11px] py-1 px-2"
+                  className="form-select text-[11px] py-1.5 px-2 font-medium"
                 >
-                  <option value="">Select an uploaded document (or direct compare)</option>
-                  {documents.map((doc) => (
-                    <option key={doc.id} value={doc.id}>
-                      [{doc.document_type}] {doc.title} ({doc.document_code})
-                    </option>
-                  ))}
+                  <optgroup label="🔬 AI Microservice OCR Benchmark Scenarios">
+                    {BENCHMARKS.map((b) => (
+                      <option key={b.id} value={b.id}>
+                        {b.title}
+                      </option>
+                    ))}
+                  </optgroup>
+                  <optgroup label="📁 Uploaded Statutory Documents Repository">
+                    {documents.map((doc) => (
+                      <option key={doc.id} value={doc.id}>
+                        [{doc.document_type}] {doc.title} ({doc.document_code})
+                      </option>
+                    ))}
+                  </optgroup>
                 </select>
               </div>
 
               {/* Parcel Selector */}
               <div>
                 <label className="form-label text-[10px] font-bold text-slate-700 flex items-center gap-1 mb-0.5">
-                  <MapPin className="w-3 h-3 text-emerald-600" /> Select Target Cadastral Parcel
+                  <MapPin className="w-3 h-3 text-emerald-600" /> Select Target Cadastral Parcel (Master RoR)
                 </label>
                 <select
                   value={selectedParcelId}
                   onChange={(e) => setSelectedParcelId(e.target.value)}
-                  className="form-select text-[11px] py-1 px-2"
+                  className="form-select text-[11px] py-1.5 px-2 font-medium"
                   required
                 >
                   <option value="">Choose a parcel...</option>
                   {parcels.map((p) => (
                     <option key={p.id} value={p.id}>
-                      [{p.parcel_code}] Survey No. {p.survey_number} — {p.village} ({p.area_acres} Acres)
+                      [{p.parcel_code}] Survey No. {p.survey_number} — {p.village} ({p.area_acres} Acres, Owner: {p.owner_name})
                     </option>
                   ))}
                 </select>
@@ -176,19 +217,19 @@ export default function RunCheckModal({ isOpen, onClose, onCheckCompleted }) {
               {/* Validation Matrix Info Box */}
               <div className="p-2 bg-blue-50/70 border border-blue-100 rounded-md text-xs text-slate-600 space-y-0.5">
                 <div className="font-bold text-blue-900 text-[10px] flex items-center gap-1">
-                  <ShieldCheck className="w-3 h-3 text-blue-700" /> Validation Matrix:
+                  <ShieldCheck className="w-3 h-3 text-blue-700" /> Verification Criteria:
                 </div>
-                <div className="text-[9.5px] text-slate-500 pl-3 list-disc space-y-0.5">
-                  • <strong>Survey No &amp; District:</strong> Exact match validation<br />
-                  • <strong>Acreage:</strong> Numeric tolerance (±0.01 acres)<br />
-                  • <strong>Village &amp; Owner Name:</strong> Fuzzy similarity check
+                <div className="text-[9.5px] text-slate-600 pl-2 space-y-0.5">
+                  • <strong>Survey Number:</strong> Strict exact match validation<br />
+                  • <strong>Land Area:</strong> Strict numeric tolerance check (±0.01 acres)<br />
+                  • <strong>Village &amp; Owner Name:</strong> RapidFuzz phonetics and spelling distance
                 </div>
               </div>
 
-              {/* Check Result Display */}
+              {/* Check Result Display with Field-by-Field Breakdown */}
               {result && (
                 <div
-                  className={`p-2 rounded-md border text-xs ${
+                  className={`p-2.5 rounded-lg border text-xs space-y-2 ${
                     result.hasMismatches
                       ? 'bg-amber-50 border-amber-300 text-amber-900'
                       : 'bg-emerald-50 border-emerald-300 text-emerald-900'
@@ -197,20 +238,48 @@ export default function RunCheckModal({ isOpen, onClose, onCheckCompleted }) {
                   <div className="flex items-center gap-1 font-bold text-[11px]">
                     {result.hasMismatches ? (
                       <>
-                        <AlertCircle className="w-3.5 h-3.5 text-amber-600" />
-                        <span>{result.mismatchCount} Discrepancy Flag(s) Detected!</span>
+                        <AlertCircle className="w-4 h-4 text-rose-600 flex-shrink-0" />
+                        <span className="text-rose-900 font-extrabold">{result.mismatchCount} Discrepancy Flag(s) Detected &amp; Logged!</span>
                       </>
                     ) : (
                       <>
-                        <CheckCircle2 className="w-3.5 h-3.5 text-emerald-600" />
-                        <span>All Fields Verified — No Discrepancies Found!</span>
+                        <CheckCircle2 className="w-4 h-4 text-emerald-600 flex-shrink-0" />
+                        <span className="text-emerald-900 font-extrabold">All Fields Verified — No Discrepancies Found!</span>
                       </>
                     )}
                   </div>
-                  <p className="text-[10px] mt-0.5 text-slate-600">
-                    Checked against Parcel <strong>{result.parcel?.parcel_code}</strong>.
-                    {result.hasMismatches ? ' Added to mismatch table.' : ' Cadastral records match seamlessly.'}
+
+                  <p className="text-[10px] text-slate-700">
+                    Checked against Parcel <strong>{result.parcel?.parcel_code} (Survey #{result.parcel?.survey_number})</strong>.
+                    {result.hasMismatches ? ' Added to cadastral discrepancy list for officer audit.' : ' Master record is identical to document data.'}
                   </p>
+
+                  {/* Discrepancy Field List */}
+                  {result.mismatches && result.mismatches.length > 0 && (
+                    <div className="space-y-1.5 pt-1">
+                      {result.mismatches.map((m, idx) => (
+                        <div key={idx} className="p-2 bg-white rounded border border-amber-200 shadow-2xs text-[10.5px] space-y-0.5">
+                          <div className="flex items-center justify-between">
+                            <span className="font-bold text-slate-900 uppercase tracking-wide">
+                              {m.field_name?.replace('_', ' ')}
+                            </span>
+                            <span className={`text-[9px] font-bold px-1.5 py-0.2 rounded border ${
+                              m.severity === 'CRITICAL' ? 'bg-rose-100 text-rose-800 border-rose-300' :
+                              m.severity === 'HIGH' ? 'bg-orange-100 text-orange-800 border-orange-300' :
+                              'bg-amber-100 text-amber-800 border-amber-300'
+                            }`}>
+                              {m.severity}
+                            </span>
+                          </div>
+                          <div className="grid grid-cols-2 gap-1 text-[10px] text-slate-600 pt-0.5">
+                            <div><span className="font-semibold text-slate-400">Official:</span> <span className="text-slate-800 font-mono">{m.official_value}</span></div>
+                            <div><span className="font-semibold text-rose-600">Extracted:</span> <span className="text-rose-700 font-mono font-bold">{m.extracted_value}</span></div>
+                          </div>
+                          <p className="text-[9.5px] text-slate-500 italic pt-0.5">{m.explanation}</p>
+                        </div>
+                      ))}
+                    </div>
+                  )}
                 </div>
               )}
 

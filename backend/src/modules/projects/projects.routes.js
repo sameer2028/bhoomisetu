@@ -37,6 +37,12 @@ router.get('/', authenticate, async (req, res, next) => {
       conditions.push(`(p.name ILIKE $${i} OR p.project_code ILIKE $${i} OR p.implementing_agency ILIKE $${i})`);
     }
 
+    // Role-based jurisdiction filtering
+    if ((req.user.role === ROLES.DLAO || req.user.role === ROLES.FRO) && req.user.district) {
+      params.push(req.user.district);
+      conditions.push(`p.district = $${params.length}`);
+    }
+
     const where = conditions.length ? `WHERE ${conditions.join(' AND ')}` : '';
 
     const countRow = await queryOne(

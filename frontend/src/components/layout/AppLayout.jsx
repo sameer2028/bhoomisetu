@@ -26,22 +26,22 @@ export default function AppLayout() {
   }
 
   return (
-    <div className="h-screen w-screen bg-neutral-50 flex font-sans antialiased text-neutral-800 overflow-hidden">
+    <div className="h-screen w-screen bg-white flex font-sans antialiased text-slate-800 overflow-hidden">
       {/* Sidebar — Fixed 100% Height */}
       <Sidebar collapsed={collapsed} setCollapsed={setCollapsed} />
 
       {/* Right Column Container */}
       <div
-        className={`flex-1 flex flex-col h-screen overflow-hidden min-w-0 transition-all duration-300 ${
+        className={`flex-1 flex flex-col h-screen overflow-hidden min-w-0 bg-white transition-all duration-300 ${
           collapsed ? 'ml-[72px]' : 'ml-[260px]'
         }`}
       >
         {/* Fixed Non-Scrollable Government Header */}
         <Header />
 
-        {/* Scrollable Page Content Area */}
-        <main className="flex-1 overflow-y-auto scroll-smooth p-4 sm:p-6 md:p-8 min-w-0">
-          <div className="fade-in max-w-7xl mx-auto">
+        {/* Scrollable Page Content Area — Pure White Background */}
+        <main className="flex-1 overflow-y-auto scroll-smooth p-4 sm:p-6 md:p-8 min-w-0 bg-white">
+          <div className="max-w-7xl mx-auto">
             <Outlet />
           </div>
         </main>

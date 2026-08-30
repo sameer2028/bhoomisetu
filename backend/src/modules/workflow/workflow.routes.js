@@ -106,6 +106,12 @@ router.get('/cases', authenticate, async (req, res, next) => {
       );
     }
 
+    // Role-based jurisdiction filtering
+    if (req.user.role === ROLES.DLAO && req.user.district) {
+      params.push(req.user.district);
+      conditions.push(`pr.district = $${params.length}`);
+    }
+
     const where = conditions.length ? `WHERE ${conditions.join(' AND ')}` : '';
 
     const countRow = await queryOne(
@@ -125,7 +131,7 @@ router.get('/cases', authenticate, async (req, res, next) => {
               c.created_at, c.updated_at,
               pr.name AS project_name, pr.project_code,
               pa.parcel_code, pa.survey_number, pa.village,
-              u.full_name AS assigned_officer_name, u.role AS assigned_officer_role,
+              u.full_name AS assigned_officer_name, u.role AS assigned_officer_role, u.district AS assigned_officer_district,
               (c.due_date < CURRENT_DATE AND c.status NOT IN ('COMPLETED','REJECTED')) AS overdue
          FROM acquisition_cases c
          LEFT JOIN projects pr ON c.project_id = pr.id
@@ -286,7 +292,7 @@ router.get('/cases/:id', authenticate, async (req, res, next) => {
               pr.implementing_agency,
               pa.parcel_code, pa.survey_number, pa.village, pa.district AS parcel_district,
               pa.owner_name, pa.acquisition_status,
-              u.full_name AS assigned_officer_name, u.role AS assigned_officer_role,
+              u.full_name AS assigned_officer_name, u.role AS assigned_officer_role, u.district AS assigned_officer_district,
               u.email AS assigned_officer_email,
               (c.due_date < CURRENT_DATE AND c.status NOT IN ('COMPLETED','REJECTED')) AS overdue
          FROM acquisition_cases c
@@ -383,7 +389,10 @@ router.post('/cases/:id/transition', authenticate, rbac(ROLES.DLAO, ROLES.SGA, R
     }
 
     const caseRecord = await queryOne(
-      `SELECT * FROM acquisition_cases WHERE id::text = $1 OR case_code = $1`,
+      `SELECT c.*, pr.district AS project_district 
+         FROM acquisition_cases c 
+         LEFT JOIN projects pr ON c.project_id = pr.id 
+        WHERE c.id::text = $1 OR c.case_code = $1`,
       [req.params.id]
     );
 
@@ -392,6 +401,15 @@ router.post('/cases/:id/transition', authenticate, rbac(ROLES.DLAO, ROLES.SGA, R
         status: 404,
         success: false,
         error: 'Acquisition case not found.',
+      });
+    }
+
+    // Strict jurisdiction check for DLAO
+    if (req.user.role === ROLES.DLAO && req.user.district && caseRecord.project_district !== req.user.district) {
+      return apiResponse(res, {
+        status: 403,
+        success: false,
+        error: `Forbidden: You can only transition cases within your jurisdiction (${req.user.district}). This case belongs to ${caseRecord.project_district}.`,
       });
     }
 

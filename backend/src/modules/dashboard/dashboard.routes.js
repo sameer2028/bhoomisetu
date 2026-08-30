@@ -1,10 +1,20 @@
-const { getPool, initializeDatabase, closeDb } = require('./backend/src/config/database');
+const express = require('express');
+const { queryOne } = require('../../config/database');
+const { authenticate } = require('../../middleware/auth');
+const { rbac } = require('../../middleware/rbac');
+const { apiResponse } = require('../../utils/helpers');
+const { ROLES } = require('../../config/constants');
 
-async function check() {
-  await initializeDatabase();
-  const pool = getPool();
-  try {
-    const res = await pool.query(`
+const router = express.Router();
+
+/**
+ * Helper to fetch aggregated dashboard KPIs using a safe CTE query
+ * @param {string|null} state 
+ * @param {string|null} district 
+ * @param {string|null} projectId 
+ */
+const getDashboardStats = async (state = null, district = null, projectId = null) => {
+  const sql = `
     WITH p_scope AS (
       SELECT id FROM projects
       WHERE ($1::text IS NULL OR state = $1)
@@ -27,13 +37,62 @@ async function check() {
       (SELECT COUNT(*) FROM parcels WHERE project_id IN (SELECT id FROM p_scope)) AS total_parcels,
       (SELECT COUNT(*) FROM documents WHERE project_id IN (SELECT id FROM p_scope)) AS total_documents,
       (SELECT COUNT(*) FROM ai_mismatches WHERE status IN ('DETECTED', 'UNDER_REVIEW') AND parcel_id IN (SELECT id FROM parcels WHERE project_id IN (SELECT id FROM p_scope))) AS open_mismatches
-    `, [null, null, null]);
-    console.log("SQL query successful!");
-    console.log(res.rows[0]);
+  `;
+  
+  const stats = await queryOne(sql, [state, district, projectId]);
+  return stats;
+};
+
+/**
+ * GET /api/dashboard/national
+ * National KPIs (Requires SGA or ADMIN, but we can allow others to view limited scope, or just rely on the controller)
+ */
+router.get('/national', authenticate, async (req, res, next) => {
+  try {
+    const stats = await getDashboardStats(null, null, null);
+    return apiResponse(res, { status: 200, success: true, data: stats });
   } catch (err) {
-    console.error("SQL query failed:", err);
-  } finally {
-    await closeDb();
+    next(err);
   }
-}
-check();
+});
+
+/**
+ * GET /api/dashboard/state/:state
+ * State-level KPIs
+ */
+router.get('/state/:state', authenticate, async (req, res, next) => {
+  try {
+    const stats = await getDashboardStats(req.params.state, null, null);
+    return apiResponse(res, { status: 200, success: true, data: stats });
+  } catch (err) {
+    next(err);
+  }
+});
+
+/**
+ * GET /api/dashboard/district/:district
+ * District-level KPIs
+ */
+router.get('/district/:district', authenticate, async (req, res, next) => {
+  try {
+    const stats = await getDashboardStats(null, req.params.district, null);
+    return apiResponse(res, { status: 200, success: true, data: stats });
+  } catch (err) {
+    next(err);
+  }
+});
+
+/**
+ * GET /api/dashboard/project/:projectId
+ * Project-level KPIs
+ */
+router.get('/project/:projectId', authenticate, async (req, res, next) => {
+  try {
+    const stats = await getDashboardStats(null, null, req.params.projectId);
+    return apiResponse(res, { status: 200, success: true, data: stats });
+  } catch (err) {
+    next(err);
+  }
+});
+
+module.exports = router;

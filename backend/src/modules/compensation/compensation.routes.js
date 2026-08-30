@@ -64,6 +64,12 @@ router.get('/', authenticate, async (req, res, next) => {
       );
     }
 
+    // Role-based jurisdiction filtering
+    if ((req.user.role === 'DLAO' || req.user.role === 'FRO') && req.user.district) {
+      params.push(req.user.district);
+      conditions.push(`pr.district = $${params.length}`);
+    }
+
     const whereClause = conditions.length ? `WHERE ${conditions.join(' AND ')}` : '';
 
     // Total count for current query filter
