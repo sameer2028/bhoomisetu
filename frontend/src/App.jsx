@@ -17,6 +17,8 @@ import RrListPage from './pages/rr/RrListPage';
 import FamilyDetailPage from './pages/rr/FamilyDetailPage';
 import CompensationListPage from './pages/compensation/CompensationListPage';
 import MismatchListPage from './pages/ai/MismatchListPage';
+import AlertsPage from './pages/alerts/AlertsPage';
+import AuditLogPage from './pages/audit/AuditLogPage';
 
 // Placeholder pages for future phases
 function PlaceholderPage({ title, phase }) {
@@ -77,11 +79,11 @@ export default function App() {
             <Route path="/rr" element={<RrListPage />} />
             <Route path="/rr/families/:id" element={<FamilyDetailPage />} />
 
-            {/* Phase 12 — Alerts */}
-            <Route path="/alerts" element={<PlaceholderPage title="Alerts & Escalation" phase="Phase 12" />} />
+            {/* Phase 12 — Alerts & Escalation */}
+            <Route path="/alerts" element={<AlertsPage />} />
 
             {/* Phase 12 — Audit */}
-            <Route path="/audit" element={<PlaceholderPage title="Audit Trail" phase="Phase 12" />} />
+            <Route path="/audit" element={<AuditLogPage />} />
 
             {/* Phase 13 — Mock API */}
             <Route path="/mock-api" element={<PlaceholderPage title="Government API (Mock)" phase="Phase 13" />} />

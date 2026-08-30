@@ -65,6 +65,8 @@ app.use('/api/workflow', require('./modules/workflow/workflow.routes'));
 app.use('/api/documents', require('./modules/documents/documents.routes'));
 app.use('/api/rr', require('./modules/rr/rr.routes'));
 app.use('/api/alerts', require('./modules/alerts/alerts.routes'));
+app.use('/api/audit', require('./modules/audit/audit.routes'));
+app.use('/api/audit-trail', require('./modules/audit/audit.routes'));
 app.use('/api/search', require('./modules/search/search.routes'));
 app.use('/api/compensation', require('./modules/compensation/compensation.routes'));
 app.use('/api/ai', require('./modules/ai/ai.routes'));
