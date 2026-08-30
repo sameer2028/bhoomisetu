@@ -10,13 +10,13 @@ Phase 7 lands).
 """
 
 from fastapi import FastAPI, HTTPException
+from fastapi.middleware.cors import CORSMiddleware
 from pydantic import BaseModel
 from dotenv import load_dotenv
 
 from app.data_adapter import (
     get_db_connection,
     get_parcel,
-    get_parcel_by_survey_number,
     get_document,
     get_project_risk_inputs,
     save_risk_score,
@@ -46,12 +46,22 @@ app.add_middleware(
 
 # ---------- Request/response shapes ----------
 
+
 class CompareRequest(BaseModel):
-    document_filename: str   # mock document filename, e.g. "doc_002_area_mismatch.png"
-    parcel_id: str            # real parcel UUID from the database
-    document_id: str | None = None   # optional real document UUID, if known
+    document_filename: str  # mock document filename, e.g. "doc_002_area_mismatch.png"
+    parcel_id: str  # real parcel UUID from the database
+    document_id: str | None = None  # optional real document UUID, if known
+
+
+class RiskScoreResponse(BaseModel):
+    score: float
+    risk_level: str
+    factors: dict
+    model_version: str = "v1.2-weighted"
+
 
 # ---------- Health / status ----------
+
 
 @app.get("/")
 def read_root():
@@ -75,6 +85,7 @@ def ai_status():
 
 # ---------- Feature 1: Document extraction ----------
 
+
 @app.post("/api/ai/extract")
 def extract_document(document_filename: str):
     """
@@ -92,12 +103,15 @@ def extract_document(document_filename: str):
             "extracted_fields": fields,
         }
     except FileNotFoundError:
-        raise HTTPException(status_code=404, detail=f"Document not found: {document_filename}")
+        raise HTTPException(
+            status_code=404, detail=f"Document not found: {document_filename}"
+        )
     except Exception as e:
         raise HTTPException(status_code=500, detail=f"Extraction failed: {e}")
 
 
 # ---------- Feature 1: Comparison / mismatch detection ----------
+
 
 @app.post("/api/ai/compare")
 def compare_document(request: CompareRequest):
@@ -106,11 +120,15 @@ def compare_document(request: CompareRequest):
         raw_text = extract_text(file_path)
         extracted = extract_fields(raw_text)
     except FileNotFoundError:
-        raise HTTPException(status_code=404, detail=f"Document not found: {request.document_filename}")
+        raise HTTPException(
+            status_code=404, detail=f"Document not found: {request.document_filename}"
+        )
 
     official_parcel = get_parcel(request.parcel_id)
     if official_parcel is None:
-        raise HTTPException(status_code=404, detail=f"Parcel not found: {request.parcel_id}")
+        raise HTTPException(
+            status_code=404, detail=f"Parcel not found: {request.parcel_id}"
+        )
 
     mismatches = compare_fields(extracted, official_parcel)
 
@@ -129,7 +147,9 @@ def compare_document(request: CompareRequest):
         "saved_records": saved,
     }
 
+
 # ---------- Feature 2: Risk scoring ----------
+
 
 @app.post("/api/ai/risk-score/{project_id}")
 def get_risk_score(project_id: str):
@@ -154,27 +174,7 @@ def get_risk_score(project_id: str):
         raise HTTPException(status_code=500, detail=f"Risk calculation failed: {e}")
 
 
-# ---------- Debug/dev helper (safe to keep for now) ----------
-
-    try:
-        raw_text = extract_text(file_path)
-        extracted = extract_fields_with_confidence(raw_text)
-        mismatches = []
-        if req.official_parcel:
-            mismatches = compare_fields(extracted["fields"], req.official_parcel)
-
-        return {
-            "success": True,
-            "raw_text": raw_text,
-            "extracted_fields": extracted["fields"],
-            "missing_fields": extracted["missing_fields"],
-            "fully_extracted": extracted["fully_extracted"],
-            "has_mismatches": len(mismatches) > 0,
-            "mismatch_count": len(mismatches),
-            "mismatches": mismatches,
-        }
-    except Exception as e:
-        raise HTTPException(status_code=500, detail=f"Document processing failed: {str(e)}")
+# ---------- Feature 3: Calculate risk with direct parameters ----------
 
 
 @app.post("/api/ai/calculate-risk", response_model=RiskScoreResponse)
@@ -205,4 +205,5 @@ def api_calculate_risk(
 
 if __name__ == "__main__":
     import uvicorn
+
     uvicorn.run(app, host="0.0.0.0", port=8000)
