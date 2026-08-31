@@ -27,6 +27,8 @@ import {
 } from 'lucide-react';
 import api from '../../services/api';
 import { useAuth } from '../../contexts/AuthContext';
+import LandRecordIdentity from '../../components/common/LandRecordIdentity';
+import TechnicalReferences from '../../components/common/TechnicalReferences';
 
 export default function FieldVerificationPage() {
   const { user } = useAuth();
@@ -375,11 +377,10 @@ export default function FieldVerificationPage() {
       {/* Toast Alert */}
       {toastMessage && (
         <div
-          className={`p-3.5 rounded-xl text-xs font-semibold flex items-center justify-between shadow-sm ${
-            toastMessage.type === 'success'
+          className={`p-3.5 rounded-xl text-xs font-semibold flex items-center justify-between shadow-sm ${toastMessage.type === 'success'
               ? 'bg-emerald-50 text-emerald-950 border border-emerald-300'
               : 'bg-rose-50 text-rose-950 border border-rose-300'
-          }`}
+            }`}
         >
           <div className="flex items-center gap-2">
             {toastMessage.type === 'success' ? (
@@ -396,41 +397,54 @@ export default function FieldVerificationPage() {
       )}
 
       {/* Active Plot Selector Bar with "View All Assigned Plots" Button */}
-      <div className="card p-4 bg-gradient-to-r from-blue-50/80 via-white to-blue-50/50 border border-blue-200/80 shadow-sm flex flex-col sm:flex-row sm:items-center justify-between gap-3.5">
-        <div className="flex items-center gap-3 min-w-0">
-          <div className="w-10 h-10 rounded-xl bg-blue-700 text-white flex items-center justify-center flex-shrink-0 shadow-md">
-            <MapPin className="w-5 h-5" />
-          </div>
-          <div className="min-w-0">
-            <div className="flex items-center gap-2 flex-wrap mb-0.5">
-              <span className="text-xs font-extrabold text-blue-950 font-mono">
-                Active Plot: #{selectedParcel?.survey_number || '123/2'}
-              </span>
-              <span className="text-[10px] font-mono text-slate-600 bg-white px-2 py-0.5 rounded border border-slate-200 font-bold">
-                {selectedParcel?.parcel_code || 'P-101'}
-              </span>
-              {selectedParcel?.geometry_source === 'FIELD_GPS' ? (
-                <span className="text-[10px] font-bold text-emerald-800 bg-emerald-100 px-2 py-0.5 rounded-full border border-emerald-300">
-                  ✓ GPS Fixed
-                </span>
-              ) : (
-                <span className="text-[10px] font-bold text-amber-800 bg-amber-100 px-2 py-0.5 rounded-full border border-amber-300">
-                  ⏳ Pending Survey
-                </span>
-              )}
+      <div className="card p-4 sm:p-5 bg-gradient-to-r from-blue-50/80 via-white to-blue-50/50 border border-blue-200/80 shadow-sm flex flex-col sm:flex-row sm:items-start justify-between gap-4">
+        <div className="flex-1">
+          {selectedParcel ? (
+            <div className="flex flex-col md:flex-row md:items-center gap-4">
+              <LandRecordIdentity
+                parcelCode={selectedParcel.parcel_code}
+                surveyNumber={selectedParcel.survey_number}
+                village={selectedParcel.village}
+                area={selectedParcel.area_acres}
+              />
+              <div className="hidden md:block w-px h-12 bg-slate-200 mx-2" />
+              <div className="flex flex-col gap-1.5">
+                <div className="flex items-center gap-2">
+                  <span className="text-xs text-slate-500 font-medium w-16">Status:</span>
+                  {selectedParcel.geometry_source === 'FIELD_GPS' ? (
+                    <span className="text-[10px] font-bold text-emerald-800 bg-emerald-100 px-2 py-0.5 rounded-full border border-emerald-300">
+                      ✓ GPS Fixed
+                    </span>
+                  ) : (
+                    <span className="text-[10px] font-bold text-amber-800 bg-amber-100 px-2 py-0.5 rounded-full border border-amber-300">
+                      ⏳ Pending Survey
+                    </span>
+                  )}
+                </div>
+                <div className="flex items-center gap-2">
+                  <span className="text-xs text-slate-500 font-medium w-16">Owner:</span>
+                  <span className="text-xs font-bold text-slate-900">{selectedParcel.owner_name || 'Not Available'}</span>
+                </div>
+              </div>
             </div>
-            <p className="text-xs text-slate-600 truncate font-medium">
-              Owner: <strong>{selectedParcel?.owner_name || 'Rameshwar Prasad Sharma'}</strong> • Village:{' '}
-              {selectedParcel?.village || 'Sarai Khas'} ({selectedParcel?.area_acres || '2.5'} Acres)
-            </p>
-          </div>
+          ) : (
+            <div className="flex items-center gap-3">
+              <div className="w-10 h-10 rounded-xl bg-slate-100 text-slate-400 flex items-center justify-center">
+                <MapPin className="w-5 h-5" />
+              </div>
+              <div>
+                <p className="text-sm font-bold text-slate-700">No Plot Selected</p>
+                <p className="text-xs text-slate-500">Please select a plot from your assigned list.</p>
+              </div>
+            </div>
+          )}
         </div>
 
         {/* Action: Open "View All Assigned Plots" Modal */}
         <button
           type="button"
           onClick={() => setIsPlotModalOpen(true)}
-          className="btn btn-primary text-xs py-2.5 px-4 font-bold flex items-center justify-center gap-2 shadow-md hover:shadow-lg transition-all flex-shrink-0 cursor-pointer"
+          className="btn btn-primary text-xs py-2.5 px-4 font-bold flex items-center justify-center gap-2 shadow-md hover:shadow-lg transition-all flex-shrink-0 cursor-pointer self-start"
         >
           <Layers className="w-4 h-4" />
           <span>View All Assigned Plots ({metrics.total_assigned})</span>
@@ -848,11 +862,10 @@ export default function FieldVerificationPage() {
                   <button
                     key={tab.id}
                     onClick={() => setStatusFilter(tab.id)}
-                    className={`px-3 py-1.5 rounded-lg text-xs font-bold transition-all whitespace-nowrap cursor-pointer ${
-                      statusFilter === tab.id
+                    className={`px-3 py-1.5 rounded-lg text-xs font-bold transition-all whitespace-nowrap cursor-pointer ${statusFilter === tab.id
                         ? 'bg-blue-700 text-white shadow-sm'
                         : 'bg-slate-100 text-slate-700 hover:bg-slate-200'
-                    }`}
+                      }`}
                   >
                     {tab.label}
                   </button>
@@ -878,11 +891,10 @@ export default function FieldVerificationPage() {
                         key={p.id}
                         type="button"
                         onClick={() => handleSelectPlot(p)}
-                        className={`w-full text-left p-3.5 rounded-xl border transition-all cursor-pointer ${
-                          isSelected
+                        className={`w-full text-left p-3.5 rounded-xl border transition-all cursor-pointer ${isSelected
                             ? 'border-blue-600 bg-blue-50/80 shadow-md ring-2 ring-blue-600/30'
                             : 'border-slate-200 bg-white hover:border-blue-300 hover:bg-slate-50/80 shadow-sm'
-                        }`}
+                          }`}
                       >
                         <div className="flex items-center justify-between mb-1.5">
                           <div className="flex items-center gap-1.5">

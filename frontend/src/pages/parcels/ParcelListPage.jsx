@@ -1,6 +1,7 @@
 import { useState, useEffect, useCallback } from 'react';
 import { Link, useSearchParams } from 'react-router-dom';
 import { useAuth } from '../../contexts/AuthContext';
+import { toLandReference } from '../../services/landRecordMapper';
 import api from '../../services/api';
 import ParcelCreateModal from './ParcelCreateModal';
 import {
@@ -202,11 +203,9 @@ export default function ParcelListPage() {
             <table className="data-table">
               <thead>
                 <tr>
-                  <th>Parcel Code</th>
-                  <th>Survey No.</th>
-                  <th>Village &amp; District</th>
-                  <th>Area</th>
-                  <th>Owner Name</th>
+                  <th>Land Ref.</th>
+                  <th>Land Details</th>
+                  <th>Owner / Titleholder</th>
                   <th>Associated Project</th>
                   <th>Acquisition Status</th>
                   <th className="text-right">Action</th>
@@ -216,26 +215,32 @@ export default function ParcelListPage() {
                 {parcels.map((parcel) => (
                   <tr key={parcel.id} className="hover:bg-blue-50/40 transition-colors">
                     <td>
-                      <div className="flex items-center gap-1.5">
-                        <span className="font-mono font-bold text-blue-900 text-xs">{parcel.parcel_code}</span>
+                      <div className="flex flex-col gap-1">
+                        <span className="font-mono font-bold text-blue-900 text-xs">
+                          {toLandReference({
+                            parcelCode: parcel.parcel_code,
+                            surveyNumber: parcel.survey_number,
+                            village: parcel.village,
+                            year: parcel.created_at ? new Date(parcel.created_at).getFullYear() : '2026'
+                          })}
+                        </span>
                         {Number(parcel.open_mismatches_count) > 0 && (
                           <Link
                             to={`/ai/mismatch?search=${parcel.parcel_code}`}
-                            className="inline-flex items-center gap-1 px-1.5 py-0.5 rounded bg-rose-100 text-rose-800 border border-rose-200 text-[10px] font-extrabold hover:bg-rose-200 transition-colors"
+                            className="inline-flex items-center gap-1 px-1.5 py-0.5 rounded bg-rose-100 text-rose-800 border border-rose-200 text-[10px] font-extrabold hover:bg-rose-200 transition-colors w-max"
                             title={`${parcel.open_mismatches_count} open discrepancy flag(s) — Click to inspect in AI Verification`}
                           >
                             <Flag className="w-2.5 h-2.5 fill-rose-600 text-rose-600" />
-                            <span>{parcel.open_mismatches_count}</span>
+                            <span>{parcel.open_mismatches_count} Discrepancies</span>
                           </Link>
                         )}
                       </div>
                     </td>
-                    <td className="font-bold text-slate-900 text-xs">{parcel.survey_number}</td>
                     <td>
-                      <div className="font-semibold text-slate-800 text-xs">{parcel.village}</div>
-                      <div className="text-[10.5px] text-slate-400">{parcel.district}, {parcel.state}</div>
+                      <div className="font-bold text-slate-900 text-xs">Survey No. {parcel.survey_number}</div>
+                      <div className="text-[10.5px] text-slate-500 font-medium">{parcel.village}, {parcel.district}</div>
+                      <div className="text-[10px] text-slate-400">{parcel.area_acres} Acres</div>
                     </td>
-                    <td className="font-extrabold text-slate-900 text-xs">{parcel.area_acres} Acres</td>
                     <td>
                       <div className="flex items-center gap-1.5 text-slate-800 font-medium text-xs">
                         <User className="w-3.5 h-3.5 text-slate-400 flex-shrink-0" />

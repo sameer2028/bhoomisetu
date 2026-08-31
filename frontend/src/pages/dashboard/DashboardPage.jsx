@@ -34,6 +34,7 @@ import {
   Flag,
   Activity,
 } from 'lucide-react';
+import { toLandReference } from '../../services/landRecordMapper';
 
 export default function DashboardPage() {
   const { user, roleLabel } = useAuth();
@@ -501,7 +502,7 @@ export default function DashboardPage() {
           <table className="data-table text-xs">
             <thead>
               <tr className="bg-slate-50 text-slate-600 text-[11px] uppercase tracking-wider font-semibold border-b border-slate-200">
-                <th className="py-3 px-4 text-left">Project ID</th>
+                <th className="py-3 px-4 text-left">Land Reference</th>
                 <th className="py-3 px-4 text-left">Type of Mismatch</th>
                 <th className="py-3 px-4 text-left">Field</th>
                 <th className="py-3 px-4 text-left">Expected</th>
@@ -532,7 +533,12 @@ export default function DashboardPage() {
                   return (
                     <tr key={m.id} className="hover:bg-slate-50/70 transition-colors">
                       <td className="py-3 px-4 font-mono font-bold text-slate-900">
-                        {m.parcel_code || 'P-101'}
+                        {toLandReference({
+                          parcelCode: m.parcel_code,
+                          surveyNumber: m.survey_number,
+                          village: m.village,
+                          year: m.parcel_created_at ? new Date(m.parcel_created_at).getFullYear() : '2026'
+                        })}
                       </td>
                       <td className="py-3 px-4 font-bold text-slate-800 uppercase tracking-wide">
                         {m.field_name ? `${m.field_name.replace('_', ' ')} MISMATCH` : 'AREA MISMATCH'}

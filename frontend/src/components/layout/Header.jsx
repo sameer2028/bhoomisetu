@@ -16,7 +16,10 @@ import {
   ChevronRight,
   ExternalLink,
   Menu,
+  HelpCircle,
 } from 'lucide-react';
+import { toLandReference } from '../../services/landRecordMapper';
+import LandRecordGuide from '../common/LandRecordGuide';
 
 const PRIORITY_BADGES = {
   CRITICAL: 'bg-rose-100 text-rose-800 border-rose-200',
@@ -34,6 +37,7 @@ export default function Header({ mobileOpen, setMobileOpen }) {
   const [searchResults, setSearchResults] = useState(null);
   const [isSearching, setIsSearching] = useState(false);
   const [isSearchOpen, setIsSearchOpen] = useState(false);
+  const [isGuideOpen, setIsGuideOpen] = useState(false);
   const searchInputRef = useRef(null);
   const searchContainerRef = useRef(null);
 
@@ -303,8 +307,15 @@ export default function Header({ mobileOpen, setMobileOpen }) {
                           <div className="flex items-center gap-2">
                             <MapPin className="w-4 h-4 text-emerald-700 flex-shrink-0" />
                             <div>
-                              <p className="font-bold text-slate-900">Survey #{pc.survey_number} ({pc.village})</p>
-                              <p className="text-[10px] text-slate-500 font-mono">{pc.parcel_code} • {pc.project_name}</p>
+                              <p className="font-bold text-slate-900">
+                                {toLandReference({
+                                  parcelCode: pc.parcel_code,
+                                  surveyNumber: pc.survey_number,
+                                  village: pc.village,
+                                  year: pc.created_at ? new Date(pc.created_at).getFullYear() : '2026'
+                                })}
+                              </p>
+                              <p className="text-[10px] text-slate-500 font-mono">Survey #{pc.survey_number} • {pc.village} • {pc.project_name}</p>
                             </div>
                           </div>
                           <ChevronRight className="w-3.5 h-3.5 text-slate-400" />
@@ -331,8 +342,15 @@ export default function Header({ mobileOpen, setMobileOpen }) {
                           <div className="flex items-center gap-2">
                             <FileText className="w-4 h-4 text-indigo-700 flex-shrink-0" />
                             <div>
-                              <p className="font-bold text-slate-900">{c.case_number}</p>
-                              <p className="text-[10px] text-slate-500">Stage: {c.stage} • {c.project_name}</p>
+                              <p className="font-bold text-slate-900">{c.case_code}</p>
+                              <p className="text-[10px] text-slate-500 font-mono">
+                                {c.parcel_code ? toLandReference({
+                                  parcelCode: c.parcel_code,
+                                  surveyNumber: c.survey_number,
+                                  village: c.village,
+                                  year: c.created_at ? new Date(c.created_at).getFullYear() : '2026'
+                                }) : 'No land linked'} • Stage: {c.stage} • {c.project_name}
+                              </p>
                             </div>
                           </div>
                           <ChevronRight className="w-3.5 h-3.5 text-slate-400" />
@@ -360,7 +378,14 @@ export default function Header({ mobileOpen, setMobileOpen }) {
                             <UsersIcon className="w-4 h-4 text-teal-700 flex-shrink-0" />
                             <div>
                               <p className="font-bold text-slate-900">{f.head_of_family}</p>
-                              <p className="text-[10px] text-slate-500 font-mono">{f.family_code} • {f.category} ({f.members_count} members)</p>
+                              <p className="text-[10px] text-slate-500 font-mono">
+                                {f.parcel_code ? toLandReference({
+                                  parcelCode: f.parcel_code,
+                                  surveyNumber: f.survey_number,
+                                  village: f.village,
+                                  year: f.created_at ? new Date(f.created_at).getFullYear() : '2026'
+                                }) : 'No land linked'} • {f.category} Family • {f.members_count} Members
+                              </p>
                             </div>
                           </div>
                           <ChevronRight className="w-3.5 h-3.5 text-slate-400" />
@@ -374,9 +399,22 @@ export default function Header({ mobileOpen, setMobileOpen }) {
           </div>
 
           {/* Interactive Notifications Bell Dropdown */}
-          <div ref={notificationsRef} className="relative">
+          <div className="flex items-center gap-1 sm:gap-2">
+            {/* Guide Button */}
             <button
               type="button"
+              onClick={() => setIsGuideOpen(true)}
+              aria-label="View Land Record Guide"
+              className="p-2 rounded-lg text-neutral-600 hover:bg-neutral-100 transition-colors"
+              title="How Land Records Connect"
+            >
+              <HelpCircle className="w-4 h-4" />
+            </button>
+            <LandRecordGuide isOpen={isGuideOpen} onClose={() => setIsGuideOpen(false)} />
+
+            <div ref={notificationsRef} className="relative">
+              <button
+                type="button"
               onClick={() => setIsNotificationsOpen(!isNotificationsOpen)}
               aria-label="View notifications"
               className="relative p-2 rounded-lg text-neutral-600 hover:bg-neutral-100 transition-colors"
@@ -450,6 +488,7 @@ export default function Header({ mobileOpen, setMobileOpen }) {
                 </div>
               </div>
             )}
+            </div>
           </div>
 
           {/* Officer Role & Profile Badge */}

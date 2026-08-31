@@ -40,6 +40,7 @@ import {
   Printer,
   Share2,
 } from 'lucide-react';
+import ParcelBoundaryPreview from '../../components/map/ParcelBoundaryPreview';
 
 // ─── Stage Configuration & Comprehensive Guidance Data ──────────────
 const STAGE_LABELS = {
@@ -384,16 +385,16 @@ const STATUS_STYLES = {
 
 const ACTION_CONFIG = {
   APPROVE: {
-    label: 'Approve & Forward',
+    label: 'Approve Decision',
     icon: CheckCircle2,
     className: 'bg-emerald-600 hover:bg-emerald-700 text-white font-semibold shadow-sm',
     iconClass: 'text-emerald-600',
-    description: 'Move this case to the next step in statutory pipeline',
+    description: 'Formally approve and sign off on this stage',
   },
   FORWARD: {
-    label: 'Approve & Forward',
-    icon: CheckCircle2,
-    className: 'bg-emerald-600 hover:bg-emerald-700 text-white font-semibold shadow-sm',
+    label: 'Forward to Next Officer',
+    icon: GitBranch,
+    className: 'bg-blue-600 hover:bg-blue-700 text-white font-semibold shadow-sm',
     iconClass: 'text-emerald-600',
     description: 'Move this case to the next step',
   },
@@ -888,7 +889,7 @@ export default function CaseDetailPage() {
           </div>
         </div>
 
-        <div className="flex items-center gap-2 self-start sm:self-auto">
+        <div className="flex items-center gap-2 z-10 relative">
           <Link
             to="/cases"
             className="btn btn-secondary text-xs px-3.5 py-2 flex items-center gap-2 font-semibold"
@@ -1092,13 +1093,13 @@ export default function CaseDetailPage() {
 
       {/* ─── 11-Step Statutory Pipeline Stepper ──────────────────── */}
       <div className="card p-6 bg-white border border-slate-200/90 shadow-card">
-        <h2 className="text-xs font-bold text-slate-400 uppercase tracking-wider mb-6 flex items-center gap-2">
+        <h2 className="text-xs font-bold text-slate-400 uppercase tracking-wider mb-3 flex items-center gap-2">
           <Layers className="w-4 h-4 text-blue-700" /> STATUTORY WORKFLOW PIPELINE (11 STAGES)
         </h2>
 
         {/* Stepper Grid */}
-        <div className="overflow-x-auto pb-2">
-          <div className="min-w-[850px] flex items-center justify-between relative px-4">
+        <div className="overflow-x-auto pb-4 pt-4 px-2 -mx-2">
+          <div className="min-w-[850px] flex items-center justify-between relative px-2">
             {/* Connecting line */}
             <div className="absolute left-8 right-8 top-4 h-0.5 bg-slate-200 -z-0" />
 
@@ -1149,131 +1150,46 @@ export default function CaseDetailPage() {
         </div>
       </div>
 
-      {/* ─── Main Content Grid (3 Columns: 1/4 Left, 2/4 Middle, 1/4 Right) ────── */}
-      <div className="grid grid-cols-1 lg:grid-cols-12 gap-5">
-        {/* COLUMN 1: LEFT SIDEBAR (3 cols / 12) */}
-        <div className="lg:col-span-3 space-y-5">
-          {/* Card 1: CASE INFORMATION */}
-          <div className="card bg-white border border-slate-200/90 shadow-card">
-            <div className="card-header bg-slate-50/80 border-b border-slate-100 py-3 px-4">
-              <h3 className="text-[11px] font-extrabold text-slate-800 uppercase tracking-wider">CASE INFORMATION</h3>
-            </div>
-            <div className="card-body p-4 space-y-3 text-xs">
-              <div className="flex items-start gap-2.5">
-                <span className="text-slate-400 font-mono text-xs w-4">#</span>
-                <div className="flex-1 min-w-0">
-                  <p className="text-[10px] text-slate-400 font-bold uppercase">CASE CODE</p>
-                  <p className="font-mono font-bold text-slate-900">{caseData.case_code}</p>
-                </div>
-              </div>
-
-              <div className="flex items-start gap-2.5">
-                <FolderKanban className="w-4 h-4 text-slate-400 mt-0.5 flex-shrink-0" />
-                <div className="flex-1 min-w-0">
-                  <p className="text-[10px] text-slate-400 font-bold uppercase">PROJECT</p>
-                  <Link
-                    to={`/projects/${caseData.project_id}`}
-                    className="font-bold text-blue-700 hover:underline truncate block"
-                  >
-                    {caseData.project_code || 'PRJ-2026-003'}
-                  </Link>
-                  <p className="text-[11px] text-slate-500 font-medium truncate">{caseData.project_name || 'Ganga Canal Feeder Extension'}</p>
-                </div>
-              </div>
-
-              <div className="flex items-start gap-2.5">
-                <Clock className="w-4 h-4 text-slate-400 mt-0.5 flex-shrink-0" />
-                <div className="flex-1 min-w-0">
-                  <p className="text-[10px] text-slate-400 font-bold uppercase">CREATED ON</p>
-                  <p className="text-slate-800 font-medium">{formatDateTime(caseData.created_at)}</p>
-                </div>
-              </div>
-
-              <div className="flex items-start gap-2.5">
-                <Clock className="w-4 h-4 text-slate-400 mt-0.5 flex-shrink-0" />
-                <div className="flex-1 min-w-0">
-                  <p className="text-[10px] text-slate-400 font-bold uppercase">LAST UPDATED</p>
-                  <p className="text-slate-800 font-medium">{formatDateTime(caseData.updated_at)}</p>
-                </div>
-              </div>
-
-              <div className="flex items-start gap-2.5">
-                <Layers className="w-4 h-4 text-slate-400 mt-0.5 flex-shrink-0" />
-                <div className="flex-1 min-w-0">
-                  <p className="text-[10px] text-slate-400 font-bold uppercase">TOTAL PARCELS</p>
-                  <p className="font-bold text-slate-900">128</p>
-                </div>
-              </div>
-
-              <div className="flex items-start gap-2.5">
-                <UsersIcon className="w-4 h-4 text-slate-400 mt-0.5 flex-shrink-0" />
-                <div className="flex-1 min-w-0">
-                  <p className="text-[10px] text-slate-400 font-bold uppercase">AFFECTED LANDOWNERS</p>
-                  <p className="font-bold text-slate-900">342</p>
-                </div>
-              </div>
-
-              <div className="flex items-start gap-2.5">
-                <MapPin className="w-4 h-4 text-slate-400 mt-0.5 flex-shrink-0" />
-                <div className="flex-1 min-w-0">
-                  <p className="text-[10px] text-slate-400 font-bold uppercase">DISTRICT</p>
-                  <p className="font-bold text-slate-900">Sitapur, Uttar Pradesh</p>
-                </div>
-              </div>
+      
+      {/* ─── CASE INFORMATION (Horizontal) ──────────────────── */}
+      <div className="card bg-white border border-slate-200/90 shadow-card mb-5">
+        <div className="card-body p-4 flex flex-col md:flex-row md:items-center justify-between gap-4 text-xs">
+          <div className="flex items-center gap-3">
+            <span className="text-[11px] font-extrabold text-slate-800 uppercase tracking-wider border-r border-slate-200 pr-4">CASE INFORMATION</span>
+            <div className="flex items-center gap-2">
+              <span className="text-[10px] text-slate-400 font-bold uppercase">CODE:</span>
+              <span className="font-mono font-bold text-slate-900">{caseData.case_code}</span>
             </div>
           </div>
-
-          {/* Card 2: PARCEL INTELLIGENCE */}
-          <div className="card bg-white border border-slate-200/90 shadow-card">
-            <div className="card-header bg-slate-50/80 border-b border-slate-100 py-3 px-4 flex items-center justify-between">
-              <h3 className="text-[11px] font-extrabold text-slate-800 uppercase tracking-wider">PARCEL INTELLIGENCE</h3>
-              <HelpCircle className="w-3.5 h-3.5 text-slate-400" />
-            </div>
-            <div className="card-body p-4 space-y-3">
-              {/* Mini Map Box */}
-              <div className="h-32 bg-slate-100 rounded-xl overflow-hidden relative border border-slate-200 shadow-inner flex items-center justify-center bg-[radial-gradient(#cbd5e1_1px,transparent_1px)] [background-size:12px_12px]">
-                <div className="absolute inset-2 border-2 border-blue-500/60 bg-blue-500/10 rounded-lg flex items-center justify-center">
-                  <span className="text-[10px] font-bold text-blue-700 bg-white/90 px-2 py-0.5 rounded shadow-xs">
-                    Polygon #LA-2026-003
-                  </span>
-                </div>
-              </div>
-
-              {/* 4 Metrics Grid */}
-              <div className="grid grid-cols-2 gap-2 text-center text-xs">
-                <div className="bg-slate-50 p-2 rounded-xl border border-slate-100">
-                  <p className="font-extrabold text-slate-900 text-sm">128</p>
-                  <p className="text-[10px] text-slate-500 font-medium">Parcels</p>
-                </div>
-                <div className="bg-slate-50 p-2 rounded-xl border border-slate-100">
-                  <p className="font-extrabold text-slate-900 text-sm">342</p>
-                  <p className="text-[10px] text-slate-500 font-medium">Landowners</p>
-                </div>
-                <div className="bg-slate-50 p-2 rounded-xl border border-slate-100">
-                  <p className="font-extrabold text-slate-900 text-sm">125.48 ha</p>
-                  <p className="text-[10px] text-slate-500 font-medium">Total Area</p>
-                </div>
-                <div className="bg-emerald-50 p-2 rounded-xl border border-emerald-100 text-emerald-900">
-                  <p className="font-extrabold text-emerald-700 text-xs">Verified</p>
-                  <p className="text-[10px] text-emerald-600 font-medium">Parcel Status</p>
-                </div>
-              </div>
-
-              <Link
-                to="/gis"
-                className="w-full btn btn-secondary text-xs font-bold py-2 text-blue-700 hover:bg-blue-50 border-blue-200 flex items-center justify-center gap-1.5 cursor-pointer"
-              >
-                <MapIcon className="w-3.5 h-3.5 text-blue-600" />
-                Open GIS Map
+          
+          <div className="flex flex-wrap items-center gap-6">
+            <div className="flex items-center gap-2">
+              <FolderKanban className="w-3.5 h-3.5 text-slate-400" />
+              <span className="text-[10px] text-slate-400 font-bold uppercase">PROJECT:</span>
+              <Link to={`/projects/${caseData.project_id}`} className="font-bold text-blue-700 hover:underline">
+                {caseData.project_code || 'PRJ-2026-003'}
               </Link>
+            </div>
+            <div className="flex items-center gap-2">
+              <Clock className="w-3.5 h-3.5 text-slate-400" />
+              <span className="text-[10px] text-slate-400 font-bold uppercase">CREATED:</span>
+              <span className="text-slate-800 font-medium">{formatDateTime(caseData.created_at)}</span>
+            </div>
+            <div className="flex items-center gap-2">
+              <Clock className="w-3.5 h-3.5 text-slate-400" />
+              <span className="text-[10px] text-slate-400 font-bold uppercase">UPDATED:</span>
+              <span className="text-slate-800 font-medium">{formatDateTime(caseData.updated_at)}</span>
             </div>
           </div>
         </div>
+      </div>
 
-        {/* COLUMN 2: MIDDLE WORKSPACE (6 cols / 12) */}
-        <div className="lg:col-span-6 space-y-5">
+      {/* ─── Main Content Grid (2 Columns: 8/12 Main, 4/12 Right) ────── */}
+      <div className="grid grid-cols-1 lg:grid-cols-12 gap-5 items-stretch">
+        {/* COLUMN 1: MAIN WORKSPACE (8 cols / 12) */}
+        <div className="lg:col-span-8 flex flex-col space-y-5">
           {/* Hero Step Banner */}
-          <div className="bg-gradient-to-r from-[#0b192c] via-[#0f2442] to-[#1e3e62] text-white rounded-2xl p-5 shadow-lg border border-slate-700 relative overflow-hidden flex items-center justify-between">
+          <div className="bg-gradient-to-r from-[#0b192c] via-[#0f2442] to-[#1e3e62] text-white rounded-2xl p-5 shadow-lg border border-slate-700 relative overflow-hidden flex items-center justify-between shrink-0">
             <div className="space-y-1 max-w-[70%] relative z-10">
               <span className="text-[10px] font-extrabold uppercase tracking-wider text-blue-300 bg-blue-500/20 px-2.5 py-0.5 rounded-full border border-blue-400/30">
                 STEP {activeStageIndex + 1} OF 11
@@ -1289,7 +1205,7 @@ export default function CaseDetailPage() {
           </div>
 
           {/* OFFICER DECISION RECORD */}
-          <div className="card bg-white border border-slate-200/90 shadow-card">
+          <div className="card bg-white border border-slate-200/90 shadow-card shrink-0">
             <div className="card-header bg-slate-50/80 border-b border-slate-100 py-3 px-5 flex items-center justify-between">
               <h3 className="text-[11px] font-extrabold text-slate-800 uppercase tracking-wider">OFFICER DECISION RECORD</h3>
               <span className="bg-emerald-100 text-emerald-800 border border-emerald-200 text-[10px] font-extrabold px-2.5 py-0.5 rounded-full uppercase flex items-center gap-1">
@@ -1339,71 +1255,81 @@ export default function CaseDetailPage() {
           </div>
 
           {/* AI COMPLIANCE & RISK */}
-          <div className="card bg-white border border-slate-200/90 shadow-card">
-            <div className="card-header bg-slate-50/80 border-b border-slate-100 py-3 px-5 flex items-center justify-between">
-              <h3 className="text-[11px] font-extrabold text-slate-800 uppercase tracking-wider flex items-center gap-1.5">
-                AI COMPLIANCE &amp; RISK <HelpCircle className="w-3.5 h-3.5 text-slate-400" />
-              </h3>
+          {caseData.aiCompliance && (
+            <div className="card bg-white border border-slate-200/90 shadow-card shrink-0">
+              <div className="card-header bg-slate-50/80 border-b border-slate-100 py-3 px-5 flex items-center justify-between">
+                <h3 className="text-[11px] font-extrabold text-slate-800 uppercase tracking-wider flex items-center gap-1.5">
+                  AI COMPLIANCE &amp; RISK <HelpCircle className="w-3.5 h-3.5 text-slate-400" />
+                </h3>
+              </div>
+              <div className="card-body p-5 space-y-4">
+                <div className="grid grid-cols-1 sm:grid-cols-3 gap-4 items-center">
+                  {/* Score Circle / Box */}
+                  <div className={`border rounded-2xl p-3.5 text-center ${
+                    caseData.aiCompliance.riskLevel === 'CRITICAL' ? 'bg-rose-50/80 border-rose-200' :
+                    caseData.aiCompliance.riskLevel === 'ATTENTION REQUIRED' ? 'bg-amber-50/80 border-amber-200' :
+                    'bg-emerald-50/80 border-emerald-200'
+                  }`}>
+                    <p className={`text-[10px] font-bold uppercase tracking-wider ${
+                      caseData.aiCompliance.riskLevel === 'CRITICAL' ? 'text-rose-800' :
+                      caseData.aiCompliance.riskLevel === 'ATTENTION REQUIRED' ? 'text-amber-800' :
+                      'text-emerald-800'
+                    }`}>RISK SCORE</p>
+                    <p className="text-3xl font-black text-slate-900 mt-0.5">
+                      {caseData.aiCompliance.riskScore} <span className="text-xs text-slate-400 font-normal">/100</span>
+                    </p>
+                    <span className={`inline-block mt-1 font-extrabold text-[9px] px-2 py-0.5 rounded-full uppercase ${
+                      caseData.aiCompliance.riskLevel === 'CRITICAL' ? 'bg-rose-200 text-rose-900' :
+                      caseData.aiCompliance.riskLevel === 'ATTENTION REQUIRED' ? 'bg-amber-200 text-amber-900' :
+                      'bg-emerald-200 text-emerald-900'
+                    }`}>
+                      {caseData.aiCompliance.riskLevel}
+                    </span>
+                  </div>
+
+                  {/* Findings Checklist */}
+                  <div className="sm:col-span-2 space-y-2 text-xs">
+                    <p className="text-[10px] font-bold text-slate-400 uppercase tracking-wider mb-1">FINDINGS</p>
+                    {caseData.aiCompliance.findings.map((finding, idx) => (
+                      <div key={idx} className={`flex items-center gap-2 font-medium ${
+                        finding.status === 'VERIFIED' ? 'text-slate-700' :
+                        finding.status === 'WARNING' || finding.status === 'PENDING' ? 'text-amber-800' :
+                        'text-rose-800'
+                      }`}>
+                        {finding.status === 'VERIFIED' ? (
+                          <CheckCircle2 className="w-3.5 h-3.5 text-emerald-600 flex-shrink-0" />
+                        ) : (
+                          <AlertTriangle className={`w-3.5 h-3.5 flex-shrink-0 ${
+                            finding.status === 'DANGER' ? 'text-rose-600' : 'text-amber-600'
+                          }`} />
+                        )}
+                        <span>{finding.text}</span>
+                      </div>
+                    ))}
+                  </div>
+                </div>
+
+                {/* AI Confidence Progress Bar */}
+                <div className="space-y-1 pt-2 border-t border-slate-100">
+                  <div className="flex items-center justify-between text-xs font-semibold">
+                    <span className="text-[10px] text-slate-400 uppercase font-bold">AI CONFIDENCE</span>
+                    <span className="font-extrabold text-blue-700">{caseData.aiCompliance.aiConfidence}%</span>
+                  </div>
+                  <div className="w-full bg-slate-100 rounded-full h-2 overflow-hidden">
+                    <div className="bg-emerald-500 h-full rounded-full transition-all duration-1000" style={{ width: `${caseData.aiCompliance.aiConfidence}%` }} />
+                  </div>
+                </div>
+
+                {/* AI Recommendation Box */}
+                <div className="bg-blue-50/70 border border-blue-200/80 rounded-xl p-3 text-xs text-blue-950 font-medium leading-relaxed">
+                  <strong className="text-blue-900 font-bold">AI RECOMMENDATION:</strong> {caseData.aiCompliance.aiRecommendation}
+                </div>
+              </div>
             </div>
-            <div className="card-body p-5 space-y-4">
-              <div className="grid grid-cols-1 sm:grid-cols-3 gap-4 items-center">
-                {/* Score Circle / Box */}
-                <div className="bg-amber-50/80 border border-amber-200 rounded-2xl p-3.5 text-center">
-                  <p className="text-[10px] font-bold text-amber-800 uppercase tracking-wider">RISK SCORE</p>
-                  <p className="text-3xl font-black text-slate-900 mt-0.5">
-                    72 <span className="text-xs text-slate-400 font-normal">/100</span>
-                  </p>
-                  <span className="inline-block mt-1 bg-amber-200 text-amber-900 font-extrabold text-[9px] px-2 py-0.5 rounded-full uppercase">
-                    ATTENTION REQUIRED
-                  </span>
-                </div>
-
-                {/* Findings Checklist */}
-                <div className="sm:col-span-2 space-y-2 text-xs">
-                  <p className="text-[10px] font-bold text-slate-400 uppercase tracking-wider mb-1">FINDINGS</p>
-                  <div className="flex items-center gap-2 text-slate-700 font-medium">
-                    <CheckCircle2 className="w-3.5 h-3.5 text-emerald-600 flex-shrink-0" />
-                    <span>Gazette notification uploaded</span>
-                  </div>
-                  <div className="flex items-center gap-2 text-slate-700 font-medium">
-                    <CheckCircle2 className="w-3.5 h-3.5 text-emerald-600 flex-shrink-0" />
-                    <span>Newspaper publication evidence uploaded</span>
-                  </div>
-                  <div className="flex items-center gap-2 text-amber-800 font-medium">
-                    <AlertTriangle className="w-3.5 h-3.5 text-amber-600 flex-shrink-0" />
-                    <span>Individual owner notices pending</span>
-                  </div>
-                  <div className="flex items-center gap-2 text-amber-800 font-medium">
-                    <AlertTriangle className="w-3.5 h-3.5 text-amber-600 flex-shrink-0" />
-                    <span>Hearing of objections pending</span>
-                  </div>
-                  <div className="flex items-center gap-2 text-rose-800 font-medium">
-                    <AlertTriangle className="w-3.5 h-3.5 text-rose-600 flex-shrink-0" />
-                    <span>Deadline exceeded by 6 days</span>
-                  </div>
-                </div>
-              </div>
-
-              {/* AI Confidence Progress Bar */}
-              <div className="space-y-1 pt-2 border-t border-slate-100">
-                <div className="flex items-center justify-between text-xs font-semibold">
-                  <span className="text-[10px] text-slate-400 uppercase font-bold">AI CONFIDENCE</span>
-                  <span className="font-extrabold text-blue-700">94%</span>
-                </div>
-                <div className="w-full bg-slate-100 rounded-full h-2 overflow-hidden">
-                  <div className="bg-emerald-500 h-full rounded-full" style={{ width: '94%' }} />
-                </div>
-              </div>
-
-              {/* AI Recommendation Box */}
-              <div className="bg-blue-50/70 border border-blue-200/80 rounded-xl p-3 text-xs text-blue-950 font-medium leading-relaxed">
-                <strong className="text-blue-900 font-bold">AI RECOMMENDATION:</strong> Complete individual notice serving and objection-hearing documentation before advancing to the next stage.
-              </div>
-            </div>
-          </div>
+          )}
 
           {/* KEY DOCUMENTS & EVIDENCE TABLE */}
-          <div className="card bg-white border border-slate-200/90 shadow-card">
+          <div className="card bg-white border border-slate-200/90 shadow-card mt-auto shrink-0">
             <div className="card-header bg-slate-50/80 border-b border-slate-100 py-3 px-5 flex items-center justify-between">
               <h3 className="text-[11px] font-extrabold text-slate-800 uppercase tracking-wider">KEY DOCUMENTS &amp; EVIDENCE</h3>
               <button type="button" className="text-[11px] font-bold text-blue-700 hover:underline">View All</button>
@@ -1487,58 +1413,15 @@ export default function CaseDetailPage() {
           </div>
         </div>
 
-        {/* COLUMN 3: RIGHT AUDIT TIMELINE (3 cols / 12) */}
-        <div className="lg:col-span-3 space-y-5">
+        {/* COLUMN 2: RIGHT SIDEBAR (4 cols / 12) */}
+        <div className="lg:col-span-4 flex flex-col space-y-5">
           {/* AUDIT TIMELINE CARD */}
-          <div className="card bg-white border border-slate-200/90 shadow-card">
-            <div className="card-header bg-slate-50/80 border-b border-slate-100 py-3 px-4 flex flex-col gap-2">
-              <div className="flex items-center justify-between">
-                <h3 className="text-[11px] font-extrabold text-slate-800 uppercase tracking-wider flex items-center gap-1.5">
-                  AUDIT TIMELINE
-                </h3>
-                <span className="text-[10px] text-slate-400 font-bold">7 Total Events</span>
-              </div>
-
-              {/* Filter Pills */}
-              <div className="flex items-center gap-1 overflow-x-auto pb-1 no-scrollbar">
-                <button
-                  type="button"
-                  onClick={() => setAuditFilter('ALL')}
-                  className={`px-2 py-0.5 rounded-md text-[10px] font-bold transition-all cursor-pointer ${
-                    auditFilter === 'ALL' ? 'bg-blue-600 text-white' : 'bg-slate-100 text-slate-600 hover:bg-slate-200'
-                  }`}
-                >
-                  All Events (7)
-                </button>
-                <button
-                  type="button"
-                  onClick={() => setAuditFilter('NOTIF')}
-                  className="px-2 py-0.5 rounded-md text-[10px] font-bold bg-slate-100 text-slate-600 hover:bg-slate-200 cursor-pointer"
-                >
-                  Notifications
-                </button>
-                <button
-                  type="button"
-                  onClick={() => setAuditFilter('APP')}
-                  className="px-2 py-0.5 rounded-md text-[10px] font-bold bg-slate-100 text-slate-600 hover:bg-slate-200 cursor-pointer"
-                >
-                  Approvals
-                </button>
-                <button
-                  type="button"
-                  onClick={() => setAuditFilter('DOC')}
-                  className="px-2 py-0.5 rounded-md text-[10px] font-bold bg-slate-100 text-slate-600 hover:bg-slate-200 cursor-pointer"
-                >
-                  Documents
-                </button>
-                <button
-                  type="button"
-                  onClick={() => setAuditFilter('AI')}
-                  className="px-2 py-0.5 rounded-md text-[10px] font-bold bg-slate-100 text-slate-600 hover:bg-slate-200 cursor-pointer"
-                >
-                  AI Alerts
-                </button>
-              </div>
+          <div className="card bg-white border border-slate-200/90 shadow-card shrink-0">
+            <div className="card-header bg-slate-50/80 border-b border-slate-100 py-3 px-4 flex items-center justify-between">
+              <h3 className="text-[11px] font-extrabold text-slate-800 uppercase tracking-wider flex items-center gap-1.5">
+                AUDIT TIMELINE
+              </h3>
+              <span className="text-[10px] text-slate-400 font-bold">7 Total Events</span>
             </div>
 
             <div className="p-4">
@@ -1659,20 +1542,103 @@ export default function CaseDetailPage() {
               </div>
             </div>
           </div>
+          
+          {/* Card 2: PARCEL INTELLIGENCE */}
+          <div className="card bg-white border border-slate-200/90 shadow-card shrink-0">
+            <div className="card-header bg-slate-50/80 border-b border-slate-100 py-3 px-4 flex items-center justify-between">
+              <h3 className="text-[11px] font-extrabold text-slate-800 uppercase tracking-wider">PARCEL INTELLIGENCE</h3>
+              <HelpCircle className="w-3.5 h-3.5 text-slate-400" />
+            </div>
+            <div className="card-body p-4 space-y-3">
+              {/* Mini Map Box */}
+              <div className="h-32 bg-slate-100 rounded-xl overflow-hidden relative border border-slate-200 shadow-inner relative">
+                {caseData.parcel_id ? (
+                  <div className="w-full h-full relative z-0">
+                    <ParcelBoundaryPreview parcelId={caseData.parcel_id} />
+                  </div>
+                ) : (
+                  <div className="w-full h-full flex items-center justify-center bg-[radial-gradient(#cbd5e1_1px,transparent_1px)] [background-size:12px_12px]">
+                    <span className="text-[10px] font-bold text-slate-500 bg-white/90 px-2 py-0.5 rounded shadow-xs">
+                      No Parcel Attached
+                    </span>
+                  </div>
+                )}
+                
+                <div className="absolute bottom-2 right-2 z-10 pointer-events-none">
+                  <span className="text-[9px] font-bold text-blue-700 bg-white/90 px-1.5 py-0.5 rounded border border-blue-100 shadow-sm backdrop-blur-sm">
+                    {caseData.parcel_code || 'UNKNOWN'}
+                  </span>
+                </div>
+              </div>
+
+              {/* 4 Metrics Grid */}
+              <div className="grid grid-cols-2 gap-2 text-center text-xs">
+                <div className="bg-slate-50 p-2 rounded-xl border border-slate-100 flex flex-col justify-center">
+                  <p className="font-extrabold text-slate-900 text-sm truncate px-1" title={caseData.survey_number || 'N/A'}>{caseData.survey_number || 'N/A'}</p>
+                  <p className="text-[10px] text-slate-500 font-medium">Survey No.</p>
+                </div>
+                <div className="bg-slate-50 p-2 rounded-xl border border-slate-100 flex flex-col justify-center">
+                  <p className="font-extrabold text-slate-900 text-sm truncate px-1" title={caseData.owner_name || 'N/A'}>{caseData.owner_name || 'N/A'}</p>
+                  <p className="text-[10px] text-slate-500 font-medium">Primary Owner</p>
+                </div>
+                <div className="bg-slate-50 p-2 rounded-xl border border-slate-100 flex flex-col justify-center">
+                  <p className="font-extrabold text-slate-900 text-sm">{caseData.area_acres ? `${caseData.area_acres} ac` : 'N/A'}</p>
+                  <p className="text-[10px] text-slate-500 font-medium">Total Area</p>
+                </div>
+                <div className="bg-emerald-50 p-2 rounded-xl border border-emerald-100 text-emerald-900 flex flex-col justify-center">
+                  <p className="font-extrabold text-emerald-700 text-xs truncate px-1">{caseData.acquisition_status || 'Pending'}</p>
+                  <p className="text-[10px] text-emerald-600 font-medium">Parcel Status</p>
+                </div>
+              </div>
+
+              <Link
+                to="/gis"
+                className="w-full btn btn-secondary text-xs font-bold py-2 text-blue-700 hover:bg-blue-50 border-blue-200 flex items-center justify-center gap-1.5 cursor-pointer"
+              >
+                <MapIcon className="w-3.5 h-3.5 text-blue-600" />
+                Open GIS Map
+              </Link>
+            </div>
+          </div>
+
+          {/* AVAILABLE ACTIONS */}
+          {caseData.allowedActions && caseData.allowedActions.length > 0 && !isTerminal && (
+            <div className="card bg-blue-50/30 border-2 border-blue-400 shadow-[0_0_20px_rgba(59,130,246,0.15)] relative overflow-hidden mt-auto shrink-0">
+              <div className="absolute inset-0 border-2 border-blue-400 rounded-2xl animate-pulse pointer-events-none opacity-40" style={{ animationDuration: '3s' }}></div>
+              <div className="card-header bg-blue-50/80 border-b border-blue-100 py-3 px-4 flex items-center justify-between relative z-10">
+                <h3 className="text-[11px] font-extrabold text-blue-900 uppercase tracking-wider">REQUIRED ACTIONS</h3>
+                <span className="bg-blue-600 text-white border border-blue-500 text-[10px] font-extrabold px-2 py-0.5 rounded-full uppercase shadow-sm">
+                  PENDING REVIEW
+                </span>
+              </div>
+              <div className="card-body p-4 flex flex-col gap-3">
+                {caseData.allowedActions.map(action => {
+                  const config = ACTION_CONFIG[action];
+                  if (!config) return null;
+                  const Icon = config.icon;
+                  return (
+                    <button
+                      key={action}
+                      onClick={() => setTransitionModal(action)}
+                      className={`w-full flex items-center justify-start gap-3 p-3.5 rounded-xl border border-transparent transition-all cursor-pointer hover:-translate-y-1 shadow-sm hover:shadow-md ${config.className}`}
+                    >
+                      <div className="bg-white/20 p-2 rounded-lg">
+                        <Icon className="w-5 h-5" />
+                      </div>
+                      <div className="text-left">
+                        <p className="font-extrabold text-sm tracking-wide">{config.label}</p>
+                        <p className="text-[10px] opacity-90 leading-tight">{config.description}</p>
+                      </div>
+                    </button>
+                  );
+                })}
+              </div>
+            </div>
+          )}
         </div>
       </div>
 
-      {/* ─── Floating Action Button (Bottom Right) ─────────────────── */}
-      {!isTerminal && (
-        <button
-          type="button"
-          onClick={() => setTransitionModal(caseData.allowedActions?.includes('APPROVE') ? 'APPROVE' : 'FORWARD')}
-          className="fixed bottom-6 right-6 z-40 bg-blue-600 hover:bg-blue-700 text-white font-extrabold px-5 py-3 rounded-2xl shadow-floating flex items-center gap-2 text-xs transition-all hover:scale-105 cursor-pointer"
-        >
-          <span className="text-sm">⚡</span>
-          <span>Take Action</span>
-        </button>
-      )}
+
 
 
       {/* ─── Transition Modal ─────────────────────────────────────── */}

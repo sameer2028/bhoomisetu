@@ -3,6 +3,11 @@ import { useParams, Link } from 'react-router-dom';
 import { useAuth } from '../../contexts/AuthContext';
 import api from '../../services/api';
 import ParcelBoundaryPreview from '../../components/map/ParcelBoundaryPreview';
+import LandRecordIdentity from '../../components/common/LandRecordIdentity';
+import LandRecordContext from '../../components/common/LandRecordContext';
+import TechnicalReferences from '../../components/common/TechnicalReferences';
+import LandStory from '../../components/common/LandStory';
+import { mapParcelToLandRecord } from '../../services/landRecordMapper';
 import { GEOMETRY_SOURCE_LABELS } from '../../components/map/mapConstants';
 import {
   MapPin,
@@ -140,28 +145,41 @@ export default function ParcelDetailPage() {
       </div>
 
       {/* Header Banner */}
-      <div className="card p-6 md:p-8 border-l-4 border-l-emerald-600 shadow-card">
-        <div className="flex flex-col lg:flex-row lg:items-center justify-between gap-5">
-          <div>
-            <div className="flex items-center gap-2 mb-2">
-              <span className="text-xs font-mono font-bold text-emerald-800 bg-emerald-50 px-2.5 py-0.5 rounded border border-emerald-200">
-                {parcel.parcel_code}
-              </span>
-              <span className="text-xs font-semibold text-slate-500 uppercase tracking-wider bg-slate-100 px-2 py-0.5 rounded">
-                Survey No. {parcel.survey_number}
-              </span>
+      <div className="card p-6 md:p-8 border-t-4 border-t-emerald-600 shadow-card">
+        <div className="flex flex-col lg:flex-row lg:items-start justify-between gap-6">
+          <div className="flex-1">
+            <LandRecordIdentity
+              parcelCode={parcel.parcel_code}
+              surveyNumber={parcel.survey_number}
+              village={parcel.village}
+              area={parcel.area_acres}
+            />
+            
+            <div className="mt-6">
+              <LandRecordContext
+                project={{
+                  id: parcel.project_id,
+                  name: parcel.project_name,
+                  code: parcel.project_code,
+                }}
+                ownerName={parcel.owner_name}
+                acquisitionStatus={parcel.acquisition_status}
+                fieldVerified={parcel.geometry_source === 'FIELD_GPS' ? true : parcel.has_geometry ? false : null}
+              />
             </div>
-            <h1 className="text-2xl font-extrabold text-slate-900 leading-tight">
-              Survey No. {parcel.survey_number} — {parcel.village}
-            </h1>
-            <p className="text-xs text-slate-500 mt-1.5 flex items-center gap-2 font-medium">
-              <MapPin className="w-4 h-4 text-slate-400" /> {parcel.village}, Tehsil: {parcel.taluk || 'N/A'}, District: {parcel.district}, {parcel.state}
-            </p>
+            
+            <div className="mt-6 space-y-4">
+              <LandStory parcel={parcel} />
+              <TechnicalReferences
+                parcelCode={parcel.parcel_code}
+                projectCode={parcel.project_code}
+                projectId={parcel.project_id}
+                surveyNumber={parcel.survey_number}
+              />
+            </div>
           </div>
 
-          <div className="flex flex-wrap items-center gap-3">
-            {getStatusBadge(parcel.acquisition_status)}
-
+          <div className="flex flex-col items-end gap-3 flex-shrink-0">
             {canEdit && !editing && (
               <button
                 onClick={() => setEditing(true)}
@@ -185,35 +203,6 @@ export default function ParcelDetailPage() {
           <AlertCircle className="w-5 h-5 flex-shrink-0 text-rose-600" /> {errorMsg}
         </div>
       )}
-
-      {/* KPI Cards Summary */}
-      <div className="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-4 gap-4">
-        <div className="kpi-card">
-          <span className="text-xs text-slate-500 uppercase font-semibold">Plot Measure</span>
-          <div className="text-2xl font-extrabold text-slate-900 mt-1">{parcel.area_acres} Acres</div>
-          <span className="text-xs text-slate-400 font-medium">Cadastral Survey Extent</span>
-        </div>
-
-        <div className="kpi-card">
-          <span className="text-xs text-slate-500 uppercase font-semibold">Registered Owner</span>
-          <div className="text-base font-extrabold text-slate-900 mt-1 truncate">{parcel.owner_name || 'Sample Owner'}</div>
-          <span className="text-xs text-slate-400 font-mono mt-0.5 block">{parcel.owner_contact || 'Contact N/A'}</span>
-        </div>
-
-        <div className="kpi-card">
-          <span className="text-xs text-slate-500 uppercase font-semibold">Associated Project</span>
-          <div className="text-xs font-bold text-blue-800 mt-1 truncate">
-            {parcel.project_code ? `[${parcel.project_code}] ${parcel.project_name}` : 'Unassigned'}
-          </div>
-          <span className="text-xs text-slate-400 mt-0.5 block truncate">{parcel.implementing_agency || 'N/A'}</span>
-        </div>
-
-        <div className="kpi-card">
-          <span className="text-xs text-slate-500 uppercase font-semibold">Acquisition Status</span>
-          <div className="mt-1.5">{getStatusBadge(parcel.acquisition_status)}</div>
-          <span className="text-xs text-slate-400 mt-1 block font-medium">Lifecycle Pipeline</span>
-        </div>
-      </div>
 
       {/* Main Grid */}
       {editing ? (

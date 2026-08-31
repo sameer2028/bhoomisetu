@@ -31,7 +31,7 @@ router.get('/', authenticate, async (req, res, next) => {
     );
 
     const parcels = await queryRows(
-      `SELECT pc.id, pc.parcel_code, pc.survey_number, pc.village, pc.area_acres, p.name AS project_name
+      `SELECT pc.id, pc.parcel_code, pc.survey_number, pc.village, pc.area_acres, p.name AS project_name, pc.created_at
        FROM parcels pc
        LEFT JOIN projects p ON p.id = pc.project_id
        WHERE pc.survey_number ILIKE $1 OR pc.parcel_code ILIKE $1 OR pc.village ILIKE $1
@@ -40,18 +40,22 @@ router.get('/', authenticate, async (req, res, next) => {
     );
 
     const cases = await queryRows(
-      `SELECT c.id, c.case_code, c.current_stage AS stage, c.status, p.name AS project_name
+      `SELECT c.id, c.case_code, c.current_stage AS stage, c.status, p.name AS project_name, 
+              pc.parcel_code, pc.survey_number, pc.village, c.created_at
        FROM acquisition_cases c
        LEFT JOIN projects p ON p.id = c.project_id
+       LEFT JOIN parcels pc ON pc.id = c.parcel_id
        WHERE c.case_code ILIKE $1 OR c.current_stage ILIKE $1 OR c.status ILIKE $1
        ORDER BY c.updated_at DESC LIMIT 5`,
       [searchTerm]
     );
 
     const families = await queryRows(
-      `SELECT f.id, f.family_code, f.head_of_family, f.category, f.members_count, p.name AS project_name
+      `SELECT f.id, f.family_code, f.head_of_family, f.category, f.members_count, p.name AS project_name,
+              pc.parcel_code, pc.survey_number, pc.village, f.created_at
        FROM families f
        LEFT JOIN projects p ON p.id = f.project_id
+       LEFT JOIN parcels pc ON pc.id = f.parcel_id
        WHERE f.head_of_family ILIKE $1 OR f.family_code ILIKE $1 OR f.contact ILIKE $1
        ORDER BY f.created_at DESC LIMIT 5`,
       [searchTerm]

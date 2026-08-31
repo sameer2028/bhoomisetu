@@ -2,6 +2,7 @@ import { useState, useEffect, useCallback, useMemo } from 'react';
 import { Link } from 'react-router-dom';
 import { useAuth } from '../../contexts/AuthContext';
 import api from '../../services/api';
+import { toLandReference } from '../../services/landRecordMapper';
 import {
   GitBranch,
   Plus,
@@ -441,10 +442,15 @@ export default function CaseListPage() {
 
                     <div>
                       <span className="text-[10px] uppercase tracking-wider text-slate-400 font-bold block mb-0.5">
-                        Parcel / Survey
+                        Land Reference
                       </span>
-                      <span className="text-xs font-semibold text-slate-800 truncate block">
-                        {c.parcel_code ? `${c.parcel_code}${c.survey_number ? ` (Survey #${c.survey_number})` : ''}` : 'No parcel linked'}
+                      <span className="text-xs font-mono font-bold text-blue-900 truncate block">
+                        {c.parcel_code ? toLandReference({
+                          parcelCode: c.parcel_code,
+                          surveyNumber: c.survey_number,
+                          village: c.village,
+                          year: c.created_at ? new Date(c.created_at).getFullYear() : '2026'
+                        }) : 'No land linked'}
                       </span>
                     </div>
 
