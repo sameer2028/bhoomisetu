@@ -14,7 +14,8 @@ import {
   Users as UsersIcon,
   AlertTriangle,
   ChevronRight,
-  ExternalLink
+  ExternalLink,
+  Menu,
 } from 'lucide-react';
 
 const PRIORITY_BADGES = {
@@ -24,7 +25,7 @@ const PRIORITY_BADGES = {
   LOW: 'bg-slate-100 text-slate-700 border-slate-200',
 };
 
-export default function Header() {
+export default function Header({ mobileOpen, setMobileOpen }) {
   const { user, roleLabel } = useAuth();
   const navigate = useNavigate();
 
@@ -166,15 +167,26 @@ export default function Header() {
       </div>
 
       {/* Main Government Bar */}
-      <div className="h-16 flex items-center justify-between px-4 sm:px-6">
-        {/* Left — Official Emblem & Bilingual Title */}
-        <div className="flex items-center gap-3">
+      <div className="h-16 flex items-center justify-between px-3 sm:px-6">
+        {/* Left — Mobile Hamburger + Official Emblem & Bilingual Title */}
+        <div className="flex items-center gap-2.5 sm:gap-3">
+          {/* Hamburger Button for Mobile View */}
+          <button
+            type="button"
+            onClick={() => setMobileOpen && setMobileOpen(!mobileOpen)}
+            className="lg:hidden p-2 rounded-xl text-slate-700 hover:bg-slate-100 hover:text-slate-900 border border-slate-200 shadow-sm flex items-center justify-center flex-shrink-0 cursor-pointer"
+            title="Toggle Navigation Menu"
+            aria-label="Toggle Navigation Menu"
+          >
+            <Menu className="w-5 h-5 text-slate-800" />
+          </button>
+
           <img
             src="/emblem.png"
             alt="State Emblem of India"
-            className="h-12 w-auto object-contain flex-shrink-0"
+            className="h-10 sm:h-12 w-auto object-contain flex-shrink-0"
           />
-          <div className="border-l border-neutral-300 pl-3">
+          <div className="border-l border-neutral-300 pl-2.5 sm:pl-3">
             <div className="flex items-center gap-1.5">
               <span className="text-[10px] font-bold text-emerald-800 uppercase tracking-widest leading-none">
                 Government of India • भारत सरकार

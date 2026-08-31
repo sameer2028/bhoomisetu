@@ -71,6 +71,8 @@ app.use('/api/search', require('./modules/search/search.routes'));
 app.use('/api/compensation', require('./modules/compensation/compensation.routes'));
 app.use('/api/ai', require('./modules/ai/ai.routes'));
 app.use('/api/dashboard', require('./modules/dashboard/dashboard.routes'));
+app.use('/api/mock-gov', require('./modules/mockGov/mockGov.routes'));
+app.use('/api/field', require('./modules/field/field.routes'));
 
 // ─── Constants endpoint (for frontend enums) ───────────────────────
 const constants = require('./config/constants');

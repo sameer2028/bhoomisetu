@@ -130,6 +130,7 @@ async function initializeDatabase() {
   const { seedRr } = require('../seeds/seedRr');
   const seedAlerts = require('../seeds/seedAlerts');
   const { seedCompensation } = require('../seeds/seedCompensation');
+  const { seedMockGov } = require('../seeds/seedMockGov');
 
   await seedUsers();
   await seedProjects();
@@ -141,6 +142,7 @@ async function initializeDatabase() {
     seedRr(),
     seedAlerts(),
     seedCompensation(),
+    seedMockGov(),
   ]);
 }
 
