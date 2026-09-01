@@ -27,7 +27,7 @@ const NAV_GROUPS = [
     items: [
       { path: '/dashboard', label: 'Dashboard', icon: LayoutDashboard, roles: ['DLAO', 'PIA', 'SGA', 'FRO', 'ADMIN'] },
       { path: '/projects', label: 'Projects', icon: FolderKanban, roles: ['DLAO', 'PIA', 'SGA', 'ADMIN'] },
-      { path: '/parcels', label: 'Parcels', icon: MapPin, roles: ['DLAO', 'SGA', 'FRO', 'ADMIN'] },
+      { path: '/parcels', label: 'Parcels', icon: MapPin, roles: ['DLAO', 'PIA', 'SGA', 'FRO', 'ADMIN'] },
       { path: '/gis', label: 'GIS Map', icon: Map, roles: ['DLAO', 'PIA', 'SGA', 'FRO', 'ADMIN'] },
     ],
   },
