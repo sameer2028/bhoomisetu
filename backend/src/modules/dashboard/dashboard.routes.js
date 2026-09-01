@@ -24,7 +24,7 @@ const getDashboardStats = async (state = null, district = null, projectId = null
     SELECT 
       (SELECT COUNT(*) FROM projects WHERE id IN (SELECT id FROM p_scope)) AS total_projects,
       (SELECT COALESCE(SUM(total_area_required), 0) FROM projects WHERE id IN (SELECT id FROM p_scope)) AS land_proposed,
-      (SELECT COALESCE(SUM(area_acres), 0) FROM parcels WHERE acquisition_status IN ('ACQUIRED', 'POSSESSION_TAKEN') AND project_id IN (SELECT id FROM p_scope)) AS land_acquired,
+      (SELECT COALESCE(SUM(total_area_acquired), 0) FROM projects WHERE id IN (SELECT id FROM p_scope)) AS land_acquired,
       (SELECT COALESCE(SUM(assessed_amount), 0) FROM compensation WHERE parcel_id IN (SELECT id FROM parcels WHERE project_id IN (SELECT id FROM p_scope))) AS compensation_assessed,
       (SELECT COALESCE(SUM(paid_amount), 0) FROM compensation WHERE parcel_id IN (SELECT id FROM parcels WHERE project_id IN (SELECT id FROM p_scope))) AS compensation_paid,
       (SELECT COUNT(*) FROM families WHERE project_id IN (SELECT id FROM p_scope)) AS affected_families,

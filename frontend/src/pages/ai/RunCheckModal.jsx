@@ -16,6 +16,7 @@ export default function RunCheckModal({ isOpen, onClose, onCheckCompleted }) {
   const [parcels, setParcels] = useState([]);
   const [selectedDocId, setSelectedDocId] = useState('');
   const [selectedParcelId, setSelectedParcelId] = useState('');
+  const [activeMode, setActiveMode] = useState('BENCHMARK');
   const [loadingInitial, setLoadingInitial] = useState(false);
   const [running, setRunning] = useState(false);
   const [result, setResult] = useState(null);
@@ -164,33 +165,69 @@ export default function RunCheckModal({ isOpen, onClose, onCheckCompleted }) {
             </div>
           ) : (
             <form onSubmit={handleRunCheck} className="space-y-2.5">
-              {/* Document Selector with Optgroups */}
+              {/* Mode Tabs */}
+              <div className="flex bg-slate-200/50 p-1 rounded-lg gap-1 mb-3">
+                <button
+                  type="button"
+                  onClick={() => { setActiveMode('BENCHMARK'); setSelectedDocId(''); }}
+                  className={`flex-1 text-[11px] py-1.5 font-bold rounded-md transition-colors ${
+                    activeMode === 'BENCHMARK' ? 'bg-white text-blue-700 shadow-sm border border-slate-200' : 'text-slate-500 hover:text-slate-700'
+                  }`}
+                >
+                  Demo Benchmark Scenarios
+                </button>
+                <button
+                  type="button"
+                  onClick={() => { setActiveMode('REAL_DOCUMENT'); setSelectedDocId(''); }}
+                  className={`flex-1 text-[11px] py-1.5 font-bold rounded-md transition-colors ${
+                    activeMode === 'REAL_DOCUMENT' ? 'bg-white text-blue-700 shadow-sm border border-slate-200' : 'text-slate-500 hover:text-slate-700'
+                  }`}
+                >
+                  Verify Real Document (AI)
+                </button>
+              </div>
+
+              {/* Document Selector */}
               <div>
                 <label className="form-label text-[10px] flex items-center justify-between mb-0.5">
                   <span className="flex items-center gap-1 font-bold text-slate-700">
-                    <FileText className="w-3 h-3 text-blue-700" /> Select Source Document / Benchmark Scenario
+                    <FileText className="w-3 h-3 text-blue-700" /> 
+                    {activeMode === 'BENCHMARK' ? 'Select Benchmark Scenario' : 'Select Uploaded Document'}
                   </span>
                   <span className="text-[9px] text-slate-400 font-normal">PDF or Scanned Report</span>
                 </label>
+                
+                {activeMode === 'BENCHMARK' && (
+                  <div className="mb-2 p-2 bg-amber-50 border border-amber-200 rounded-md text-[10px] text-amber-800">
+                    <strong>Note:</strong> These are predefined test cases that simulate the AI verification logic for demo purposes (e.g., testing the fallback JS engine).
+                  </div>
+                )}
+                {activeMode === 'REAL_DOCUMENT' && (
+                  <div className="mb-2 p-2 bg-blue-50 border border-blue-200 rounded-md text-[10px] text-blue-800">
+                    <strong>Note:</strong> This will send the selected document to the Python FastAPI microservice for real-time OCR extraction and verification.
+                  </div>
+                )}
+
                 <select
                   value={selectedDocId}
                   onChange={handleDocChange}
                   className="form-select text-[11px] py-1.5 px-2 font-medium"
+                  required
                 >
-                  <optgroup label="🔬 AI Microservice OCR Benchmark Scenarios">
-                    {BENCHMARKS.map((b) => (
+                  <option value="">Choose a {activeMode === 'BENCHMARK' ? 'scenario' : 'document'}...</option>
+                  {activeMode === 'BENCHMARK' ? (
+                    BENCHMARKS.map((b) => (
                       <option key={b.id} value={b.id}>
                         {b.title}
                       </option>
-                    ))}
-                  </optgroup>
-                  <optgroup label="📁 Uploaded Statutory Documents Repository">
-                    {documents.map((doc) => (
+                    ))
+                  ) : (
+                    documents.map((doc) => (
                       <option key={doc.id} value={doc.id}>
                         [{doc.document_type}] {doc.title} ({doc.document_code})
                       </option>
-                    ))}
-                  </optgroup>
+                    ))
+                  )}
                 </select>
               </div>
 
