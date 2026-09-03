@@ -254,19 +254,21 @@ router.post(
              VALUES ($1, 'VERIFICATION', 'APPROVAL', 'FORWARD', $2, $3, now())`,
             [linkedCase.id, req.user?.id, `JMS survey completed on-site. GPS coordinates confirmed.`]
           );
-        } else if (action === 'FLAG_ISSUE') {
-          // Create alert
-          await query(
-            `INSERT INTO alerts (type, title, message, project_id, case_id, parcel_id, priority, is_read, is_acknowledged, created_at)
-             VALUES ('DATA_MISMATCH', 'Field Inspection Issue Flagged', $1, $2, $3, $4, 'HIGH', false, false, now())`,
-            [
-              `Field Officer flagged issue for parcel survey #${parcel.survey_number}: ${issue_type || remarks}`,
-              parcel.project_id,
-              linkedCase.id,
-              parcel.id,
-            ]
-          );
         }
+      }
+
+      if (action === 'FLAG_ISSUE') {
+        // Create alert for DLAO and State Officer
+        await query(
+          `INSERT INTO alerts (type, title, message, project_id, case_id, parcel_id, priority, is_read, is_acknowledged, created_at)
+           VALUES ('HIGH_RISK', 'Field Inspection Issue Flagged', $1, $2, $3, $4, 'HIGH', false, false, now())`,
+          [
+            `Field Officer flagged issue for parcel survey #${parcel.survey_number}: ${issue_type || remarks}`,
+            parcel.project_id,
+            linkedCase ? linkedCase.id : null,
+            parcel.id,
+          ]
+        );
       }
 
       // Log to immutable audit_log
