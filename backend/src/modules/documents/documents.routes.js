@@ -619,9 +619,13 @@ router.post('/:id/verify-ai', authenticate, rbac(ROLES.DLAO, ROLES.PIA, ROLES.FR
       targetParcel = await queryOne('SELECT * FROM parcels WHERE id = $1', [doc.parcel_id]);
     }
 
+    // Construct the URL to the file for the AI service to download (critical for production/Render)
+    const fileUrl = `${req.protocol}://${req.get('host')}/${cleanPath}`;
+
     // Call Python AI Service
     const aiRes = await callPythonAiService('/api/ai/process-document', {
       file_path: targetFilePath,
+      file_url: fileUrl,
       official_parcel: targetParcel ? {
         survey_number: targetParcel.survey_number,
         area_acres: parseFloat(targetParcel.area_acres),
@@ -631,15 +635,32 @@ router.post('/:id/verify-ai', authenticate, rbac(ROLES.DLAO, ROLES.PIA, ROLES.FR
       } : undefined,
     });
 
+    let detectedMismatches = aiRes?.mismatches || [];
+
     // If targetParcel was missing, see if survey_number extracted connects to one
     if (!targetParcel && aiRes?.extracted_fields?.survey_number) {
       targetParcel = await queryOne('SELECT * FROM parcels WHERE survey_number ILIKE $1 LIMIT 1', [aiRes.extracted_fields.survey_number]);
       if (targetParcel) {
         await queryOne('UPDATE documents SET parcel_id = $1 WHERE id = $2', [targetParcel.id, doc.id]);
+        
+        // Re-run the comparison with the newly discovered parcel!
+        const reRunRes = await callPythonAiService('/api/ai/process-document', {
+          file_path: targetFilePath,
+          file_url: fileUrl,
+          official_parcel: {
+            survey_number: targetParcel.survey_number,
+            area_acres: parseFloat(targetParcel.area_acres),
+            village: targetParcel.village,
+            owner_name: targetParcel.owner_name,
+            district: targetParcel.district,
+          }
+        });
+        detectedMismatches = reRunRes?.mismatches || [];
+        // Override aiRes so the UI gets the updated extraction/mismatches
+        aiRes.mismatches = detectedMismatches;
       }
     }
 
-    const detectedMismatches = aiRes?.mismatches || [];
     const savedRecords = [];
     if (targetParcel) {
       // Clear previous unadjudicated mismatches for this document to avoid duplicates
@@ -697,7 +718,7 @@ router.post('/:id/verify-ai', authenticate, rbac(ROLES.DLAO, ROLES.PIA, ROLES.FR
         mismatches: savedRecords,
         extracted_fields: aiRes?.extracted_fields,
         raw_text: aiRes?.raw_text,
-        parcel: targetParcel,
+        target_parcel: targetParcel,
       },
     });
   } catch (err) {

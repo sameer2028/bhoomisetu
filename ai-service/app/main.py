@@ -62,7 +62,8 @@ class RiskScoreResponse(BaseModel):
 
 
 class ProcessDocumentRequest(BaseModel):
-    file_path: str
+    file_path: str | None = None
+    file_url: str | None = None
     official_parcel: dict | None = None
 
 # ---------- Health / status ----------
@@ -162,12 +163,29 @@ def api_process_document(req: ProcessDocumentRequest):
     """
     Full End-to-End pipeline: OCR -> Structured Extraction -> Comparison against official record.
     """
-    file_path = Path(req.file_path)
-    if not file_path.exists():
-        raise HTTPException(status_code=404, detail=f"File not found: {req.file_path}")
+    import urllib.request
+    import tempfile
+
+    file_path_obj = None
+
+    if req.file_url:
+        try:
+            with tempfile.NamedTemporaryFile(delete=False, suffix=".png") as tmp:
+                r = urllib.request.Request(req.file_url, headers={'User-Agent': 'Mozilla/5.0'})
+                with urllib.request.urlopen(r) as response:
+                    tmp.write(response.read())
+            file_path_obj = Path(tmp.name)
+        except Exception:
+            pass  # fallback to local path if URL fails
+
+    if not file_path_obj and req.file_path:
+        file_path_obj = Path(req.file_path)
+
+    if not file_path_obj or not file_path_obj.exists():
+        raise HTTPException(status_code=404, detail=f"File not found: {req.file_path or req.file_url}")
 
     try:
-        raw_text = extract_text(file_path)
+        raw_text = extract_text(file_path_obj)
         extracted = extract_fields_with_confidence(raw_text)
         mismatches = []
         if req.official_parcel:
