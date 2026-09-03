@@ -27,7 +27,7 @@ async function callPythonAiService(endpoint, body) {
         'Content-Type': 'application/json',
         'Content-Length': Buffer.byteLength(postData),
       },
-      timeout: 4000,
+      timeout: 15000,
     };
 
     const req = http.request(options, (res) => {
@@ -204,17 +204,32 @@ router.get('/mismatches/:id', authenticate, async (req, res, next) => {
 /**
  * PUT /api/ai/mismatches/:id/status
  * Update officer resolution status (Decision Support)
+ * - FRO can only set: UNDER_REVIEW, DETECTED (add investigation notes)
+ * - DLAO/SGA/ADMIN can set: UNDER_REVIEW, RESOLVED, FALSE_POSITIVE, DETECTED
  */
 router.put('/mismatches/:id/status', authenticate, rbac(ROLES.DLAO, ROLES.FRO, ROLES.SGA, ROLES.ADMIN), async (req, res, next) => {
   try {
     const { status, remarks } = req.body;
-    const allowed = ['UNDER_REVIEW', 'RESOLVED', 'FALSE_POSITIVE', 'DETECTED'];
+    const allStatuses = ['UNDER_REVIEW', 'RESOLVED', 'FALSE_POSITIVE', 'DETECTED'];
+    const froAllowed = ['UNDER_REVIEW', 'DETECTED'];
 
-    if (!status || !allowed.includes(status.toUpperCase())) {
+    if (!status || !allStatuses.includes(status.toUpperCase())) {
       return apiResponse(res, {
         status: 400,
         success: false,
-        error: `Invalid status. Must be one of: ${allowed.join(', ')}`,
+        error: `Invalid status. Must be one of: ${allStatuses.join(', ')}`,
+      });
+    }
+
+    const newStatus = status.toUpperCase();
+
+    // FRO can only mark as UNDER_REVIEW or DETECTED (add field investigation notes)
+    // Only DLAO, SGA, ADMIN can pass final resolution (RESOLVED / FALSE_POSITIVE)
+    if (req.user.role === ROLES.FRO && !froAllowed.includes(newStatus)) {
+      return apiResponse(res, {
+        status: 403,
+        success: false,
+        error: 'Field Officers can only mark discrepancies as UNDER_REVIEW and add investigation notes. Final resolution (RESOLVED / FALSE_POSITIVE) requires DLAO authority.',
       });
     }
 
@@ -227,7 +242,6 @@ router.put('/mismatches/:id/status', authenticate, rbac(ROLES.DLAO, ROLES.FRO, R
       });
     }
 
-    const newStatus = status.toUpperCase();
     const isResolved = ['RESOLVED', 'FALSE_POSITIVE'].includes(newStatus);
     const resolvedAt = isResolved ? new Date() : null;
 
@@ -242,17 +256,19 @@ router.put('/mismatches/:id/status', authenticate, rbac(ROLES.DLAO, ROLES.FRO, R
     await logAudit({
       entityType: 'ai_mismatch',
       entityId: current.id,
-      action: 'UPDATE_MISMATCH_STATUS',
+      action: req.user.role === ROLES.FRO ? 'FRO_FIELD_INVESTIGATION_NOTE' : 'UPDATE_MISMATCH_STATUS',
       performedBy: req.user.id,
       oldValues: { status: current.status },
-      newValues: { status: newStatus, remarks: remarks || null },
+      newValues: { status: newStatus, remarks: remarks || null, role: req.user.role },
       ipAddress: req.ip,
     });
 
     return apiResponse(res, {
       status: 200,
       success: true,
-      message: `Discrepancy marked as ${newStatus.replace('_', ' ')}`,
+      message: req.user.role === ROLES.FRO
+        ? `Field investigation note added. Status set to ${newStatus.replace('_', ' ')}.`
+        : `Discrepancy marked as ${newStatus.replace('_', ' ')}`,
       data: updated,
     });
   } catch (err) {

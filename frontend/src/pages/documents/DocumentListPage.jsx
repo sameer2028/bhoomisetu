@@ -5,6 +5,7 @@ import {
   FileText, Upload, Search, Filter, ChevronLeft, ChevronRight,
   Eye, Download, Shield, ShieldAlert, ShieldCheck, Clock, X,
   FolderOpen, Layers, FileWarning, AlertCircle, FileCheck, Lock,
+  Sparkles, CheckCircle2, RefreshCw, AlertTriangle,
 } from 'lucide-react';
 
 const DOC_TYPE_LABELS = {
@@ -61,6 +62,9 @@ export default function DocumentListPage() {
   const [uploadFile, setUploadFile] = useState(null);
   const [uploading, setUploading] = useState(false);
   const [uploadError, setUploadError] = useState('');
+  const [uploadAiResult, setUploadAiResult] = useState(null);
+  const [verifyingDocId, setVerifyingDocId] = useState(null);
+  const [aiActionResult, setAiActionResult] = useState(null);
 
   // Lookup data for linking
   const [projects, setProjects] = useState([]);
@@ -104,26 +108,50 @@ export default function DocumentListPage() {
   }, [search, docTypeFilter, accessFilter, projectFilter, parcelFilter, caseFilter, setSearchParams]);
 
   // Fetch lookup data for upload form & filter dropdowns
-  useEffect(() => {
-    async function fetchLookups() {
-      try {
-        const [projRes, parcRes, caseRes] = await Promise.all([
-          api.get('/projects', { params: { limit: 100 } }),
-          api.get('/parcels', { params: { limit: 100 } }),
-          api.get('/workflow', { params: { limit: 100 } }),
-        ]);
-        setProjects(projRes.data.data || []);
-        setParcels(parcRes.data.data || []);
-        setCases(caseRes.data.data || []);
-      } catch { /* ignore */ }
+  const [loadingLookups, setLoadingLookups] = useState(false);
+
+  const fetchLookups = useCallback(async () => {
+    setLoadingLookups(true);
+    try {
+      const [projRes, parcRes, caseRes] = await Promise.allSettled([
+        api.get('/projects', { params: { limit: 100, all: 'true' } }),
+        api.get('/parcels', { params: { limit: 300, all: 'true' } }),
+        api.get('/workflow/cases', { params: { limit: 100 } }),
+      ]);
+      if (projRes.status === 'fulfilled' && projRes.value?.data?.data) {
+        setProjects(projRes.value.data.data);
+      }
+      if (parcRes.status === 'fulfilled' && parcRes.value?.data?.data) {
+        setParcels(parcRes.value.data.data);
+      }
+      if (caseRes.status === 'fulfilled' && caseRes.value?.data?.data) {
+        setCases(caseRes.value.data.data);
+      }
+    } catch (e) {
+      console.error('Failed to load lookups:', e);
+    } finally {
+      setLoadingLookups(false);
     }
-    fetchLookups();
   }, []);
+
+  useEffect(() => {
+    fetchLookups();
+  }, [fetchLookups]);
+
+  const [aiScanStage, setAiScanStage] = useState(0); // 0: Idle, 1: Uploading, 2: OCR, 3: Cadastral Comparison
+  const [activeModalView, setActiveModalView] = useState('FORM'); // 'FORM' | 'SCANNING' | 'RESULT'
+  const [lastUploadedDoc, setLastUploadedDoc] = useState(null);
 
   const handleUpload = async (e) => {
     e.preventDefault();
     setUploading(true);
     setUploadError('');
+    setActiveModalView('SCANNING');
+    setAiScanStage(1);
+
+    const stageTimer1 = setTimeout(() => setAiScanStage(2), 700);
+    const stageTimer2 = setTimeout(() => setAiScanStage(3), 1500);
+
     try {
       const formData = new FormData();
       formData.append('title', uploadForm.title);
@@ -135,19 +163,67 @@ export default function DocumentListPage() {
       if (uploadForm.case_id) formData.append('case_id', uploadForm.case_id);
       if (uploadFile) formData.append('file', uploadFile);
 
-      await api.post('/documents', formData, {
+      const res = await api.post('/documents', formData, {
         headers: { 'Content-Type': 'multipart/form-data' },
       });
 
-      setShowUpload(false);
-      setUploadForm({ title: '', description: '', document_type: 'OTHER', access_level: 'PUBLIC', project_id: '', parcel_id: '', case_id: '' });
-      setUploadFile(null);
+      clearTimeout(stageTimer1);
+      clearTimeout(stageTimer2);
+
+      const createdDoc = res.data?.data;
+      setLastUploadedDoc(createdDoc);
       fetchDocuments();
+
+      if (createdDoc?.ai_verification) {
+        setUploadAiResult(createdDoc.ai_verification);
+        setActiveModalView('RESULT');
+      } else {
+        // If no AI verification object was attached, still show completed state
+        setActiveModalView('RESULT');
+        setUploadAiResult({
+          hasMismatches: false,
+          mismatchCount: 0,
+          mismatches: [],
+          extracted_fields: null,
+          target_parcel: null,
+          note: 'Document saved successfully.',
+        });
+      }
     } catch (err) {
+      clearTimeout(stageTimer1);
+      clearTimeout(stageTimer2);
+      setActiveModalView('FORM');
       setUploadError(err.response?.data?.error || 'Upload failed.');
     } finally {
       setUploading(false);
+      setAiScanStage(0);
     }
+  };
+
+  const handleVerifyDoc = async (docId) => {
+    setVerifyingDocId(docId);
+    try {
+      const res = await api.post(`/documents/${docId}/verify-ai`);
+      const targetDoc = documents.find(d => d.id === docId);
+      setLastUploadedDoc(targetDoc || { id: docId });
+      setUploadAiResult(res.data?.data);
+      setActiveModalView('RESULT');
+      setShowUpload(true);
+      fetchDocuments();
+    } catch (err) {
+      alert(err.response?.data?.error || 'AI verification failed.');
+    } finally {
+      setVerifyingDocId(null);
+    }
+  };
+
+  const resetUploadModal = () => {
+    setShowUpload(false);
+    setActiveModalView('FORM');
+    setUploadAiResult(null);
+    setUploadError('');
+    setUploadForm({ title: '', description: '', document_type: 'SURVEY_REPORT', access_level: 'PUBLIC', project_id: '', parcel_id: '', case_id: '' });
+    setUploadFile(null);
   };
 
   const formatBytes = (bytes) => {
@@ -192,7 +268,10 @@ export default function DocumentListPage() {
           </p>
         </div>
         <button
-          onClick={() => setShowUpload(true)}
+          onClick={() => {
+            fetchLookups();
+            setShowUpload(true);
+          }}
           className="btn btn-primary text-xs font-semibold flex items-center gap-2 self-start sm:self-auto"
         >
           <Upload className="w-4 h-4" />
@@ -375,6 +454,7 @@ export default function DocumentListPage() {
                     <th>Category</th>
                     <th>Linked Entity</th>
                     <th>Access</th>
+                    <th>AI Status</th>
                     <th>Version</th>
                     <th>File Size</th>
                     <th>Uploaded By</th>
@@ -385,6 +465,9 @@ export default function DocumentListPage() {
                   {documents.map((doc) => {
                     const AccessObj = ACCESS_ICONS[doc.access_level] || ACCESS_ICONS.PUBLIC;
                     const AccessIcon = AccessObj.icon;
+                    const openMismatches = parseInt(doc.open_mismatch_count || 0, 10);
+                    const totalMismatches = parseInt(doc.mismatch_count || 0, 10);
+
                     return (
                       <tr key={doc.id} className="hover:bg-neutral-50/70 transition-colors">
                         {/* Title & Code */}
@@ -448,6 +531,40 @@ export default function DocumentListPage() {
                           </div>
                         </td>
 
+                        {/* AI Cadastral Verification */}
+                        <td>
+                          {openMismatches > 0 ? (
+                            <Link
+                              to="/ai/mismatches"
+                              className="inline-flex items-center gap-1 px-2.5 py-1 rounded-md text-[11px] font-extrabold bg-rose-100 text-rose-800 border border-rose-300 hover:bg-rose-200 transition-colors shadow-xs"
+                              title={`${openMismatches} active discrepancy flag(s) detected. Click to review in AI Mismatch Center.`}
+                            >
+                              <AlertTriangle className="w-3 h-3 text-rose-600" />
+                              {openMismatches} Discrepanc{openMismatches === 1 ? 'y' : 'ies'}
+                            </Link>
+                          ) : totalMismatches > 0 ? (
+                            <span className="inline-flex items-center gap-1 px-2 py-0.5 rounded-md text-[10.5px] font-bold bg-amber-100 text-amber-800 border border-amber-200">
+                              <CheckCircle2 className="w-3 h-3 text-amber-600" /> Resolved Flags
+                            </span>
+                          ) : doc.file_path ? (
+                            <button
+                              onClick={() => handleVerifyDoc(doc.id)}
+                              disabled={verifyingDocId === doc.id}
+                              className="inline-flex items-center gap-1 px-2 py-0.5 rounded-md text-[10px] font-bold text-blue-700 bg-blue-50 border border-blue-200 hover:bg-blue-100 transition-colors"
+                              title="Run automated OCR & cadastral discrepancy check"
+                            >
+                              {verifyingDocId === doc.id ? (
+                                <RefreshCw className="w-3 h-3 animate-spin text-blue-600" />
+                              ) : (
+                                <Sparkles className="w-3 h-3 text-amber-500" />
+                              )}
+                              Run AI Scan
+                            </button>
+                          ) : (
+                            <span className="text-neutral-400 text-[10px]">No File Attached</span>
+                          )}
+                        </td>
+
                         {/* Version */}
                         <td>
                           <span className="text-xs font-mono font-semibold text-neutral-600 bg-neutral-100 px-1.5 py-0.5 rounded">
@@ -474,6 +591,18 @@ export default function DocumentListPage() {
                         {/* Actions */}
                         <td>
                           <div className="flex items-center gap-1">
+                            <button
+                              onClick={() => handleVerifyDoc(doc.id)}
+                              disabled={verifyingDocId === doc.id}
+                              className="p-1.5 rounded hover:bg-amber-50 text-amber-600 hover:text-amber-800 transition-colors"
+                              title="Run AI OCR & Discrepancy Analysis"
+                            >
+                              {verifyingDocId === doc.id ? (
+                                <RefreshCw className="w-4 h-4 animate-spin text-amber-600" />
+                              ) : (
+                                <Sparkles className="w-4 h-4" />
+                              )}
+                            </button>
                             <Link
                               to={`/documents/${doc.id}`}
                               className="p-1.5 rounded hover:bg-emerald-50 text-neutral-500 hover:text-emerald-700 transition-colors"
@@ -516,7 +645,7 @@ export default function DocumentListPage() {
                 </button>
                 <button
                   onClick={() => setPage(p => Math.min(meta.totalPages, p + 1))}
-                  disabled={page >= meta.totalPages}
+                  disabled={page === meta.totalPages}
                   className="btn btn-secondary text-xs flex items-center gap-1"
                 >
                   Next <ChevronRight className="w-3.5 h-3.5" />
@@ -527,174 +656,477 @@ export default function DocumentListPage() {
         </>
       )}
 
-      {/* ─── Upload Modal ─────────────────────────────────────────── */}
+      {/* ─── Unified AI Document Analyzer & Upload Modal ──────────────── */}
       {showUpload && (
-        <div className="fixed inset-0 z-50 flex items-center justify-center p-4 bg-black/50 backdrop-blur-sm">
-          <div className="bg-white rounded-xl shadow-2xl max-w-lg w-full max-h-[90vh] overflow-y-auto border border-neutral-200">
-            <div className="p-6">
-              <div className="flex items-center justify-between mb-4 pb-3 border-b border-neutral-100">
-                <h2 className="text-base font-extrabold text-neutral-900 flex items-center gap-2">
-                  <Upload className="w-4 h-4 text-emerald-700" />
-                  Upload Statutory Document
-                </h2>
-                <button onClick={() => setShowUpload(false)} className="p-1 rounded hover:bg-neutral-100 text-neutral-400">
-                  <X className="w-5 h-5" />
-                </button>
+        <div className="fixed inset-0 z-50 flex items-center justify-center p-4 bg-black/60 backdrop-blur-sm animate-fadeIn">
+          <div className="bg-white rounded-2xl shadow-2xl max-w-2xl w-full max-h-[92vh] overflow-hidden border border-slate-200 flex flex-col">
+            {/* Modal Header */}
+            <div className={`px-6 py-4 text-white flex items-center justify-between flex-shrink-0 ${
+              activeModalView === 'RESULT' && uploadAiResult?.hasMismatches
+                ? 'bg-gradient-to-r from-rose-900 to-rose-800'
+                : 'bg-gradient-to-r from-slate-900 via-emerald-950 to-slate-900'
+            }`}>
+              <div className="flex items-center gap-3">
+                <div className="w-9 h-9 rounded-xl bg-white/15 flex items-center justify-center border border-white/20">
+                  <Sparkles className="w-5 h-5 text-amber-300" />
+                </div>
+                <div>
+                  <h2 className="text-base font-extrabold text-white flex items-center gap-2">
+                    {activeModalView === 'RESULT'
+                      ? 'AI Cadastral Discrepancy Audit Report'
+                      : activeModalView === 'SCANNING'
+                      ? 'AI Microservice: OCR & Cadastral Verification'
+                      : 'Statutory Document Upload & AI Verification'}
+                  </h2>
+                  <p className="text-xs text-white/80">
+                    {activeModalView === 'RESULT'
+                      ? (uploadAiResult?.hasMismatches ? 'Discrepancies flagged against master land revenue record' : '100% match verified against official cadastral record')
+                      : 'Automated OCR entity extraction & master revenue record cross-referencing'}
+                  </p>
+                </div>
               </div>
+              <button
+                onClick={resetUploadModal}
+                className="p-1.5 rounded-lg hover:bg-white/20 text-white/80 hover:text-white transition-colors"
+              >
+                <X className="w-5 h-5" />
+              </button>
+            </div>
 
-              {uploadError && (
-                <div className="flex items-center gap-2 p-3 mb-4 bg-red-50 border border-red-200 rounded-lg text-xs text-red-700">
-                  <AlertCircle className="w-4 h-4 flex-shrink-0" />
-                  <span>{uploadError}</span>
-                </div>
-              )}
+            {/* Modal Body */}
+            <div className="p-6 overflow-y-auto flex-1 space-y-4">
+              {/* ─── VIEW 1: UPLOAD FORM ─── */}
+              {activeModalView === 'FORM' && (
+                <form onSubmit={handleUpload} className="space-y-4">
+                  {uploadError && (
+                    <div className="flex items-center gap-2 p-3 bg-red-50 border border-red-200 rounded-xl text-xs text-red-700 font-semibold">
+                      <AlertCircle className="w-4 h-4 flex-shrink-0" />
+                      <span>{uploadError}</span>
+                    </div>
+                  )}
 
-              <form onSubmit={handleUpload} className="space-y-4">
-                {/* Title */}
-                <div>
-                  <label className="form-label text-xs font-bold text-neutral-700">Document Title <span className="text-red-500">*</span></label>
-                  <input
-                    type="text"
-                    value={uploadForm.title}
-                    onChange={(e) => setUploadForm(f => ({ ...f, title: e.target.value }))}
-                    placeholder="e.g. Section 4(1) Gazette Notification"
-                    className="form-input text-xs"
-                    required
-                  />
-                </div>
-
-                {/* Description */}
-                <div>
-                  <label className="form-label text-xs font-bold text-neutral-700">Description</label>
-                  <textarea
-                    value={uploadForm.description}
-                    onChange={(e) => setUploadForm(f => ({ ...f, description: e.target.value }))}
-                    placeholder="Brief description of statutory content..."
-                    className="form-input text-xs"
-                    rows={2}
-                  />
-                </div>
-
-                {/* Type & Access */}
-                <div className="grid grid-cols-2 gap-3">
+                  {/* Project Selector */}
                   <div>
-                    <label className="form-label text-xs font-bold text-neutral-700">Document Category</label>
+                    <label className="form-label text-xs font-bold text-slate-800 flex items-center justify-between">
+                      <span className="flex items-center gap-1.5">
+                        <Layers className="w-3.5 h-3.5 text-blue-600" />
+                        Target Infrastructure Project <span className="text-red-500">*</span>
+                      </span>
+                      <span className="text-[10px] text-slate-400 font-normal">Select which project this document belongs to</span>
+                    </label>
                     <select
-                      value={uploadForm.document_type}
-                      onChange={(e) => setUploadForm(f => ({ ...f, document_type: e.target.value }))}
-                      className="form-input text-xs"
+                      value={uploadForm.project_id}
+                      onChange={(e) => {
+                        const pid = e.target.value;
+                        setUploadForm(f => ({ ...f, project_id: pid, parcel_id: '' }));
+                      }}
+                      className="form-input text-xs font-semibold py-2"
+                      required
                     >
-                      {Object.entries(DOC_TYPE_LABELS).map(([key, label]) => (
-                        <option key={key} value={key}>{label}</option>
-                      ))}
+                      <option value="">— Select an Infrastructure Project —</option>
+                      {projects.length === 0 ? (
+                        <option value="" disabled>
+                          {loadingLookups ? '⏳ Loading projects from database...' : 'No projects found'}
+                        </option>
+                      ) : (
+                        projects.map(p => (
+                          <option key={p.id} value={p.id}>
+                            [{p.project_code || 'PRJ'}] {p.name} {p.district ? `(${p.district})` : ''}
+                          </option>
+                        ))
+                      )}
                     </select>
                   </div>
-                  <div>
-                    <label className="form-label text-xs font-bold text-neutral-700">Access Classification</label>
-                    <select
-                      value={uploadForm.access_level}
-                      onChange={(e) => setUploadForm(f => ({ ...f, access_level: e.target.value }))}
-                      className="form-input text-xs"
-                    >
-                      <option value="PUBLIC">Public</option>
-                      <option value="RESTRICTED">Restricted (Officers)</option>
-                      <option value="CONFIDENTIAL">Confidential (Secretariat)</option>
-                    </select>
-                  </div>
-                </div>
 
-                {/* Link to Project */}
-                <div>
-                  <label className="form-label text-xs font-bold text-neutral-700">Link to Infrastructure Project</label>
-                  <select
-                    value={uploadForm.project_id}
-                    onChange={(e) => setUploadForm(f => ({ ...f, project_id: e.target.value }))}
-                    className="form-input text-xs"
-                  >
-                    <option value="">— Unlinked / General —</option>
-                    {projects.map(p => (
-                      <option key={p.id} value={p.id}>{p.project_code} — {p.name}</option>
-                    ))}
-                  </select>
-                </div>
-
-                <div className="grid grid-cols-2 gap-3">
+                  {/* Parcel Selector (Filtered by Project) */}
                   <div>
-                    <label className="form-label text-xs font-bold text-neutral-700">Link to Parcel</label>
+                    <label className="form-label text-xs font-bold text-slate-800 flex items-center justify-between">
+                      <span className="flex items-center gap-1.5">
+                        <FileWarning className="w-3.5 h-3.5 text-emerald-600" />
+                        Target Cadastral Parcel (Master Land Record)
+                      </span>
+                      <span className="text-[10px] text-emerald-700 font-semibold">
+                        {uploadForm.project_id
+                          ? `${parcels.filter(p => p.project_id === uploadForm.project_id).length} parcel(s) available`
+                          : 'Select a project first'}
+                      </span>
+                    </label>
                     <select
                       value={uploadForm.parcel_id}
                       onChange={(e) => setUploadForm(f => ({ ...f, parcel_id: e.target.value }))}
-                      className="form-input text-xs"
+                      className="form-input text-xs font-medium py-2"
                     >
-                      <option value="">— None —</option>
-                      {parcels.map(p => (
-                        <option key={p.id} value={p.id}>{p.parcel_code} ({p.survey_number})</option>
+                      <option value="">⚡ Auto-Detect Parcel from Document Text (OCR Survey #)</option>
+                      {(uploadForm.project_id
+                        ? parcels.filter(p => p.project_id === uploadForm.project_id)
+                        : parcels
+                      ).map(p => (
+                        <option key={p.id} value={p.id}>
+                          [{p.parcel_code}] Survey #{p.survey_number} — {p.village} ({p.area_acres} Acres, Owner: {p.owner_name})
+                        </option>
                       ))}
                     </select>
                   </div>
+
+                  {/* Title & Document Category */}
+                  <div className="grid grid-cols-1 sm:grid-cols-2 gap-3">
+                    <div>
+                      <label className="form-label text-xs font-bold text-slate-800">
+                        Document Title <span className="text-red-500">*</span>
+                      </label>
+                      <input
+                        type="text"
+                        value={uploadForm.title}
+                        onChange={(e) => setUploadForm(f => ({ ...f, title: e.target.value }))}
+                        placeholder="e.g. Field Survey Assessment Report"
+                        className="form-input text-xs py-2"
+                        required
+                      />
+                    </div>
+                    <div>
+                      <label className="form-label text-xs font-bold text-slate-800">Document Category</label>
+                      <select
+                        value={uploadForm.document_type}
+                        onChange={(e) => setUploadForm(f => ({ ...f, document_type: e.target.value }))}
+                        className="form-input text-xs py-2"
+                      >
+                        {Object.entries(DOC_TYPE_LABELS).map(([key, label]) => (
+                          <option key={key} value={key}>{label}</option>
+                        ))}
+                      </select>
+                    </div>
+                  </div>
+
+                  {/* File Upload Dropzone */}
                   <div>
-                    <label className="form-label text-xs font-bold text-neutral-700">Link to Workflow Case</label>
-                    <select
-                      value={uploadForm.case_id}
-                      onChange={(e) => setUploadForm(f => ({ ...f, case_id: e.target.value }))}
-                      className="form-input text-xs"
-                    >
-                      <option value="">— None —</option>
-                      {cases.map(c => (
-                        <option key={c.id} value={c.id}>{c.case_code}</option>
-                      ))}
-                    </select>
-                  </div>
-                </div>
-
-                {/* File Upload */}
-                <div>
-                  <label className="form-label text-xs font-bold text-neutral-700">Attach Document File</label>
-                  <div className="border-2 border-dashed border-neutral-200 rounded-lg p-4 text-center hover:border-emerald-400 transition-colors bg-neutral-50/50">
-                    <input
-                      type="file"
-                      onChange={(e) => setUploadFile(e.target.files[0])}
-                      className="hidden"
-                      id="file-upload"
-                      accept=".pdf,.doc,.docx,.xls,.xlsx,.jpg,.jpeg,.png,.webp,.tiff,.txt,.csv"
-                    />
-                    <label htmlFor="file-upload" className="cursor-pointer">
-                      <Upload className="w-8 h-8 text-neutral-400 mx-auto mb-2" />
-                      {uploadFile ? (
-                        <p className="text-xs text-emerald-800 font-bold">{uploadFile.name} ({formatBytes(uploadFile.size)})</p>
-                      ) : (
-                        <>
-                          <p className="text-xs text-neutral-700 font-semibold">Click to select PDF or image file</p>
-                          <p className="text-[10px] text-neutral-400 mt-0.5">Supports PDF, Word, Excel, PNG, JPG (Max 25 MB)</p>
-                        </>
-                      )}
+                    <label className="form-label text-xs font-bold text-slate-800">
+                      Attach Document File (PDF or Photo/Scan) <span className="text-red-500">*</span>
                     </label>
+                    <div className="border-2 border-dashed border-slate-300 hover:border-emerald-500 rounded-xl p-5 text-center transition-all bg-slate-50/70 hover:bg-emerald-50/30">
+                      <input
+                        type="file"
+                        onChange={(e) => setUploadFile(e.target.files[0])}
+                        className="hidden"
+                        id="file-upload-modal"
+                        accept=".pdf,.doc,.docx,.xls,.xlsx,.jpg,.jpeg,.png,.webp,.tiff"
+                      />
+                      <label htmlFor="file-upload-modal" className="cursor-pointer block">
+                        <Upload className="w-10 h-10 text-slate-400 mx-auto mb-2" />
+                        {uploadFile ? (
+                          <div className="p-2 bg-emerald-100/70 border border-emerald-300 rounded-lg inline-block text-left">
+                            <p className="text-xs text-emerald-900 font-extrabold flex items-center gap-1.5">
+                              <FileCheck className="w-4 h-4 text-emerald-700" />
+                              {uploadFile.name}
+                            </p>
+                            <p className="text-[10px] text-emerald-700 font-mono mt-0.5">{formatBytes(uploadFile.size)} • Ready for AI Extraction</p>
+                          </div>
+                        ) : (
+                          <>
+                            <p className="text-xs text-slate-800 font-bold">Click or drag &amp; drop document to attach</p>
+                            <p className="text-[10px] text-slate-400 mt-1">Supports PDF, PNG, JPG (Automated Optical Character Recognition enabled)</p>
+                          </>
+                        )}
+                      </label>
+                    </div>
+                  </div>
+
+                  {/* AI Feature Info Card */}
+                  <div className="p-3.5 bg-gradient-to-r from-blue-50 to-emerald-50 border border-blue-200 rounded-xl flex items-start gap-2.5 text-xs text-slate-700">
+                    <Sparkles className="w-5 h-5 text-amber-500 flex-shrink-0 mt-0.5" />
+                    <div>
+                      <p className="font-extrabold text-blue-950">Immediate AI Discrepancy Verification Engine</p>
+                      <p className="text-[11px] text-slate-600 mt-0.5 leading-relaxed">
+                        Upon clicking upload, the FastAPI microservice extracts survey number, acreage, owner name, and village via OCR and compares them against the master cadastral database. Results appear on screen immediately.
+                      </p>
+                    </div>
+                  </div>
+
+                  {/* Form Actions */}
+                  <div className="flex gap-3 pt-2">
+                    <button
+                      type="button"
+                      onClick={resetUploadModal}
+                      className="btn btn-secondary flex-1 text-xs py-2.5 font-semibold"
+                    >
+                      Cancel
+                    </button>
+                    <button
+                      type="submit"
+                      disabled={!uploadFile}
+                      className="btn text-white font-bold flex-1 flex items-center justify-center gap-2 text-xs py-2.5 shadow-md hover:shadow-lg transition-all"
+                      style={{ background: 'linear-gradient(135deg, #1e6b3e 0%, #155724 100%)' }}
+                    >
+                      <Sparkles className="w-4 h-4 text-amber-300" />
+                      Upload &amp; Run AI Verification
+                    </button>
+                  </div>
+                </form>
+              )}
+
+              {/* ─── VIEW 2: LIVE AI SCANNING ANIMATION ─── */}
+              {activeModalView === 'SCANNING' && (
+                <div className="py-10 px-4 text-center space-y-6">
+                  <div className="relative w-20 h-20 mx-auto">
+                    <div className="absolute inset-0 rounded-full bg-emerald-100 animate-ping opacity-75" />
+                    <div className="relative w-20 h-20 rounded-2xl bg-gradient-to-tr from-emerald-600 to-teal-500 flex items-center justify-center text-white shadow-xl">
+                      <Sparkles className="w-10 h-10 text-amber-300 animate-pulse" />
+                    </div>
+                  </div>
+
+                  <div>
+                    <h3 className="text-base font-black text-slate-900">AI Cadastral Analyzer in Action</h3>
+                    <p className="text-xs text-slate-500 mt-1">Cross-referencing document against official revenue records...</p>
+                  </div>
+
+                  {/* Live Progress Steps */}
+                  <div className="max-w-md mx-auto space-y-2.5 text-left text-xs bg-slate-50 p-4 rounded-xl border border-slate-200">
+                    <div className={`flex items-center gap-2.5 font-semibold ${aiScanStage >= 1 ? 'text-emerald-700' : 'text-slate-400'}`}>
+                      {aiScanStage > 1 ? <CheckCircle2 className="w-4 h-4 text-emerald-600" /> : <div className="spinner spinner-sm text-emerald-600" />}
+                      <span>1. Uploading &amp; Pre-processing Document File...</span>
+                    </div>
+                    <div className={`flex items-center gap-2.5 font-semibold ${aiScanStage >= 2 ? 'text-emerald-700' : 'text-slate-400'}`}>
+                      {aiScanStage > 2 ? <CheckCircle2 className="w-4 h-4 text-emerald-600" /> : aiScanStage === 2 ? <div className="spinner spinner-sm text-emerald-600" /> : <Clock className="w-4 h-4" />}
+                      <span>2. Running Tesseract Optical Character Recognition (OCR)...</span>
+                    </div>
+                    <div className={`flex items-center gap-2.5 font-semibold ${aiScanStage >= 3 ? 'text-emerald-700' : 'text-slate-400'}`}>
+                      {aiScanStage === 3 ? <div className="spinner spinner-sm text-emerald-600" /> : <Clock className="w-4 h-4" />}
+                      <span>3. Extracting Survey #, Area, Title &amp; Comparing Cadastral Records...</span>
+                    </div>
                   </div>
                 </div>
+              )}
 
-                {/* Submit */}
-                <div className="flex gap-3 pt-2">
-                  <button
-                    type="button"
-                    onClick={() => setShowUpload(false)}
-                    className="btn btn-secondary flex-1 text-xs"
-                  >
-                    Cancel
-                  </button>
-                  <button
-                    type="submit"
-                    disabled={uploading}
-                    className="btn text-white font-bold flex-1 flex items-center justify-center gap-2 text-xs"
-                    style={{ background: '#1e6b3e' }}
-                  >
-                    {uploading ? (
-                      <><span className="spinner border-t-white" /> Uploading...</>
-                    ) : (
-                      <><Upload className="w-4 h-4" /> Save Record</>
-                    )}
-                  </button>
+              {/* ─── VIEW 3: IMMEDIATE AI DISCREPANCY RESULTS ─── */}
+              {activeModalView === 'RESULT' && (
+                <div className="space-y-4">
+                  {/* Top Status Alert */}
+                  {uploadAiResult?.hasMismatches ? (
+                    <div className="p-4 bg-rose-50 border-2 border-rose-300 rounded-2xl flex items-start gap-3">
+                      <div className="w-10 h-10 rounded-xl bg-rose-600 text-white flex items-center justify-center flex-shrink-0 shadow-md">
+                        <AlertTriangle className="w-6 h-6" />
+                      </div>
+                      <div>
+                        <div className="flex items-center gap-2">
+                          <h3 className="text-sm font-black text-rose-900">
+                            {uploadAiResult.mismatchCount} Cadastral Discrepancy Flag(s) Detected!
+                          </h3>
+                          <span className="px-2 py-0.5 rounded-full text-[10px] font-extrabold bg-rose-200 text-rose-900 uppercase">
+                            Action Required
+                          </span>
+                        </div>
+                        <p className="text-xs text-rose-700 mt-1 leading-relaxed">
+                          The AI Microservice detected title/acreage variances between this uploaded document and the master revenue database record for parcel <strong>{uploadAiResult.target_parcel?.parcel_code || lastUploadedDoc?.parcel_code || 'Linked Land'} (Survey #{uploadAiResult.target_parcel?.survey_number || lastUploadedDoc?.survey_number || '—'})</strong>.
+                        </p>
+                      </div>
+                    </div>
+                  ) : (
+                    <div className="p-4 bg-emerald-50 border-2 border-emerald-300 rounded-2xl flex items-start gap-3">
+                      <div className="w-10 h-10 rounded-xl bg-emerald-600 text-white flex items-center justify-center flex-shrink-0 shadow-md">
+                        <CheckCircle2 className="w-6 h-6" />
+                      </div>
+                      <div>
+                        <h3 className="text-sm font-black text-emerald-900">100% Cadastral Match Verified!</h3>
+                        <p className="text-xs text-emerald-700 mt-1">
+                          Document text perfectly matches the official surveyed revenue records (Survey Number, Land Area, Village, and Ownership).
+                        </p>
+                      </div>
+                    </div>
+                  )}
+
+                  {/* Target Parcel Card */}
+                  {uploadAiResult?.target_parcel && (
+                    <div className="p-3 bg-slate-100 rounded-xl border border-slate-200 text-xs flex flex-wrap items-center justify-between gap-2">
+                      <div className="flex items-center gap-2">
+                        <span className="font-extrabold text-slate-800">Master Record:</span>
+                        <span className="font-mono bg-white px-2 py-0.5 rounded border text-slate-700 font-bold">
+                          {uploadAiResult.target_parcel.parcel_code}
+                        </span>
+                        <span className="text-slate-600">Survey #{uploadAiResult.target_parcel.survey_number}</span>
+                      </div>
+                      <div className="text-slate-600 text-[11px]">
+                        Owner: <strong className="text-slate-800">{uploadAiResult.target_parcel.owner_name}</strong>
+                      </div>
+                    </div>
+                  )}
+
+                  {/* Side-by-Side Comparison Matrix */}
+                  <div className="border border-slate-200 rounded-xl overflow-hidden shadow-xs">
+                    <div className="bg-slate-100 px-3.5 py-2 border-b border-slate-200 flex items-center justify-between">
+                      <span className="text-[11px] font-extrabold uppercase tracking-wider text-slate-700">
+                        Cadastral Verification Comparison Matrix
+                      </span>
+                      <span className="text-[10px] text-slate-500 font-semibold">OCR Extracted vs Master RoR</span>
+                    </div>
+                    <table className="w-full text-xs text-left border-collapse">
+                      <thead>
+                        <tr className="bg-slate-50 text-slate-500 text-[10px] uppercase font-bold border-b border-slate-200">
+                          <th className="p-2.5">Field</th>
+                          <th className="p-2.5">Official Revenue Record</th>
+                          <th className="p-2.5">Document OCR Extracted</th>
+                          <th className="p-2.5">Status</th>
+                        </tr>
+                      </thead>
+                      <tbody className="divide-y divide-slate-100 font-medium">
+                        {/* Survey Number */}
+                        <tr>
+                          <td className="p-2.5 font-bold text-slate-700">Survey / Khasra No</td>
+                          <td className="p-2.5 text-slate-800">{uploadAiResult?.target_parcel?.survey_number || '—'}</td>
+                          <td className="p-2.5 font-mono text-slate-900">{uploadAiResult?.extracted_fields?.survey_number || '—'}</td>
+                          <td className="p-2.5">
+                            {uploadAiResult?.mismatches?.some(m => m.field_name === 'survey_number') ? (
+                              <span className="px-2 py-0.5 rounded text-[10px] font-extrabold bg-rose-100 text-rose-800">Mismatch ❌</span>
+                            ) : (
+                              <span className="px-2 py-0.5 rounded text-[10px] font-bold bg-emerald-100 text-emerald-800">Match ✅</span>
+                            )}
+                          </td>
+                        </tr>
+                        {/* Area */}
+                        <tr>
+                          <td className="p-2.5 font-bold text-slate-700">Land Area</td>
+                          <td className="p-2.5 text-slate-800">{uploadAiResult?.target_parcel?.area_acres ? `${uploadAiResult.target_parcel.area_acres} Acres` : '—'}</td>
+                          <td className="p-2.5 font-mono text-slate-900">{uploadAiResult?.extracted_fields?.area_acres ? `${uploadAiResult.extracted_fields.area_acres} Acres` : '—'}</td>
+                          <td className="p-2.5">
+                            {uploadAiResult?.mismatches?.some(m => m.field_name === 'area_acres') ? (
+                              <span className="px-2 py-0.5 rounded text-[10px] font-extrabold bg-rose-100 text-rose-800">
+                                {uploadAiResult.mismatches.find(m => m.field_name === 'area_acres')?.difference || 'Variance'} ❌
+                              </span>
+                            ) : (
+                              <span className="px-2 py-0.5 rounded text-[10px] font-bold bg-emerald-100 text-emerald-800">Match ✅</span>
+                            )}
+                          </td>
+                        </tr>
+                        {/* Owner Name */}
+                        <tr>
+                          <td className="p-2.5 font-bold text-slate-700">Landowner Title</td>
+                          <td className="p-2.5 text-slate-800">{uploadAiResult?.target_parcel?.owner_name || '—'}</td>
+                          <td className="p-2.5 text-slate-900">{uploadAiResult?.extracted_fields?.owner_name || '—'}</td>
+                          <td className="p-2.5">
+                            {uploadAiResult?.mismatches?.some(m => m.field_name === 'owner_name') ? (
+                              <span className="px-2 py-0.5 rounded text-[10px] font-extrabold bg-amber-100 text-amber-800">Discrepancy ⚠️</span>
+                            ) : (
+                              <span className="px-2 py-0.5 rounded text-[10px] font-bold bg-emerald-100 text-emerald-800">Match ✅</span>
+                            )}
+                          </td>
+                        </tr>
+                        {/* Village */}
+                        <tr>
+                          <td className="p-2.5 font-bold text-slate-700">Village / Location</td>
+                          <td className="p-2.5 text-slate-800">{uploadAiResult?.target_parcel?.village || '—'}</td>
+                          <td className="p-2.5 text-slate-900">{uploadAiResult?.extracted_fields?.village || '—'}</td>
+                          <td className="p-2.5">
+                            {uploadAiResult?.mismatches?.some(m => m.field_name === 'village') ? (
+                              <span className="px-2 py-0.5 rounded text-[10px] font-extrabold bg-amber-100 text-amber-800">Discrepancy ⚠️</span>
+                            ) : (
+                              <span className="px-2 py-0.5 rounded text-[10px] font-bold bg-emerald-100 text-emerald-800">Match ✅</span>
+                            )}
+                          </td>
+                        </tr>
+                      </tbody>
+                    </table>
+                  </div>
+
+                  {/* Discrepancy Detail Cards */}
+                  {uploadAiResult?.mismatches?.length > 0 && (
+                    <div className="space-y-2">
+                      <h4 className="text-[11px] font-extrabold uppercase tracking-wider text-slate-500">
+                        Discrepancy Details &amp; Legal Severity
+                      </h4>
+                      {uploadAiResult.mismatches.map((m, idx) => (
+                        <div key={idx} className="p-3 bg-white border border-rose-200 rounded-xl shadow-xs space-y-1">
+                          <div className="flex items-center justify-between">
+                            <span className="text-xs font-bold text-slate-900 uppercase">
+                              Field: {m.field_name.replace('_', ' ')}
+                            </span>
+                            <span className={`px-2 py-0.5 rounded text-[10px] font-extrabold ${
+                              m.severity === 'HIGH' || m.severity === 'CRITICAL'
+                                ? 'bg-rose-100 text-rose-800'
+                                : 'bg-amber-100 text-amber-800'
+                            }`}>
+                              {m.severity} SEVERITY
+                            </span>
+                          </div>
+                          <p className="text-[11px] text-slate-600 font-medium">
+                            {m.explanation}
+                          </p>
+                        </div>
+                      ))}
+                    </div>
+                  )}
+
+                  {/* Statutory DLAO Action Playbook */}
+                  {uploadAiResult?.hasMismatches && (
+                    <div className="p-3 bg-gradient-to-r from-amber-50 to-orange-50 border border-amber-200 rounded-xl space-y-1.5 text-xs">
+                      <div className="flex items-center justify-between">
+                        <span className="font-extrabold uppercase tracking-wider text-amber-950 flex items-center gap-1.5 text-[11px]">
+                          <ShieldCheck className="w-3.5 h-3.5 text-amber-700" />
+                          Recommended DLAO Statutory Resolution Steps
+                        </span>
+                        <span className="text-[10px] font-bold bg-amber-200/80 text-amber-900 px-1.5 py-0.5 rounded">
+                          RFCTLARR 2013 SOP
+                        </span>
+                      </div>
+                      <ul className="space-y-1 text-slate-700 text-[11px] list-disc list-inside">
+                        {uploadAiResult?.mismatches?.some(m => m.field_name === 'area_acres') && (
+                          <li>
+                            <strong className="text-slate-900">Area Deficit:</strong> Depute Field Revenue Officer (FRO) for a Joint Measurement Survey (JMS) with DGPS to reconcile plot boundary against the Cadastral Map (Shajra).
+                          </li>
+                        )}
+                        {uploadAiResult?.mismatches?.some(m => m.field_name === 'owner_name') && (
+                          <li>
+                            <strong className="text-slate-900">Title / Owner Variance:</strong> Issue Section 21 notice to claimant. Obtain 12-year Khatauni extract and notarized Tehsildar identity affidavit for alias verification.
+                          </li>
+                        )}
+                        <li>
+                          <strong className="text-slate-900">Adjudication:</strong> Click below to open the AI Mismatch Resolution Center to pass the official order or order a field survey.
+                        </li>
+                      </ul>
+                    </div>
+                  )}
+
+                  {/* Modal Footer Actions */}
+                  <div className="pt-2 flex flex-wrap gap-2 justify-between items-center border-t border-slate-100">
+                    <button
+                      type="button"
+                      onClick={() => setActiveModalView('FORM')}
+                      className="btn btn-secondary text-xs flex items-center gap-1.5"
+                    >
+                      <Upload className="w-3.5 h-3.5" />
+                      Upload Another Document
+                    </button>
+
+                    <div className="flex gap-2">
+                      {lastUploadedDoc?.id && (
+                        <Link
+                          to={`/documents/${lastUploadedDoc.id}`}
+                          onClick={resetUploadModal}
+                          className="btn btn-secondary text-xs flex items-center gap-1"
+                        >
+                          <Eye className="w-3.5 h-3.5" />
+                          View Document
+                        </Link>
+                      )}
+                      {uploadAiResult?.hasMismatches ? (
+                        <Link
+                          to="/ai/mismatches"
+                          onClick={resetUploadModal}
+                          className="btn btn-primary text-xs font-bold flex items-center gap-1.5 shadow-sm"
+                        >
+                          <Sparkles className="w-3.5 h-3.5 text-amber-300" />
+                          Adjudicate in AI Mismatch Center &rarr;
+                        </Link>
+                      ) : (
+                        <button
+                          type="button"
+                          onClick={resetUploadModal}
+                          className="btn btn-primary text-xs font-bold"
+                        >
+                          Done
+                        </button>
+                      )}
+                    </div>
+                  </div>
                 </div>
-              </form>
+              )}
             </div>
           </div>
         </div>

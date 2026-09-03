@@ -18,7 +18,6 @@ from dotenv import load_dotenv
 from app.data_adapter import (
     get_db_connection,
     get_parcel,
-    get_parcel_by_survey_number,
     get_document,
     get_project_risk_inputs,
     save_risk_score,
@@ -48,10 +47,19 @@ app.add_middleware(
 
 # ---------- Request/response shapes ----------
 
+
 class CompareRequest(BaseModel):
-    document_filename: str   # mock document filename, e.g. "doc_002_area_mismatch.png"
-    parcel_id: str            # real parcel UUID from the database
-    document_id: str | None = None   # optional real document UUID, if known
+    document_filename: str  # mock document filename, e.g. "doc_002_area_mismatch.png"
+    parcel_id: str  # real parcel UUID from the database
+    document_id: str | None = None  # optional real document UUID, if known
+
+
+class RiskScoreResponse(BaseModel):
+    score: float
+    risk_level: str
+    factors: dict
+    model_version: str = "v1.2-weighted"
+
 
 class ProcessDocumentRequest(BaseModel):
     file_path: str
@@ -59,12 +67,17 @@ class ProcessDocumentRequest(BaseModel):
 
 # ---------- Health / status ----------
 
+
 @app.get("/")
+@app.head("/")
 def read_root():
     return {"message": "NLA AI Service is running", "service": "National Land Acquisition AI Microservice"}
 
 
 @app.get("/health")
+@app.head("/health")
+@app.get("/api/health")
+@app.head("/api/health")
 def health_check():
     try:
         conn = get_db_connection()
@@ -75,11 +88,13 @@ def health_check():
 
 
 @app.get("/api/ai/status")
+@app.head("/api/ai/status")
 def ai_status():
     return {"service": "NLA AI Service", "status": "operational", "capabilities": ["OCR", "Field_Extraction", "Cadastral_Comparison", "Risk_Scoring"]}
 
 
 # ---------- Feature 1: Document extraction ----------
+
 
 @app.post("/api/ai/extract")
 def extract_document(document_filename: str):
@@ -97,12 +112,15 @@ def extract_document(document_filename: str):
             "extracted_fields": fields,
         }
     except FileNotFoundError:
-        raise HTTPException(status_code=404, detail=f"Document not found: {document_filename}")
+        raise HTTPException(
+            status_code=404, detail=f"Document not found: {document_filename}"
+        )
     except Exception as e:
         raise HTTPException(status_code=500, detail=f"Extraction failed: {e}")
 
 
 # ---------- Feature 1: Comparison / mismatch detection ----------
+
 
 @app.post("/api/ai/compare")
 def compare_document(request: CompareRequest):
@@ -111,11 +129,15 @@ def compare_document(request: CompareRequest):
         raw_text = extract_text(file_path)
         extracted = extract_fields(raw_text)
     except FileNotFoundError:
-        raise HTTPException(status_code=404, detail=f"Document not found: {request.document_filename}")
+        raise HTTPException(
+            status_code=404, detail=f"Document not found: {request.document_filename}"
+        )
 
     official_parcel = get_parcel(request.parcel_id)
     if official_parcel is None:
-        raise HTTPException(status_code=404, detail=f"Parcel not found: {request.parcel_id}")
+        raise HTTPException(
+            status_code=404, detail=f"Parcel not found: {request.parcel_id}"
+        )
 
     mismatches = compare_fields(extracted, official_parcel)
 
@@ -167,6 +189,7 @@ def api_process_document(req: ProcessDocumentRequest):
 
 # ---------- Feature 2: Risk scoring ----------
 
+
 @app.post("/api/ai/risk-score/{project_id}")
 def get_risk_score(project_id: str):
     try:
@@ -190,7 +213,10 @@ def get_risk_score(project_id: str):
         raise HTTPException(status_code=500, detail=f"Risk calculation failed: {e}")
 
 
-@app.post("/api/ai/calculate-risk")
+# ---------- Feature 3: Calculate risk with direct parameters ----------
+
+
+@app.post("/api/ai/calculate-risk", response_model=RiskScoreResponse)
 def api_calculate_risk(
     overdue_cases_count: int = 0,
     total_assessed_comp: float = 0.0,
@@ -218,4 +244,5 @@ def api_calculate_risk(
 
 if __name__ == "__main__":
     import uvicorn
+
     uvicorn.run(app, host="0.0.0.0", port=8000)
