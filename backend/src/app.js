@@ -26,7 +26,7 @@ let dbReady = false;
 let dbError = null;
 
 app.use(async (req, res, next) => {
-  if (req.path === '/api/health') return next();
+  if (req.path === '/api/health' || req.path === '/health') return next();
   if (dbError) {
     return res.status(500).json({ success: false, error: `Database initialization error: ${dbError.message}` });
   }
@@ -43,8 +43,11 @@ app.use(async (req, res, next) => {
   next();
 });
 
-// ─── Health Check ───────────────────────────────────────────────────
-app.get('/api/health', (req, res) => {
+// ─── Health Check (supports GET and HEAD for cloud liveness probes) ──
+const healthHandler = (req, res) => {
+  if (req.method === 'HEAD') {
+    return res.status(200).end();
+  }
   res.json({
     success: true,
     message: 'National Land Acquisition System API is running',
@@ -53,7 +56,10 @@ app.get('/api/health', (req, res) => {
     environment: env.nodeEnv,
     dbReady,
   });
-});
+};
+
+app.route('/api/health').get(healthHandler).head(healthHandler);
+app.route('/health').get(healthHandler).head(healthHandler);
 
 // ─── API Routes ─────────────────────────────────────────────────────
 app.use('/api/auth', require('./modules/auth/auth.routes'));

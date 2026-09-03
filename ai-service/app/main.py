@@ -60,11 +60,15 @@ class ProcessDocumentRequest(BaseModel):
 # ---------- Health / status ----------
 
 @app.get("/")
+@app.head("/")
 def read_root():
     return {"message": "NLA AI Service is running", "service": "National Land Acquisition AI Microservice"}
 
 
 @app.get("/health")
+@app.head("/health")
+@app.get("/api/health")
+@app.head("/api/health")
 def health_check():
     try:
         conn = get_db_connection()
@@ -75,6 +79,7 @@ def health_check():
 
 
 @app.get("/api/ai/status")
+@app.head("/api/ai/status")
 def ai_status():
     return {"service": "NLA AI Service", "status": "operational", "capabilities": ["OCR", "Field_Extraction", "Cadastral_Comparison", "Risk_Scoring"]}
 
