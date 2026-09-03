@@ -3,7 +3,9 @@ const multer = require('multer');
 const path = require('path');
 const fs = require('fs');
 const http = require('http');
+const https = require('https');
 const { v4: uuidv4 } = require('uuid');
+const { aiServiceUrl } = require('../../config/env');
 const { queryOne, queryRows, query } = require('../../config/database');
 const { authenticate } = require('../../middleware/auth');
 const { rbac } = require('../../middleware/rbac');
@@ -55,10 +57,11 @@ const upload = multer({
 async function callPythonAiService(endpoint, body) {
   return new Promise((resolve, reject) => {
     const postData = JSON.stringify(body);
+    const parsedUrl = new URL(endpoint, aiServiceUrl);
     const options = {
-      hostname: '127.0.0.1',
-      port: 8000,
-      path: endpoint,
+      hostname: parsedUrl.hostname,
+      port: parsedUrl.port || (parsedUrl.protocol === 'https:' ? 443 : 80),
+      path: parsedUrl.pathname + parsedUrl.search,
       method: 'POST',
       headers: {
         'Content-Type': 'application/json',
@@ -67,7 +70,7 @@ async function callPythonAiService(endpoint, body) {
       timeout: 15000,
     };
 
-    const req = http.request(options, (res) => {
+    const req = (parsedUrl.protocol === 'https:' ? https : http).request(options, (res) => {
       let data = '';
       res.on('data', (chunk) => { data += chunk; });
       res.on('end', () => {

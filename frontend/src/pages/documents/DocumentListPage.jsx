@@ -809,7 +809,6 @@ export default function DocumentListPage() {
                         className="hidden"
                         id="file-upload-modal"
                         accept=".pdf,.doc,.docx,.xls,.xlsx,.jpg,.jpeg,.png,.webp,.tiff"
-                        required
                       />
                       <label htmlFor="file-upload-modal" className="cursor-pointer block">
                         <Upload className="w-10 h-10 text-slate-400 mx-auto mb-2" />
