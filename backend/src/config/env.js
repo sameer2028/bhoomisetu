@@ -7,7 +7,7 @@ module.exports = {
   uploadDir: process.env.UPLOAD_DIR || './uploads',
   nodeEnv: process.env.NODE_ENV || 'development',
   frontendUrl: process.env.FRONTEND_URL || 'http://localhost:5173',
-  aiServiceUrl: process.env.AI_SERVICE_URL || 'http://localhost:8000',
+  aiServiceUrl: process.env.AI_SERVICE_URL || 'http://127.0.0.1:8000',
 
   // PostgreSQL + PostGIS
   databaseUrl:

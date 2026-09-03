@@ -34,7 +34,7 @@ const NAV_GROUPS = [
   {
     title: 'Statutory Operations',
     items: [
-      { path: '/field', label: 'Field Verification', icon: Compass, roles: ['FRO', 'DLAO', 'ADMIN'] },
+      { path: '/field', label: 'Field Verification', icon: Compass, roles: ['FRO'] },
       { path: '/cases', label: 'Workflow', icon: GitBranch, roles: ['DLAO', 'SGA', 'ADMIN'] },
       { path: '/documents', label: 'Documents', icon: FileText, roles: ['DLAO', 'PIA', 'SGA', 'FRO', 'ADMIN'] },
       { path: '/ai/mismatch', label: 'AI Mismatch', icon: Brain, roles: ['DLAO', 'PIA', 'SGA', 'FRO', 'ADMIN'] },
@@ -47,7 +47,7 @@ const NAV_GROUPS = [
     items: [
       { path: '/alerts', label: 'Alerts', icon: Bell, roles: ['DLAO', 'SGA', 'ADMIN'] },
       { path: '/audit', label: 'Audit Trail', icon: Shield, roles: ['DLAO', 'SGA', 'ADMIN'] },
-      { path: '/mock-api', label: 'Gov API (Mock)', icon: Radio, roles: ['DLAO', 'SGA', 'ADMIN'] },
+      { path: '/mock-api', label: 'Gov API (Mock)', icon: Radio, roles: ['ADMIN'] },
     ],
   },
 ];
@@ -92,8 +92,10 @@ export default function Sidebar({ collapsed, setCollapsed, mobileOpen, setMobile
             </div>
             {(!collapsed || mobileOpen) && (
               <div className="min-w-0">
-                <h1 className="text-sm font-extrabold text-white tracking-tight leading-tight flex items-center gap-1.5">
-                  BhoomiSetu <span className="text-emerald-400 font-normal">| भूमिसेतु</span>
+                <h1 className="text-[15px] font-extrabold text-white tracking-tight leading-tight flex items-center gap-1.5">
+                  BhoomiSetu
+                  <span className="text-slate-500 font-medium text-xs">|</span>
+                  <span className="text-emerald-400 font-bold">भूमिसेतु</span>
                 </h1>
                 <p className="text-[10px] text-slate-400 font-semibold tracking-wide uppercase">
                   National Land Portal

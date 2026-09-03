@@ -196,8 +196,10 @@ export default function Header({ mobileOpen, setMobileOpen }) {
                 Government of India • भारत सरकार
               </span>
             </div>
-            <h1 className="text-sm sm:text-base font-extrabold text-neutral-900 leading-tight flex items-center gap-2">
-              BhoomiSetu <span className="text-emerald-700 font-normal hidden sm:inline">| भूमिसेतु</span>
+            <h1 className="text-[15px] sm:text-base font-extrabold text-neutral-900 leading-tight flex items-center gap-1.5">
+              BhoomiSetu
+              <span className="text-neutral-300 font-medium text-xs hidden sm:inline">|</span>
+              <span className="text-emerald-700 font-bold hidden sm:inline">भूमिसेतु</span>
             </h1>
             <p className="text-[10px] text-neutral-500 hidden md:block">
               National Land Acquisition &amp; Rehabilitation System

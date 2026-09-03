@@ -455,10 +455,10 @@ export default function DocumentListPage() {
                     <th>Linked Entity</th>
                     <th>Access</th>
                     <th>AI Status</th>
+                    <th>Actions</th>
                     <th>Version</th>
                     <th>File Size</th>
                     <th>Uploaded By</th>
-                    <th>Actions</th>
                   </tr>
                 </thead>
                 <tbody className="divide-y divide-neutral-100">
@@ -491,29 +491,29 @@ export default function DocumentListPage() {
 
                         {/* Category */}
                         <td>
-                          <span className={`px-2 py-0.5 rounded text-[10px] font-bold tracking-wide uppercase ${DOC_TYPE_COLORS[doc.document_type] || DOC_TYPE_COLORS.OTHER}`}>
+                          <span className={`whitespace-nowrap px-2 py-0.5 rounded text-[10px] font-bold tracking-wide uppercase ${DOC_TYPE_COLORS[doc.document_type] || DOC_TYPE_COLORS.OTHER}`}>
                             {DOC_TYPE_LABELS[doc.document_type] || doc.document_type}
                           </span>
                         </td>
 
                         {/* Linked Entity */}
-                        <td>
+                        <td className="whitespace-nowrap">
                           <div className="space-y-0.5 text-xs text-neutral-600">
                             {doc.project_code && (
                               <div className="flex items-center gap-1">
-                                <Layers className="w-3 h-3 text-blue-600" />
+                                <Layers className="w-3 h-3 text-blue-600 flex-shrink-0" />
                                 <Link to={`/projects/${doc.project_id}`} className="hover:text-blue-600 font-mono text-[11px]">{doc.project_code}</Link>
                               </div>
                             )}
                             {doc.parcel_code && (
                               <div className="flex items-center gap-1">
-                                <FileWarning className="w-3 h-3 text-emerald-600" />
-                                <Link to={`/parcels/${doc.parcel_id}`} className="hover:text-emerald-700 font-mono text-[11px]">{doc.parcel_code} ({doc.survey_number})</Link>
+                                <FileWarning className="w-3 h-3 text-emerald-600 flex-shrink-0" />
+                                <Link to={`/parcels/${doc.parcel_id}`} className="hover:text-emerald-700 font-mono text-[11px]">{doc.parcel_code} {doc.survey_number && `(${doc.survey_number})`}</Link>
                               </div>
                             )}
                             {doc.case_code && (
                               <div className="flex items-center gap-1">
-                                <FileText className="w-3 h-3 text-purple-600" />
+                                <FileText className="w-3 h-3 text-purple-600 flex-shrink-0" />
                                 <Link to={`/cases/${doc.case_id}`} className="hover:text-purple-600 font-mono text-[11px]">{doc.case_code}</Link>
                               </div>
                             )}
@@ -565,29 +565,6 @@ export default function DocumentListPage() {
                           )}
                         </td>
 
-                        {/* Version */}
-                        <td>
-                          <span className="text-xs font-mono font-semibold text-neutral-600 bg-neutral-100 px-1.5 py-0.5 rounded">
-                            v{doc.version}
-                          </span>
-                        </td>
-
-                        {/* Size */}
-                        <td>
-                          <span className="text-xs text-neutral-500 font-mono">{formatBytes(doc.file_size)}</span>
-                        </td>
-
-                        {/* Uploaded By */}
-                        <td>
-                          <div className="text-xs">
-                            <div className="text-neutral-800 font-semibold">{doc.uploaded_by_name || 'System Admin'}</div>
-                            <div className="text-neutral-400 text-[10px] flex items-center gap-1">
-                              <Clock className="w-2.5 h-2.5" />
-                              {formatDate(doc.created_at)}
-                            </div>
-                          </div>
-                        </td>
-
                         {/* Actions */}
                         <td>
                           <div className="flex items-center gap-1">
@@ -619,6 +596,29 @@ export default function DocumentListPage() {
                             >
                               <Download className="w-4 h-4" />
                             </a>
+                          </div>
+                        </td>
+
+                        {/* Version */}
+                        <td>
+                          <span className="text-xs font-mono font-semibold text-neutral-600 bg-neutral-100 px-1.5 py-0.5 rounded">
+                            v{doc.version}
+                          </span>
+                        </td>
+
+                        {/* Size */}
+                        <td>
+                          <span className="text-xs text-neutral-500 font-mono">{formatBytes(doc.file_size)}</span>
+                        </td>
+
+                        {/* Uploaded By */}
+                        <td>
+                          <div className="text-xs">
+                            <div className="text-neutral-800 font-semibold">{doc.uploaded_by_name || 'System Admin'}</div>
+                            <div className="text-neutral-400 text-[10px] flex items-center gap-1">
+                              <Clock className="w-2.5 h-2.5" />
+                              {formatDate(doc.created_at)}
+                            </div>
                           </div>
                         </td>
                       </tr>
@@ -765,6 +765,39 @@ export default function DocumentListPage() {
                           [{p.parcel_code}] Survey #{p.survey_number} — {p.village} ({p.area_acres} Acres, Owner: {p.owner_name})
                         </option>
                       ))}
+                    </select>
+                  </div>
+
+                  {/* Case Selector (Workflow Link) */}
+                  <div>
+                    <label className="form-label text-xs font-bold text-slate-800 flex items-center justify-between">
+                      <span className="flex items-center gap-1.5">
+                        <FileText className="w-3.5 h-3.5 text-purple-600" />
+                        Associated Workflow Case
+                      </span>
+                      <span className="text-[10px] text-purple-700 font-semibold">
+                        Link to stage requirements
+                      </span>
+                    </label>
+                    <select
+                      value={uploadForm.case_id}
+                      onChange={(e) => setUploadForm(f => ({ ...f, case_id: e.target.value }))}
+                      className="form-input text-xs font-medium py-2"
+                    >
+                      <option value="">— Select Associated Case (Optional) —</option>
+                      {cases
+                        .filter(c => {
+                          // If a parcel is selected, only show cases for that exact parcel
+                          if (uploadForm.parcel_id) return c.parcel_id === uploadForm.parcel_id;
+                          // Otherwise if a project is selected, show cases for that project
+                          if (uploadForm.project_id) return c.project_id === uploadForm.project_id;
+                          return true;
+                        })
+                        .map(c => (
+                          <option key={c.id} value={c.id}>
+                            [{c.case_code}] {c.project_code ? `Project: ${c.project_code}` : ''}
+                          </option>
+                        ))}
                     </select>
                   </div>
 

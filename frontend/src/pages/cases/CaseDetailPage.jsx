@@ -82,28 +82,10 @@ const STAGE_GUIDANCE_DATA = {
       { text: 'Budget & administrative feasibility assessment', done: false },
     ],
     documents: [
-      { name: 'Project Plan / DPR', status: 'Uploaded' },
-      { name: 'Administrative Sanction Order', status: 'Uploaded' },
-      { name: 'Proposed Corridor Alignment Map', status: 'Pending' },
-      { name: 'Budget Estimate & Source', status: 'Pending' },
-    ],
-    proofs: [
-      {
-        code: 'DOC-PROP-001',
-        title: 'Detailed Project Report (DPR) & Layout Map',
-        verifier: 'NHAI Infrastructure Authority',
-        date: '26 Aug 2026',
-        size: '4.2 MB',
-        status: 'Verified',
-      },
-      {
-        code: 'DOC-PROP-002',
-        title: 'Administrative Sanction & Budget Clearance',
-        verifier: 'Ministry of Road Transport & Highways',
-        date: '26 Aug 2026',
-        size: '1.8 MB',
-        status: 'Verified',
-      },
+      { name: 'Project Plan / DPR', type: 'LAND_RECORD' },
+      { name: 'Administrative Sanction Order', type: 'OTHER' },
+      { name: 'Proposed Corridor Alignment Map', type: 'OTHER' },
+      { name: 'Budget Estimate & Source', type: 'OTHER' },
     ],
   },
   LAND_IDENTIFICATION: {
@@ -116,20 +98,10 @@ const STAGE_GUIDANCE_DATA = {
       { text: 'Identification of government vs private land proportion', done: false },
     ],
     documents: [
-      { name: 'Village Khasra Map / Shajra', status: 'Uploaded' },
-      { name: 'Land Parcel Survey Schedule', status: 'Uploaded' },
-      { name: 'Preliminary Cadastral Boundaries', status: 'Uploaded' },
-      { name: 'Land Class & Tenancy Certificate', status: 'Pending' },
-    ],
-    proofs: [
-      {
-        code: 'DOC-IDENT-001',
-        title: 'Cadastral Map Overlay & Khasra Schedule',
-        verifier: 'District Revenue Department',
-        date: '24 Aug 2026',
-        size: '6.1 MB',
-        status: 'Verified',
-      },
+      { name: 'Village Khasra Map / Shajra', type: 'LAND_RECORD' },
+      { name: 'Land Parcel Survey Schedule', type: 'SURVEY_REPORT' },
+      { name: 'Preliminary Cadastral Boundaries', type: 'LAND_RECORD' },
+      { name: 'Land Class & Tenancy Certificate', type: 'OTHER' },
     ],
   },
   VERIFICATION: {
@@ -142,20 +114,10 @@ const STAGE_GUIDANCE_DATA = {
       { text: 'Objections & claims collection from landowners', done: false },
     ],
     documents: [
-      { name: 'Field Verification Report (FRO Signed)', status: 'Uploaded' },
-      { name: 'Geo-Tagged Field Inspection Photographs', status: 'Uploaded' },
-      { name: 'Public Objections & Dispute Summary', status: 'Uploaded' },
-      { name: 'Tree & Structure Valuation Schedule', status: 'Pending' },
-    ],
-    proofs: [
-      {
-        code: 'DOC-VERIF-001',
-        title: 'Field Survey Inspection Report & Photos',
-        verifier: 'Field Revenue Officer (Lucknow)',
-        date: '25 Aug 2026',
-        size: '8.4 MB',
-        status: 'Verified',
-      },
+      { name: 'Field Verification Report (FRO Signed)', type: 'SURVEY_REPORT' },
+      { name: 'Geo-Tagged Field Inspection Photographs', type: 'OTHER' },
+      { name: 'Public Objections & Dispute Summary', type: 'OTHER' },
+      { name: 'Tree & Structure Valuation Schedule', type: 'OTHER' },
     ],
   },
   APPROVAL: {
@@ -168,20 +130,10 @@ const STAGE_GUIDANCE_DATA = {
       { text: 'Issuance of formal acquisition clearance order', done: false },
     ],
     documents: [
-      { name: 'Social Impact Assessment (SIA) Report', status: 'Uploaded' },
-      { name: 'Environmental Clearance Certificate', status: 'Uploaded' },
-      { name: 'Formal Approval Notification', status: 'Pending' },
-      { name: 'Competent Authority Sanction Order', status: 'Pending' },
-    ],
-    proofs: [
-      {
-        code: 'DOC-APPR-001',
-        title: 'SIA Committee Approval Recommendation',
-        verifier: 'State SIA Expert Group',
-        date: '20 Aug 2026',
-        size: '3.5 MB',
-        status: 'Verified',
-      },
+      { name: 'Social Impact Assessment (SIA) Report', type: 'SURVEY_REPORT' },
+      { name: 'Environmental Clearance Certificate', type: 'OTHER' },
+      { name: 'Formal Approval Notification', type: 'LAND_RECORD' },
+      { name: 'Competent Authority Sanction Order', type: 'OTHER' },
     ],
   },
   NOTIFICATION: {
@@ -194,20 +146,10 @@ const STAGE_GUIDANCE_DATA = {
       { text: 'Hearing of objections under Section 15', done: false },
     ],
     documents: [
-      { name: 'Gazette Notification Copy (Section 11)', status: 'Uploaded' },
-      { name: 'Newspaper Clipping Proofs', status: 'Uploaded' },
-      { name: 'Notice Serving Acknowledgement Register', status: 'Pending' },
-      { name: 'Hearing of Objections Record', status: 'Pending' },
-    ],
-    proofs: [
-      {
-        code: 'DOC-NOTIF-001',
-        title: 'State Official Gazette Notification (Sec 11)',
-        verifier: 'Government Press & Gazette Dept',
-        date: '18 Aug 2026',
-        size: '2.9 MB',
-        status: 'Verified',
-      },
+      { name: 'Gazette Notification Copy (Section 11)', type: 'NOTIFICATION' },
+      { name: 'Newspaper Clipping Proofs', type: 'OTHER' },
+      { name: 'Notice Serving Acknowledgement Register', type: 'OTHER' },
+      { name: 'Hearing of Objections Record', type: 'OTHER' },
     ],
   },
   COMPENSATION: {
@@ -220,20 +162,10 @@ const STAGE_GUIDANCE_DATA = {
       { text: 'Submission to District Collector for approval', done: false },
     ],
     documents: [
-      { name: 'Land Valuation & Circle Rate Summary', status: 'Uploaded' },
-      { name: 'Detailed Compensation Schedule (Form 7)', status: 'Uploaded' },
-      { name: 'Structure & Crop Assessment Valuation', status: 'Uploaded' },
-      { name: 'Collector Approval Order', status: 'Pending' },
-    ],
-    proofs: [
-      {
-        code: 'DOC-COMP-001',
-        title: 'Circle Rate & Market Value Assessment Sheet',
-        verifier: 'District Valuation Committee',
-        date: '22 Aug 2026',
-        size: '5.0 MB',
-        status: 'Verified',
-      },
+      { name: 'Land Valuation & Circle Rate Summary', type: 'COMPENSATION_DOC' },
+      { name: 'Detailed Compensation Schedule (Form 7)', type: 'COMPENSATION_DOC' },
+      { name: 'Structure & Crop Assessment Valuation', type: 'OTHER' },
+      { name: 'Collector Approval Order', type: 'OTHER' },
     ],
   },
   AWARD: {
@@ -246,20 +178,10 @@ const STAGE_GUIDANCE_DATA = {
       { text: 'Service of Section 37 notices to titleholders', done: false },
     ],
     documents: [
-      { name: 'Final Award Statement (Form 11)', status: 'Uploaded' },
-      { name: 'Fund Authorization & Escrow Credit', status: 'Uploaded' },
-      { name: 'Section 37 Notice Copies', status: 'Pending' },
-      { name: 'Individual Award Allocation Sheet', status: 'Pending' },
-    ],
-    proofs: [
-      {
-        code: 'DOC-AWRD-001',
-        title: 'DLAO Final Land Acquisition Award Declaration',
-        verifier: 'District Collectorate Lucknow',
-        date: '15 Aug 2026',
-        size: '4.8 MB',
-        status: 'Verified',
-      },
+      { name: 'Final Award Statement (Form 11)', type: 'AWARD_ORDER' },
+      { name: 'Fund Authorization & Escrow Credit', type: 'OTHER' },
+      { name: 'Section 37 Notice Copies', type: 'OTHER' },
+      { name: 'Individual Award Allocation Sheet', type: 'OTHER' },
     ],
   },
   PAYMENT: {
@@ -272,20 +194,10 @@ const STAGE_GUIDANCE_DATA = {
       { text: 'Payment receipt & indemnity bond execution', done: false },
     ],
     documents: [
-      { name: 'Treasury Payment Advice / PFMS Voucher', status: 'Uploaded' },
-      { name: 'Bank Account Verification Proof', status: 'Uploaded' },
-      { name: 'Indemnity & Release Bond', status: 'Pending' },
-      { name: 'Compensation Receipt Acknowledgements', status: 'Pending' },
-    ],
-    proofs: [
-      {
-        code: 'DOC-PAY-001',
-        title: 'PFMS Treasury Disbursement Authorization',
-        verifier: 'State Treasury & Accounts Dept',
-        date: '12 Aug 2026',
-        size: '3.1 MB',
-        status: 'Verified',
-      },
+      { name: 'Treasury Payment Advice / PFMS Voucher', type: 'COMPENSATION_DOC' },
+      { name: 'Bank Account Verification Proof', type: 'OTHER' },
+      { name: 'Indemnity & Release Bond', type: 'OTHER' },
+      { name: 'Compensation Receipt Acknowledgements', type: 'OTHER' },
     ],
   },
   POSSESSION: {
@@ -298,20 +210,10 @@ const STAGE_GUIDANCE_DATA = {
       { text: 'Handing over certificate to Project Implementing Agency', done: false },
     ],
     documents: [
-      { name: 'Section 38 Possession Notice', status: 'Uploaded' },
-      { name: 'Panchnama / Possession Taking Certificate', status: 'Uploaded' },
-      { name: 'Revenue Record Mutation (Dakhal Kabza)', status: 'Pending' },
-      { name: 'Handover Certificate to Implementing Agency', status: 'Pending' },
-    ],
-    proofs: [
-      {
-        code: 'DOC-POSS-001',
-        title: 'Site Panchnama & Physical Possession Certificate',
-        verifier: 'Tehsildar & Police Department',
-        date: '10 Aug 2026',
-        size: '7.2 MB',
-        status: 'Verified',
-      },
+      { name: 'Section 38 Possession Notice', type: 'POSSESSION_DOC' },
+      { name: 'Panchnama / Possession Taking Certificate', type: 'POSSESSION_DOC' },
+      { name: 'Revenue Record Mutation (Dakhal Kabza)', type: 'OTHER' },
+      { name: 'Handover Certificate to Implementing Agency', type: 'OTHER' },
     ],
   },
   RR: {
@@ -324,20 +226,10 @@ const STAGE_GUIDANCE_DATA = {
       { text: 'Provision of infrastructural amenities at R&R site', done: false },
     ],
     documents: [
-      { name: 'Approved R&R Scheme Notification', status: 'Uploaded' },
-      { name: 'Allotment Letters for Resettlement Plots', status: 'Uploaded' },
-      { name: 'Livelihood Grant Disbursement Sheet', status: 'Pending' },
-      { name: 'R&R Completion & Compliance Report', status: 'Pending' },
-    ],
-    proofs: [
-      {
-        code: 'DOC-RR-001',
-        title: 'Approved Resettlement & Rehabilitation Master Plan',
-        verifier: 'State R&R Commissionerate',
-        date: '05 Aug 2026',
-        size: '9.3 MB',
-        status: 'Verified',
-      },
+      { name: 'Approved R&R Scheme Notification', type: 'RR_EVIDENCE' },
+      { name: 'Allotment Letters for Resettlement Plots', type: 'RR_EVIDENCE' },
+      { name: 'Livelihood Grant Disbursement Sheet', type: 'OTHER' },
+      { name: 'R&R Completion & Compliance Report', type: 'OTHER' },
     ],
   },
   CLOSURE: {
@@ -350,20 +242,10 @@ const STAGE_GUIDANCE_DATA = {
       { text: 'Formal case status update to Closed', done: true },
     ],
     documents: [
-      { name: 'Final Completion & Reconciliation Report', status: 'Uploaded' },
-      { name: 'Audit Clearance Certificate', status: 'Uploaded' },
-      { name: 'GIS Land Bank Entry Confirmation', status: 'Uploaded' },
-      { name: 'File Archival Certificate', status: 'Uploaded' },
-    ],
-    proofs: [
-      {
-        code: 'DOC-CLOSE-001',
-        title: 'Final Audit & Project Archival Clearance',
-        verifier: 'Principal Accountant General (Audit)',
-        date: '01 Aug 2026',
-        size: '5.5 MB',
-        status: 'Verified',
-      },
+      { name: 'Final Completion & Reconciliation Report', type: 'OTHER' },
+      { name: 'Audit Clearance Certificate', type: 'OTHER' },
+      { name: 'GIS Land Bank Entry Confirmation', type: 'OTHER' },
+      { name: 'File Archival Certificate', type: 'OTHER' },
     ],
   },
 };
@@ -858,6 +740,35 @@ export default function CaseDetailPage() {
     (evt) => evt.to_stage === activeStageKey || evt.from_stage === activeStageKey
   ) || [];
 
+  let activeOfficerDecision = null;
+  if (caseData.auditTimeline) {
+    const stageDecisions = caseData.auditTimeline.filter(
+      (evt) => evt.from_stage === activeStageKey && evt.action !== 'CREATE'
+    );
+    if (stageDecisions.length > 0) {
+      const lastEvt = stageDecisions[stageDecisions.length - 1];
+      const nameParts = (lastEvt.performed_by_name || '').split(' ');
+      const initials = nameParts.map(p => p.charAt(0).toUpperCase()).join('');
+      const uuidFragment = (lastEvt.performed_by_id || 'AUTH').toString().slice(-4).toUpperCase();
+      const signatureId = `${initials}-${uuidFragment}-${lastEvt.performed_by_role || 'OFC'}`;
+      const signatureDisplay = nameParts.length > 1
+        ? `${nameParts[0].charAt(0)}.${nameParts[nameParts.length - 1]}`
+        : lastEvt.performed_by_name || 'Officer';
+
+      activeOfficerDecision = {
+        action: lastEvt.action,
+        remarks: lastEvt.remarks,
+        decided_at: lastEvt.created_at,
+        from_stage: lastEvt.from_stage,
+        to_stage: lastEvt.to_stage,
+        officer_name: lastEvt.performed_by_name,
+        officer_role: lastEvt.performed_by_role,
+        signature_id: signatureId,
+        signature_display: signatureDisplay,
+      };
+    }
+  }
+
   return (
     <div className="space-y-6 fade-in pb-12">
       {/* ─── Top Navigation Header Row ───────────────────────────── */}
@@ -1170,6 +1081,16 @@ export default function CaseDetailPage() {
                 {caseData.project_code || 'PRJ-2026-003'}
               </Link>
             </div>
+            
+            {caseData.parcel_id && (
+              <div className="flex items-center gap-2 border-l border-slate-200 pl-6">
+                <MapPin className="w-3.5 h-3.5 text-slate-400" />
+                <span className="text-[10px] text-slate-400 font-bold uppercase">PARCEL:</span>
+                <Link to={`/parcels/${caseData.parcel_id}`} className="font-bold text-emerald-700 hover:underline">
+                  {caseData.parcel_code || 'View Record'}
+                </Link>
+              </div>
+            )}
             <div className="flex items-center gap-2">
               <Clock className="w-3.5 h-3.5 text-slate-400" />
               <span className="text-[10px] text-slate-400 font-bold uppercase">CREATED:</span>
@@ -1204,55 +1125,134 @@ export default function CaseDetailPage() {
             </div>
           </div>
 
-          {/* OFFICER DECISION RECORD */}
-          <div className="card bg-white border border-slate-200/90 shadow-card shrink-0">
-            <div className="card-header bg-slate-50/80 border-b border-slate-100 py-3 px-5 flex items-center justify-between">
-              <h3 className="text-[11px] font-extrabold text-slate-800 uppercase tracking-wider">OFFICER DECISION RECORD</h3>
-              <span className="bg-emerald-100 text-emerald-800 border border-emerald-200 text-[10px] font-extrabold px-2.5 py-0.5 rounded-full uppercase flex items-center gap-1">
-                <Check className="w-3 h-3 text-emerald-600" /> DECISION RECORDED
-              </span>
-            </div>
-            <div className="card-body p-5">
-              <div className="grid grid-cols-3 gap-4 text-xs">
-                <div>
-                  <p className="text-[10px] font-bold text-slate-400 uppercase">ACTION TAKEN</p>
-                  <span className="font-extrabold text-emerald-700 bg-emerald-50 px-2 py-0.5 rounded text-xs inline-block mt-0.5 border border-emerald-200">
-                    APPROVE
-                  </span>
+          {/* OFFICER DECISION RECORD (WIDE & HIGHLIGHTED) */}
+          {activeOfficerDecision ? (
+            <div className="w-full bg-white border-2 border-emerald-500/40 rounded-2xl shadow-md overflow-hidden shrink-0 transition-all hover:shadow-lg">
+              {/* Top Accent Ribbon */}
+              <div className="bg-gradient-to-r from-emerald-700 via-teal-700 to-emerald-800 text-white py-3.5 px-6 flex items-center justify-between flex-wrap gap-2">
+                <div className="flex items-center gap-3">
+                  <div className="w-9 h-9 rounded-xl bg-white/20 border border-white/30 flex items-center justify-center text-white shadow-xs flex-shrink-0">
+                    <CheckCircle2 className="w-5 h-5 text-emerald-100" />
+                  </div>
+                  <div>
+                    <h3 className="text-xs font-black uppercase tracking-widest text-white flex items-center gap-2">
+                      OFFICER DECISION RECORD
+                    </h3>
+                    <p className="text-[11px] text-emerald-100/90 font-medium">
+                      Statutory administrative action authenticated under RFCTLARR Act 2013
+                    </p>
+                  </div>
                 </div>
-                <div>
-                  <p className="text-[10px] font-bold text-slate-400 uppercase">DECISION / REMARKS</p>
-                  <p className="font-bold text-slate-800 mt-0.5">done</p>
-                </div>
-                <div>
-                  <p className="text-[10px] font-bold text-slate-400 uppercase">DECIDED ON</p>
-                  <p className="font-semibold text-slate-700 mt-0.5 flex items-center gap-1">
-                    <Calendar className="w-3.5 h-3.5 text-slate-400" /> 26 Aug 2026, 02:59 PM
-                  </p>
-                </div>
+                <span className="bg-white text-emerald-900 border border-emerald-200 text-xs font-black px-3.5 py-1 rounded-full uppercase tracking-wider flex items-center gap-1.5 shadow-sm">
+                  <Check className="w-3.5 h-3.5 text-emerald-700 stroke-[3]" /> DECISION RECORDED
+                </span>
               </div>
 
-              <div className="grid grid-cols-3 gap-4 text-xs pt-4 mt-4 border-t border-slate-100">
-                <div>
-                  <p className="text-[10px] font-bold text-slate-400 uppercase">OFFICER</p>
-                  <p className="font-bold text-slate-900 mt-0.5">Rajesh Sharma</p>
-                </div>
-                <div>
-                  <p className="text-[10px] font-bold text-slate-400 uppercase">ROLE</p>
-                  <p className="font-bold text-slate-800 mt-0.5">DLAO</p>
-                </div>
-                <div>
-                  <p className="text-[10px] font-bold text-slate-400 uppercase">SIGNATURE / ID</p>
-                  <div className="mt-0.5 flex items-center gap-2">
-                    <span className="font-mono font-bold text-slate-700 text-xs">RS-5721-DLAO</span>
-                    <span className="font-serif italic text-blue-800 text-sm font-extrabold underline decoration-blue-400">
-                      R.Sharma
+              <div className="p-6 space-y-5 bg-white">
+                {/* 3 Core Decision Indicators */}
+                <div className="grid grid-cols-1 md:grid-cols-3 gap-4 bg-slate-50/80 p-4 rounded-xl border border-slate-200/80">
+                  <div className="flex flex-col justify-center">
+                    <p className="text-[10px] font-extrabold text-slate-400 uppercase tracking-wider">ACTION EXECUTED</p>
+                    <span className={`font-black px-3 py-1 rounded-md text-xs inline-flex items-center gap-1.5 mt-1.5 border self-start ${
+                      activeOfficerDecision.action === 'APPROVE'
+                        ? 'text-emerald-800 bg-emerald-100 border-emerald-300'
+                        : activeOfficerDecision.action === 'FORWARD'
+                        ? 'text-blue-800 bg-blue-100 border-blue-300'
+                        : activeOfficerDecision.action === 'REJECT'
+                        ? 'text-rose-800 bg-rose-100 border-rose-300'
+                        : 'text-amber-800 bg-amber-100 border-amber-300'
+                    }`}>
+                      {activeOfficerDecision.action}
                     </span>
+                  </div>
+
+                  <div className="flex flex-col justify-center">
+                    <p className="text-[10px] font-extrabold text-slate-400 uppercase tracking-wider">DECIDED ON</p>
+                    <p className="font-bold text-slate-800 mt-1.5 text-xs flex items-center gap-1.5">
+                      <Calendar className="w-4 h-4 text-emerald-600 flex-shrink-0" />
+                      {formatDateTime(activeOfficerDecision.decided_at)}
+                    </p>
+                  </div>
+
+                  <div className="flex flex-col justify-center">
+                    <p className="text-[10px] font-extrabold text-slate-400 uppercase tracking-wider">STAGE TRANSITION</p>
+                    <p className="font-bold text-slate-800 mt-1.5 text-xs truncate">
+                      {STAGE_LABELS[activeOfficerDecision.from_stage] || activeOfficerDecision.from_stage || 'Initial'} ➔{' '}
+                      <span className="text-emerald-700 font-extrabold">
+                        {STAGE_LABELS[activeOfficerDecision.to_stage] || activeOfficerDecision.to_stage || 'Current'}
+                      </span>
+                    </p>
+                  </div>
+                </div>
+
+                {/* Remarks Block */}
+                <div>
+                  <p className="text-[10px] font-extrabold text-slate-400 uppercase tracking-wider mb-1.5">
+                    DECISION &amp; STATUTORY REMARKS
+                  </p>
+                  <div className="bg-amber-50/60 border-l-4 border-l-amber-500 border border-amber-200/80 p-4 rounded-r-xl text-slate-800 text-xs font-semibold leading-relaxed shadow-2xs">
+                    "{activeOfficerDecision.remarks || 'Stage decision recorded and verified without additional remarks.'}"
+                  </div>
+                </div>
+
+                {/* Officer Authority, Role & Official Signature Seal */}
+                <div className="grid grid-cols-1 md:grid-cols-3 gap-4 pt-4 border-t border-slate-200/80 items-center bg-slate-50/50 p-4 rounded-xl border border-slate-100">
+                  <div>
+                    <p className="text-[10px] font-extrabold text-slate-400 uppercase tracking-wider">COMPETENT AUTHORITY</p>
+                    <p className="font-extrabold text-slate-900 text-sm mt-1">
+                      {activeOfficerDecision.officer_name || caseData.assigned_officer_name || 'Designated Officer'}
+                    </p>
+                  </div>
+
+                  <div>
+                    <p className="text-[10px] font-extrabold text-slate-400 uppercase tracking-wider">STATUTORY ROLE</p>
+                    <span className="font-bold text-slate-800 bg-slate-200/80 px-2.5 py-1 rounded text-xs inline-block mt-1">
+                      {activeOfficerDecision.officer_role || caseData.assigned_officer_role || 'DLAO'}
+                    </span>
+                  </div>
+
+                  <div>
+                    <p className="text-[10px] font-extrabold text-slate-400 uppercase tracking-wider">DIGITAL SEAL &amp; SIGNATURE</p>
+                    <div className="mt-1 flex items-center gap-3">
+                      <span className="font-mono font-bold text-slate-700 text-xs bg-white px-2.5 py-1 rounded-md border border-slate-300 shadow-2xs">
+                        {activeOfficerDecision.signature_id || 'OFFICER-AUTH'}
+                      </span>
+                      <span className="font-serif italic text-blue-900 text-base font-extrabold underline decoration-blue-400">
+                        {activeOfficerDecision.signature_display || activeOfficerDecision.officer_name || 'Verified'}
+                      </span>
+                    </div>
                   </div>
                 </div>
               </div>
             </div>
-          </div>
+          ) : (
+            <div className="w-full bg-white border border-slate-200/90 rounded-xl p-5 shadow-card shrink-0">
+              <div className="flex items-center justify-between gap-4 flex-wrap">
+                <div className="flex items-center gap-3.5">
+                  <div className="w-10 h-10 rounded-xl bg-slate-100 border border-slate-200 flex items-center justify-center text-slate-600 flex-shrink-0">
+                    <Clock className="w-5 h-5 text-slate-500" />
+                  </div>
+                  <div>
+                    <div className="flex items-center gap-2 flex-wrap">
+                      <h3 className="text-xs font-bold text-slate-800 uppercase tracking-wider">
+                        OFFICER DECISION RECORD
+                      </h3>
+                      <span className="bg-slate-100 text-slate-700 border border-slate-200 text-[10px] font-bold px-2.5 py-0.5 rounded-full uppercase">
+                        Awaiting Statutory Action
+                      </span>
+                    </div>
+                    <p className="text-xs text-slate-500 font-medium mt-0.5">
+                      No statutory officer decision has been executed on this stage yet. Currently assigned to{' '}
+                      <span className="font-semibold text-slate-800">
+                        {caseData.assigned_officer_name || 'Designated Officer'}
+                      </span>{' '}
+                      ({caseData.assigned_officer_role || 'DLAO'}).
+                    </p>
+                  </div>
+                </div>
+              </div>
+            </div>
+          )}
 
           {/* AI COMPLIANCE & RISK */}
           {caseData.aiCompliance && (
@@ -1276,7 +1276,7 @@ export default function CaseDetailPage() {
                       'text-emerald-800'
                     }`}>RISK SCORE</p>
                     <p className="text-3xl font-black text-slate-900 mt-0.5">
-                      {caseData.aiCompliance.riskScore} <span className="text-xs text-slate-400 font-normal">/100</span>
+                      {caseData.aiCompliance.riskScore}
                     </p>
                     <span className={`inline-block mt-1 font-extrabold text-[9px] px-2 py-0.5 rounded-full uppercase ${
                       caseData.aiCompliance.riskLevel === 'CRITICAL' ? 'bg-rose-200 text-rose-900' :
@@ -1331,8 +1331,10 @@ export default function CaseDetailPage() {
           {/* KEY DOCUMENTS & EVIDENCE TABLE */}
           <div className="card bg-white border border-slate-200/90 shadow-card mt-auto shrink-0">
             <div className="card-header bg-slate-50/80 border-b border-slate-100 py-3 px-5 flex items-center justify-between">
-              <h3 className="text-[11px] font-extrabold text-slate-800 uppercase tracking-wider">KEY DOCUMENTS &amp; EVIDENCE</h3>
-              <button type="button" className="text-[11px] font-bold text-blue-700 hover:underline">View All</button>
+              <h3 className="text-[11px] font-extrabold text-slate-800 uppercase tracking-wider">STAGE DOCUMENTS &amp; EVIDENCE</h3>
+              <span className="text-[10px] text-slate-400 font-bold">
+                {STAGE_LABELS[activeStageKey]} Stage
+              </span>
             </div>
             <div className="card-body p-0">
               <div className="overflow-x-auto">
@@ -1346,56 +1348,34 @@ export default function CaseDetailPage() {
                     </tr>
                   </thead>
                   <tbody className="divide-y divide-slate-100 font-medium text-slate-800">
-                    <tr>
-                      <td className="py-2.5 px-4 font-semibold">Gazette Notification</td>
-                      <td className="py-2.5 px-3">
-                        <span className="bg-emerald-100 text-emerald-800 text-[9px] font-extrabold px-2 py-0.5 rounded-full uppercase">UPLOADED</span>
-                      </td>
-                      <td className="py-2.5 px-3">
-                        <span className="text-emerald-700 font-bold text-[10px]">VERIFIED</span>
-                      </td>
-                      <td className="py-2.5 px-4 text-right text-slate-500 font-mono text-[11px]">26 Aug 2026</td>
-                    </tr>
-                    <tr>
-                      <td className="py-2.5 px-4 font-semibold">Newspaper Clipping (Hindi)</td>
-                      <td className="py-2.5 px-3">
-                        <span className="bg-emerald-100 text-emerald-800 text-[9px] font-extrabold px-2 py-0.5 rounded-full uppercase">UPLOADED</span>
-                      </td>
-                      <td className="py-2.5 px-3">
-                        <span className="text-emerald-700 font-bold text-[10px]">VERIFIED</span>
-                      </td>
-                      <td className="py-2.5 px-4 text-right text-slate-500 font-mono text-[11px]">26 Aug 2026</td>
-                    </tr>
-                    <tr>
-                      <td className="py-2.5 px-4 font-semibold">Newspaper Clipping (English)</td>
-                      <td className="py-2.5 px-3">
-                        <span className="bg-emerald-100 text-emerald-800 text-[9px] font-extrabold px-2 py-0.5 rounded-full uppercase">UPLOADED</span>
-                      </td>
-                      <td className="py-2.5 px-3">
-                        <span className="text-emerald-700 font-bold text-[10px]">VERIFIED</span>
-                      </td>
-                      <td className="py-2.5 px-4 text-right text-slate-500 font-mono text-[11px]">26 Aug 2026</td>
-                    </tr>
-                    <tr>
-                      <td className="py-2.5 px-4 font-semibold text-slate-500">Individual Notice Serving</td>
-                      <td className="py-2.5 px-3">
-                        <span className="bg-amber-100 text-amber-800 text-[9px] font-extrabold px-2 py-0.5 rounded-full uppercase">PENDING</span>
-                      </td>
-                      <td className="py-2.5 px-3">
-                        <span className="text-amber-700 font-bold text-[10px]">PENDING</span>
-                      </td>
-                      <td className="py-2.5 px-4 text-right text-slate-400 font-mono text-[11px]">--</td>
-                    </tr>
-                    <tr>
-                      <td className="py-2.5 px-4 font-semibold text-slate-500">Hearing of Objections Record</td>
-                      <td className="py-2.5 px-3">
-                        <span className="bg-amber-100 text-amber-800 text-[9px] font-extrabold px-2 py-0.5 rounded-full uppercase">PENDING</span>
-                      </td>
-                      <td className="py-2.5 px-3">
-                        <span className="text-amber-700 font-bold text-[10px]">PENDING</span>
-                      </td>
-                      <td className="py-2.5 px-4 text-right text-slate-400 font-mono text-[11px]">--</td>
-                    </tr>
+                    {stageGuidance.documents.map((doc, idx) => {
+                      const matchedDoc = caseData.caseDocuments?.find(d => d.document_type === doc.type);
+                      const isUploaded = !!matchedDoc;
+                      return (
+                        <tr key={idx}>
+                          <td className={`py-2.5 px-4 font-semibold ${!isUploaded ? 'text-slate-500' : ''}`}>
+                            {doc.name}
+                          </td>
+                          <td className="py-2.5 px-3">
+                            {isUploaded ? (
+                              <span className="bg-emerald-100 text-emerald-800 text-[9px] font-extrabold px-2 py-0.5 rounded-full uppercase">UPLOADED</span>
+                            ) : (
+                              <span className="bg-amber-100 text-amber-800 text-[9px] font-extrabold px-2 py-0.5 rounded-full uppercase">PENDING</span>
+                            )}
+                          </td>
+                          <td className="py-2.5 px-3">
+                            {isUploaded ? (
+                              <span className="font-bold text-[10px] text-emerald-700">VERIFIED</span>
+                            ) : (
+                              <span className="text-slate-400 font-bold text-[10px]">--</span>
+                            )}
+                          </td>
+                          <td className="py-2.5 px-4 text-right text-slate-500 font-mono text-[11px]">
+                            {isUploaded ? formatDateTime(matchedDoc.created_at).split(',')[0] : '--'}
+                          </td>
+                        </tr>
+                      );
+                    })}
                   </tbody>
                 </table>
               </div>
@@ -1403,6 +1383,7 @@ export default function CaseDetailPage() {
               <div className="p-3 border-t border-slate-100 text-center">
                 <button
                   type="button"
+                  onClick={() => navigate('/documents')}
                   className="btn btn-secondary text-xs font-bold text-slate-700 px-4 py-2 border-slate-200 hover:bg-slate-50 inline-flex items-center gap-1.5 cursor-pointer"
                 >
                   <FileText className="w-3.5 h-3.5 text-slate-500" />
@@ -1421,113 +1402,57 @@ export default function CaseDetailPage() {
               <h3 className="text-[11px] font-extrabold text-slate-800 uppercase tracking-wider flex items-center gap-1.5">
                 AUDIT TIMELINE
               </h3>
-              <span className="text-[10px] text-slate-400 font-bold">7 Total Events</span>
+              <span className="text-[10px] text-slate-400 font-bold">{caseData.auditTimeline?.length || 0} Total Events</span>
             </div>
 
             <div className="p-4">
               <div className="relative space-y-4">
                 {/* Connecting Line */}
                 <div className="absolute left-[11px] top-2 bottom-2 w-0.5 bg-slate-200" />
+                
+                {caseData.auditTimeline && caseData.auditTimeline.slice(-5).map((evt, idx, arr) => {
+                  const num = caseData.auditTimeline.length - arr.length + idx + 1;
+                  // Action color logic
+                  let actionColor = 'bg-slate-100 text-slate-800';
+                  let iconColor = 'bg-slate-500';
+                  
+                  if (evt.action === 'CREATE') {
+                    actionColor = 'bg-blue-100 text-blue-800';
+                    iconColor = 'bg-blue-600';
+                  } else if (evt.action === 'APPROVE' || evt.action === 'COMPLETE') {
+                    actionColor = 'bg-emerald-100 text-emerald-800';
+                    iconColor = 'bg-emerald-600';
+                  } else if (evt.action === 'FORWARD') {
+                    actionColor = 'bg-purple-100 text-purple-800';
+                    iconColor = 'bg-purple-600';
+                  } else if (evt.action === 'REJECT' || evt.action === 'SEND_BACK') {
+                    actionColor = 'bg-rose-100 text-rose-800';
+                    iconColor = 'bg-rose-600';
+                  }
 
-                {/* Event 1 */}
-                <div className="flex items-start gap-3 relative z-10">
-                  <div className="w-5 h-5 rounded-full bg-blue-600 text-white text-[9px] font-bold flex items-center justify-center flex-shrink-0 mt-0.5">
-                    1
-                  </div>
-                  <div className="flex-1 text-xs space-y-0.5">
-                    <div className="flex items-center justify-between">
-                      <span className="bg-blue-100 text-blue-800 text-[9px] font-extrabold px-1.5 py-0.2 rounded uppercase">
-                        CREATED
-                      </span>
-                      <span className="text-[10px] text-slate-400 font-medium">Project Proposal</span>
+                  return (
+                    <div key={evt.id || idx} className="flex items-start gap-3 relative z-10">
+                      <div className={`w-5 h-5 rounded-full text-white text-[9px] font-bold flex items-center justify-center flex-shrink-0 mt-0.5 ${iconColor}`}>
+                        {num}
+                      </div>
+                      <div className="flex-1 text-xs space-y-0.5">
+                        <div className="flex items-center justify-between">
+                          <span className={`${actionColor} text-[9px] font-extrabold px-1.5 py-0.2 rounded uppercase`}>
+                            {evt.action === 'CREATE' ? 'CREATED' : evt.action}
+                          </span>
+                          <span className="text-[10px] text-slate-400 font-medium">
+                            {STAGE_LABELS[evt.from_stage] || evt.from_stage}
+                          </span>
+                        </div>
+                        <p className="font-bold text-slate-900 leading-snug">{evt.remarks || 'No remarks provided'}</p>
+                        <div className="flex items-center justify-between text-[10px] text-slate-400 pt-0.5">
+                          <span>by {evt.performed_by_name || 'System'}</span>
+                          <span>{formatDateTime(evt.created_at)}</span>
+                        </div>
+                      </div>
                     </div>
-                    <p className="font-bold text-slate-900 leading-snug">Urgent acquisition for railway overbridge</p>
-                    <div className="flex items-center justify-between text-[10px] text-slate-400 pt-0.5">
-                      <span>by Rajesh Sharma</span>
-                      <span>12 Jul 2026, 10:15 AM</span>
-                    </div>
-                  </div>
-                </div>
-
-                {/* Event 2 */}
-                <div className="flex items-start gap-3 relative z-10">
-                  <div className="w-5 h-5 rounded-full bg-emerald-600 text-white text-[9px] font-bold flex items-center justify-center flex-shrink-0 mt-0.5">
-                    2
-                  </div>
-                  <div className="flex-1 text-xs space-y-0.5">
-                    <div className="flex items-center justify-between">
-                      <span className="bg-emerald-100 text-emerald-800 text-[9px] font-extrabold px-1.5 py-0.2 rounded uppercase">
-                        APPROVED
-                      </span>
-                      <span className="text-[10px] text-slate-400 font-medium">Land Identification</span>
-                    </div>
-                    <p className="font-bold text-slate-900 leading-snug">Approved under fast-track scheme</p>
-                    <div className="flex items-center justify-between text-[10px] text-slate-400 pt-0.5">
-                      <span>by Dr. Vikramaditya Singh</span>
-                      <span>17 Jul 2026, 11:20 AM</span>
-                    </div>
-                  </div>
-                </div>
-
-                {/* Event 3 */}
-                <div className="flex items-start gap-3 relative z-10">
-                  <div className="w-5 h-5 rounded-full bg-purple-600 text-white text-[9px] font-bold flex items-center justify-center flex-shrink-0 mt-0.5">
-                    3
-                  </div>
-                  <div className="flex-1 text-xs space-y-0.5">
-                    <div className="flex items-center justify-between">
-                      <span className="bg-purple-100 text-purple-800 text-[9px] font-extrabold px-1.5 py-0.2 rounded uppercase">
-                        FORWARDED
-                      </span>
-                      <span className="text-[10px] text-slate-400 font-medium">Verification</span>
-                    </div>
-                    <p className="font-bold text-slate-900 leading-snug">Parcels identified</p>
-                    <div className="flex items-center justify-between text-[10px] text-slate-400 pt-0.5">
-                      <span>by Rajesh Sharma</span>
-                      <span>22 Jul 2026, 09:45 AM</span>
-                    </div>
-                  </div>
-                </div>
-
-                {/* Event 4 */}
-                <div className="flex items-start gap-3 relative z-10">
-                  <div className="w-5 h-5 rounded-full bg-emerald-600 text-white text-[9px] font-bold flex items-center justify-center flex-shrink-0 mt-0.5">
-                    4
-                  </div>
-                  <div className="flex-1 text-xs space-y-0.5">
-                    <div className="flex items-center justify-between">
-                      <span className="bg-emerald-100 text-emerald-800 text-[9px] font-extrabold px-1.5 py-0.2 rounded uppercase">
-                        COMPLETED
-                      </span>
-                      <span className="text-[10px] text-slate-400 font-medium">Approval</span>
-                    </div>
-                    <p className="font-bold text-slate-900 leading-snug">Verification complete</p>
-                    <div className="flex items-center justify-between text-[10px] text-slate-400 pt-0.5">
-                      <span>by Amit Kumar Verma</span>
-                      <span>01 Aug 2026, 03:10 PM</span>
-                    </div>
-                  </div>
-                </div>
-
-                {/* Event 5 */}
-                <div className="flex items-start gap-3 relative z-10">
-                  <div className="w-5 h-5 rounded-full bg-blue-600 text-white text-[9px] font-bold flex items-center justify-center flex-shrink-0 mt-0.5">
-                    5
-                  </div>
-                  <div className="flex-1 text-xs space-y-0.5">
-                    <div className="flex items-center justify-between">
-                      <span className="bg-blue-100 text-blue-800 text-[9px] font-extrabold px-1.5 py-0.2 rounded uppercase">
-                        CURRENT
-                      </span>
-                      <span className="text-[10px] text-slate-400 font-medium">Notification</span>
-                    </div>
-                    <p className="font-bold text-slate-900 leading-snug">Publication of preliminary notification</p>
-                    <div className="flex items-center justify-between text-[10px] text-slate-400 pt-0.5">
-                      <span>by Rajesh Sharma</span>
-                      <span>26 Aug 2026, 02:59 PM</span>
-                    </div>
-                  </div>
-                </div>
+                  );
+                })}
               </div>
 
               <div className="pt-3 mt-3 border-t border-slate-100">
@@ -1602,7 +1527,7 @@ export default function CaseDetailPage() {
           </div>
 
           {/* AVAILABLE ACTIONS */}
-          {caseData.allowedActions && caseData.allowedActions.length > 0 && !isTerminal && (
+          {caseData.allowedActions && caseData.allowedActions.length > 0 && !isTerminal && activeStageKey === currentStageKey && (
             <div className="card bg-blue-50/30 border-2 border-blue-400 shadow-[0_0_20px_rgba(59,130,246,0.15)] relative overflow-hidden mt-auto shrink-0">
               <div className="absolute inset-0 border-2 border-blue-400 rounded-2xl animate-pulse pointer-events-none opacity-40" style={{ animationDuration: '3s' }}></div>
               <div className="card-header bg-blue-50/80 border-b border-blue-100 py-3 px-4 flex items-center justify-between relative z-10">
@@ -1775,7 +1700,7 @@ function TransitionModal({ action, caseData, onClose, onSuccess }) {
 
   return (
     <div className="fixed inset-0 z-50 flex items-center justify-center bg-slate-950/60 backdrop-blur-sm p-4">
-      <div className="bg-white rounded-2xl shadow-floating w-full max-w-md fade-in overflow-hidden border border-slate-200">
+      <div className="bg-white rounded-2xl shadow-floating w-full max-w-lg fade-in overflow-hidden border border-slate-200">
         <div className="flex items-center justify-between px-6 py-4 border-b border-slate-100 bg-slate-50/70">
           <h2 className="text-sm font-bold text-slate-900 flex items-center gap-2">
             <Icon className="w-4 h-4 text-blue-700" /> {config.label}
@@ -1802,6 +1727,57 @@ function TransitionModal({ action, caseData, onClose, onSuccess }) {
               <span className="font-bold text-blue-700">{STAGE_LABELS[caseData.current_stage]}</span>
             </div>
           </div>
+
+          {/* Document Compliance Checklist */}
+          {(() => {
+            const stageGuidanceDocs = (STAGE_GUIDANCE_DATA[caseData.current_stage] || {}).documents || [];
+            const uploadedTypes = (caseData.caseDocuments || []).map(d => d.document_type);
+            const missingCount = stageGuidanceDocs.filter(d => !uploadedTypes.includes(d.type)).length;
+
+            return (
+              <div className="border border-slate-200 rounded-xl overflow-hidden">
+                <div className="bg-slate-50 border-b border-slate-100 px-3.5 py-2 flex items-center justify-between">
+                  <span className="font-bold text-slate-700 text-[11px] uppercase tracking-wider">Document Compliance</span>
+                  <span className={`text-[10px] font-extrabold px-2 py-0.5 rounded-full ${
+                    missingCount === 0
+                      ? 'bg-emerald-100 text-emerald-800'
+                      : 'bg-amber-100 text-amber-800'
+                  }`}>
+                    {missingCount === 0 ? 'ALL SUBMITTED' : `${missingCount} MISSING`}
+                  </span>
+                </div>
+                <div className="p-3 space-y-1.5">
+                  {stageGuidanceDocs.map((doc, idx) => {
+                    const found = (caseData.caseDocuments || []).find(d => d.document_type === doc.type);
+                    return (
+                      <div key={idx} className="flex items-center gap-2">
+                        {found ? (
+                          <CheckCircle2 className="w-3.5 h-3.5 text-emerald-600 flex-shrink-0" />
+                        ) : (
+                          <XCircle className="w-3.5 h-3.5 text-slate-300 flex-shrink-0" />
+                        )}
+                        <span className={`text-xs font-medium flex-1 ${found ? 'text-slate-800' : 'text-slate-400'}`}>
+                          {doc.name}
+                        </span>
+                        {found && (
+                          <span className="text-[9px] font-bold px-1.5 py-0.5 rounded bg-emerald-50 text-emerald-700">
+                            VERIFIED
+                          </span>
+                        )}
+                      </div>
+                    );
+                  })}
+                </div>
+                {missingCount > 0 && (
+                  <div className="bg-amber-50 border-t border-amber-100 px-3.5 py-2">
+                    <p className="text-[10px] text-amber-800 font-semibold">
+                      ⚠ {missingCount} required document{missingCount > 1 ? 's have' : ' has'} not been submitted. You may still proceed.
+                    </p>
+                  </div>
+                )}
+              </div>
+            );
+          })()}
 
           {error && (
             <div className="bg-rose-50 border border-rose-200 text-rose-800 rounded-xl p-3 font-semibold">

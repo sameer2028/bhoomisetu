@@ -45,6 +45,21 @@ const STAGE_LABELS = {
   CLOSURE: 'Closure',
 };
 
+// ─── Required document types per workflow stage ─────────────────────
+const STAGE_REQUIRED_DOCS = {
+  PROJECT_PROPOSAL:    ['LAND_RECORD'],
+  LAND_IDENTIFICATION: ['LAND_RECORD', 'SURVEY_REPORT'],
+  VERIFICATION:        ['SURVEY_REPORT'],
+  APPROVAL:            ['LAND_RECORD', 'SURVEY_REPORT'],
+  NOTIFICATION:        ['NOTIFICATION'],
+  COMPENSATION:        ['COMPENSATION_DOC'],
+  AWARD:               ['AWARD_ORDER'],
+  PAYMENT:             ['COMPENSATION_DOC'],
+  POSSESSION:          ['POSSESSION_DOC'],
+  RR:                  ['RR_EVIDENCE'],
+  CLOSURE:             [],
+};
+
 /**
  * GET /api/workflow/stages
  * Return the ordered list of workflow stages with labels and allowed actions
@@ -314,7 +329,7 @@ router.get('/cases/:id', authenticate, async (req, res, next) => {
     // Fetch audit timeline
     const auditTimeline = await queryRows(
       `SELECT we.id, we.from_stage, we.to_stage, we.action, we.remarks, we.created_at,
-              u.full_name AS performed_by_name, u.role AS performed_by_role
+              u.id AS performed_by_id, u.full_name AS performed_by_name, u.role AS performed_by_role
          FROM workflow_events we
          LEFT JOIN users u ON we.performed_by = u.id
         WHERE we.case_id = $1
@@ -340,12 +355,13 @@ router.get('/cases/:id', authenticate, async (req, res, next) => {
     }));
 
     // Calculate AI Compliance Risk dynamically
-    let riskScore = 100;
+    // Risk Score: 0 is Optimal (No Risk), 100 is Critical Risk
+    let riskScore = 0;
     let findings = [];
     
     // 1. Deadline Check
     if (caseRecord.overdue) {
-      riskScore -= 20;
+      riskScore += 30; // High risk if overdue
       findings.push({ text: 'Deadline exceeded', status: 'WARNING' });
     } else {
       findings.push({ text: 'On track with timeline', status: 'VERIFIED' });
@@ -363,22 +379,23 @@ router.get('/cases/:id', authenticate, async (req, res, next) => {
     }
     
     if (mismatches.length > 0) {
-      riskScore -= (mismatches.length * 15);
+      riskScore += (mismatches.length * 20);
       findings.push({ text: `${mismatches.length} unresolved document mismatch(es) detected`, status: 'DANGER' });
     } else {
       findings.push({ text: 'No pending document discrepancies', status: 'VERIFIED' });
     }
 
     // 3. Document Checks based on Stage
-    const docs = await queryRows(
-      `SELECT document_type FROM documents WHERE case_id = $1`,
+    const caseDocuments = await queryRows(
+      `SELECT id, document_code, title, document_type, created_at
+         FROM documents WHERE case_id = $1 ORDER BY created_at DESC`,
       [caseRecord.id]
     );
-    const uploadedDocs = docs.map(d => d.document_type);
+    const uploadedDocs = caseDocuments.map(d => d.document_type);
 
     if (caseRecord.current_stage === 'NOTIFICATION') {
       if (!uploadedDocs.includes('NOTIFICATION')) {
-        riskScore -= 10;
+        riskScore += 40;
         findings.push({ text: 'Gazette notification pending', status: 'PENDING' });
       } else {
         findings.push({ text: 'Gazette notification uploaded', status: 'VERIFIED' });
@@ -387,19 +404,23 @@ router.get('/cases/:id', authenticate, async (req, res, next) => {
         findings.push({ text: 'Gazette notification verified', status: 'VERIFIED' });
     }
 
-    // Bound score
+    // Bound score to 0-100
     riskScore = Math.max(0, Math.min(100, riskScore));
-    let riskLevel = 'LOW';
-    if (riskScore < 50) riskLevel = 'CRITICAL';
-    else if (riskScore < 80) riskLevel = 'ATTENTION REQUIRED';
+    let riskLevel = 'OPTIMAL';
+    if (riskScore >= 50) riskLevel = 'CRITICAL';
+    else if (riskScore >= 20) riskLevel = 'ATTENTION REQUIRED';
     else riskLevel = 'OPTIMAL';
+
+    // Calculate a dynamic AI confidence based on data completeness
+    let dataPoints = 1 + (caseRecord.parcel_id ? 1 : 0) + (uploadedDocs.length > 0 ? 1 : 0);
+    let aiConfidence = 70 + (dataPoints * 8); // e.g. 78, 86, 94
 
     const aiCompliance = {
       riskScore,
       riskLevel,
-      aiConfidence: 94,
+      aiConfidence,
       findings,
-      aiRecommendation: riskScore < 80 ? 'Address pending mismatches or upload required documents to proceed safely.' : 'All checks passed. Safe to proceed to the next stage.',
+      aiRecommendation: riskScore >= 20 ? 'Address pending mismatches or upload required documents to proceed safely.' : 'All checks passed. Safe to proceed to the next stage.',
     };
 
     // ── Officer Decision Record (latest non-CREATE workflow event) ──
@@ -454,6 +475,8 @@ router.get('/cases/:id', authenticate, async (req, res, next) => {
         stageLabels: STAGE_LABELS,
         aiCompliance,
         officerDecision,
+        caseDocuments,
+        stageRequiredDocs: STAGE_REQUIRED_DOCS,
       },
     });
   } catch (err) {

@@ -43,8 +43,30 @@ def _compare_exact(extracted: dict, official: dict, field: str) -> list[dict]:
     ext_val = extracted.get(field)
     off_val = official.get(field)
 
-    if ext_val is None or off_val is None:
-        return []  # can't compare if either side is missing
+    if ext_val is None and off_val is None:
+        return []
+
+    if ext_val is None:
+        return [{
+            "field_name": field,
+            "official_value": str(off_val),
+            "extracted_value": "NOT FOUND",
+            "difference": "Missing in document",
+            "severity": "HIGH",
+            "explanation": f"The official {field.replace('_', ' ')} is '{off_val}', but no matching value could be extracted from the document.",
+            "status": "DETECTED"
+        }]
+
+    if off_val is None:
+        return [{
+            "field_name": field,
+            "official_value": "NOT RECORDED",
+            "extracted_value": str(ext_val),
+            "difference": "Missing in official record",
+            "severity": "MEDIUM",
+            "explanation": f"The document contains {field.replace('_', ' ')} '{ext_val}', but it is missing from the official cadastral record.",
+            "status": "DETECTED"
+        }]
 
     if str(ext_val).strip().lower() != str(off_val).strip().lower():
         return [{
@@ -67,20 +89,42 @@ def _compare_area(extracted: dict, official: dict) -> list[dict]:
     ext_val = extracted.get("area_acres")
     off_val = official.get("area_acres")
 
-    if ext_val is None or off_val is None:
+    if ext_val is None and off_val is None:
         return []
 
+    if ext_val is None:
+        return [{
+            "field_name": "area_acres",
+            "official_value": f"{off_val} acres",
+            "extracted_value": "NOT FOUND",
+            "difference": "Missing in document",
+            "severity": "HIGH",
+            "explanation": f"The official area is {off_val} acres, but the area could not be found in the document.",
+            "status": "DETECTED"
+        }]
+
+    if off_val is None:
+        return [{
+            "field_name": "area_acres",
+            "official_value": "NOT RECORDED",
+            "extracted_value": f"{ext_val} acres",
+            "difference": "Missing in official record",
+            "severity": "MEDIUM",
+            "explanation": f"The document contains an area of {ext_val} acres, but it is missing from the official cadastral record.",
+            "status": "DETECTED"
+        }]
+
     try:
-        ext_val = float(ext_val)
-        off_val = float(off_val)
+        ext_val_f = float(ext_val)
+        off_val_f = float(off_val)
     except (TypeError, ValueError):
         return []
 
-    diff = round(abs(ext_val - off_val), 2)
+    diff = round(abs(ext_val_f - off_val_f), 2)
 
     if diff > AREA_TOLERANCE:
         severity = "HIGH" if diff >= 0.2 else "MEDIUM"
-        direction = "less than" if ext_val < off_val else "more than"
+        direction = "less than" if ext_val_f < off_val_f else "more than"
         return [{
             "field_name": "area_acres",
             "official_value": f"{off_val} acres",
@@ -100,8 +144,30 @@ def _compare_fuzzy(extracted: dict, official: dict, field: str) -> list[dict]:
     ext_val = extracted.get(field)
     off_val = official.get(field)
 
-    if ext_val is None or off_val is None:
+    if ext_val is None and off_val is None:
         return []
+
+    if ext_val is None:
+        return [{
+            "field_name": field,
+            "official_value": str(off_val),
+            "extracted_value": "NOT FOUND",
+            "difference": "Missing in document",
+            "severity": "HIGH",
+            "explanation": f"The official {field.replace('_', ' ')} is '{off_val}', but no matching value could be extracted from the document.",
+            "status": "DETECTED"
+        }]
+
+    if off_val is None:
+        return [{
+            "field_name": field,
+            "official_value": "NOT RECORDED",
+            "extracted_value": str(ext_val),
+            "difference": "Missing in official record",
+            "severity": "MEDIUM",
+            "explanation": f"The document contains {field.replace('_', ' ')} '{ext_val}', but it is missing from the official cadastral record.",
+            "status": "DETECTED"
+        }]
 
     similarity = fuzz.ratio(str(ext_val).strip().lower(), str(off_val).strip().lower())
 
