@@ -423,6 +423,8 @@ router.post('/', authenticate, rbac(ROLES.DLAO, ROLES.PIA, ROLES.FRO, ROLES.SGA,
     if (req.file) {
       try {
         const fullDiskPath = path.resolve(UPLOAD_DIR, req.file.filename);
+        const fileUrl = `${req.protocol}://${req.get('host')}/uploads/${req.file.filename}`;
+        
         let targetParcel = null;
         if (parcel_id) {
           targetParcel = await queryOne('SELECT * FROM parcels WHERE id::text = $1', [parcel_id]);
@@ -433,6 +435,7 @@ router.post('/', authenticate, rbac(ROLES.DLAO, ROLES.PIA, ROLES.FRO, ROLES.SGA,
           try {
             const rawExtraction = await callPythonAiService('/api/ai/process-document', {
               file_path: fullDiskPath,
+              file_url: fileUrl,
             });
             if (rawExtraction?.extracted_fields?.survey_number) {
               if (project_id) {
@@ -475,6 +478,7 @@ router.post('/', authenticate, rbac(ROLES.DLAO, ROLES.PIA, ROLES.FRO, ROLES.SGA,
         if (targetParcel && fs.existsSync(fullDiskPath)) {
           const aiRes = await callPythonAiService('/api/ai/process-document', {
             file_path: fullDiskPath,
+            file_url: fileUrl,
             official_parcel: {
               survey_number: targetParcel.survey_number,
               area_acres: parseFloat(targetParcel.area_acres),
