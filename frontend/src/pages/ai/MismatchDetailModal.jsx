@@ -1,6 +1,7 @@
 import { useState, useEffect } from 'react';
 import { Link } from 'react-router-dom';
 import api from '../../services/api';
+import { useAuth } from '../../contexts/AuthContext';
 import {
   X,
   FileText,
@@ -17,6 +18,10 @@ import {
 import PdfViewerModal from '../../components/documents/PdfViewerModal';
 
 export default function MismatchDetailModal({ isOpen, onClose, mismatch, onUpdated }) {
+  const { user } = useAuth();
+  const isFRO = user?.role === 'FRO';
+  const isDLAO = user?.role === 'DLAO' || user?.role === 'SGA' || user?.role === 'ADMIN';
+
   const [status, setStatus] = useState('DETECTED');
   const [remarks, setRemarks] = useState('');
   const [saving, setSaving] = useState(false);
@@ -88,8 +93,8 @@ export default function MismatchDetailModal({ isOpen, onClose, mismatch, onUpdat
       {/* Invisible click-outside catcher with NO background/blur */}
       <div className="fixed inset-0 pointer-events-auto" onClick={onClose} />
 
-      {/* Floating Card Popup in size of form only */}
-      <div className="relative z-10 w-full max-w-xl bg-white rounded-xl shadow-2xl border border-slate-300 ring-1 ring-black/10 overflow-hidden flex flex-col pointer-events-auto my-auto animate-fadeIn">
+      {/* Floating Card Popup — scrollable so SOP + form sections are visible */}
+      <div className="relative z-10 w-full max-w-xl max-h-[90vh] bg-white rounded-xl shadow-2xl border border-slate-300 ring-1 ring-black/10 overflow-hidden flex flex-col pointer-events-auto my-auto animate-fadeIn">
         {/* Header */}
         <div className="bg-slate-900 text-white px-4 py-2.5 flex items-center justify-between border-b border-slate-800 flex-shrink-0">
           <div className="flex items-center gap-2">
@@ -114,8 +119,8 @@ export default function MismatchDetailModal({ isOpen, onClose, mismatch, onUpdat
           </button>
         </div>
 
-        {/* Body */}
-        <div className="p-3 space-y-2 bg-slate-50/50">
+        {/* Body — Scrollable */}
+        <div className="p-3 space-y-2 bg-slate-50/50 overflow-y-auto max-h-[calc(90vh-50px)]">
           {successMsg && (
             <div className="flex items-center gap-1.5 p-1.5 bg-emerald-50 border border-emerald-200 rounded-md text-[11px] font-semibold text-emerald-800">
               <CheckCircle2 className="w-3.5 h-3.5 text-emerald-600 flex-shrink-0" /> {successMsg}
@@ -253,63 +258,237 @@ export default function MismatchDetailModal({ isOpen, onClose, mismatch, onUpdat
             </div>
           </div>
 
-          {/* Officer Action & Status Update Section */}
-          <form onSubmit={handleSave} className="bg-white p-2.5 rounded-lg border border-indigo-100 shadow-sm space-y-1.5">
-            <div className="flex items-center justify-between">
-              <span className="text-[10px] font-bold text-slate-900 uppercase tracking-wider flex items-center gap-1">
-                <ShieldCheck className="w-3 h-3 text-indigo-600" /> Officer Review &amp; Resolution
-              </span>
-            </div>
+          {/* ─── ROLE-BASED SOP & ACTION SECTION ─── */}
 
-            <div className="grid grid-cols-2 gap-2">
-              <div>
-                <label className="form-label text-[9.5px] mb-0.5">Status</label>
-                <select
-                  value={status}
-                  onChange={(e) => setStatus(e.target.value)}
-                  className="form-select text-[11px] font-semibold py-1 px-2"
-                >
-                  <option value="DETECTED">DETECTED</option>
-                  <option value="UNDER_REVIEW">UNDER REVIEW</option>
-                  <option value="RESOLVED">RESOLVED</option>
-                  <option value="FALSE_POSITIVE">FALSE POSITIVE</option>
-                </select>
-              </div>
+          {/* FRO: Field Investigation Notes (NO resolution authority) */}
+          {isFRO && (
+            <>
+              <div className="p-3 bg-gradient-to-r from-blue-50/90 to-cyan-50/80 border border-blue-200 rounded-xl space-y-1.5">
+                <div className="flex items-center justify-between">
+                  <span className="text-[10px] font-black uppercase tracking-wider text-blue-900 flex items-center gap-1.5">
+                    <Sparkles className="w-3.5 h-3.5 text-blue-700" />
+                    Field Investigation Instructions
+                  </span>
+                  <span className="text-[9px] font-bold bg-blue-200/80 text-blue-900 px-1.5 py-0.5 rounded">
+                    FRO Assigned Task
+                  </span>
+                </div>
 
-              <div>
-                <label className="form-label text-[9.5px] mb-0.5">Notes</label>
-                <input
-                  type="text"
-                  value={remarks}
-                  onChange={(e) => setRemarks(e.target.value)}
-                  placeholder="Officer remarks..."
-                  className="form-input text-[11px] py-1 px-2"
-                />
-              </div>
-            </div>
-
-            <div className="flex justify-end gap-1.5 pt-1 border-t border-slate-100">
-              <button
-                type="button"
-                onClick={onClose}
-                className="btn btn-secondary btn-sm text-[11px] py-1 px-2.5"
-              >
-                Close
-              </button>
-              <button
-                type="submit"
-                disabled={saving}
-                className="btn btn-primary btn-sm text-[11px] font-semibold py-1 px-3 flex items-center gap-1"
-              >
-                {saving ? (
-                  <span className="spinner !border-white/30 !border-t-white" />
-                ) : (
-                  <Save className="w-3 h-3" />
+                {mismatch.field_name === 'area_acres' && (
+                  <div className="text-[10.5px] text-slate-700 space-y-1">
+                    <p className="font-semibold text-blue-950">Your task — Verify Ground Acreage:</p>
+                    <ol className="list-decimal list-inside space-y-0.5 text-slate-600 pl-0.5">
+                      <li><strong className="text-slate-800">Go to the physical plot</strong> with DGPS equipment and Agency surveyor.</li>
+                      <li><strong className="text-slate-800">Re-measure plot boundaries</strong> using DGPS / Total Station EDM.</li>
+                      <li><strong className="text-slate-800">Compare with Cadastral Map (Shajra)</strong> — note any boundary encroachment or road inclusion.</li>
+                      <li><strong className="text-slate-800">Prepare Panchnama</strong> — signed by landowner + adjoining plot owners.</li>
+                      <li><strong className="text-slate-800">Record your findings below</strong> and submit. DLAO will make the final adjudication.</li>
+                    </ol>
+                  </div>
                 )}
-                Save Resolution
-              </button>
-            </div>
-          </form>
+
+                {mismatch.field_name === 'owner_name' && (
+                  <div className="text-[10.5px] text-slate-700 space-y-1">
+                    <p className="font-semibold text-blue-950">Your task — Verify Landowner Identity:</p>
+                    <ol className="list-decimal list-inside space-y-0.5 text-slate-600 pl-0.5">
+                      <li><strong className="text-slate-800">Visit the village Patwari office</strong> and inspect the Pariwar Register (family lineage).</li>
+                      <li><strong className="text-slate-800">Verify Aadhaar / Voter ID</strong> of the claimant against Khatauni entry.</li>
+                      <li><strong className="text-slate-800">Determine if alias or different person</strong> — note whether middle name difference is a clerical variation or a rival claim.</li>
+                      <li><strong className="text-slate-800">Record your findings below</strong> and submit. DLAO will pass the final order.</li>
+                    </ol>
+                  </div>
+                )}
+
+                {mismatch.field_name !== 'area_acres' && mismatch.field_name !== 'owner_name' && (
+                  <div className="text-[10.5px] text-slate-700 space-y-1">
+                    <p className="font-semibold text-blue-950">Your task — Verify Record on Ground:</p>
+                    <ol className="list-decimal list-inside space-y-0.5 text-slate-600 pl-0.5">
+                      <li><strong className="text-slate-800">Visit the plot and Tehsil office</strong> to verify the discrepant field.</li>
+                      <li><strong className="text-slate-800">Cross-check with mutation register</strong> and local revenue records.</li>
+                      <li><strong className="text-slate-800">Record your findings below</strong> and submit to DLAO.</li>
+                    </ol>
+                  </div>
+                )}
+              </div>
+
+              {/* FRO: Add Investigation Notes Form */}
+              <form onSubmit={handleSave} className="bg-white p-2.5 rounded-lg border border-blue-200 shadow-sm space-y-1.5">
+                <div className="flex items-center justify-between">
+                  <span className="text-[10px] font-bold text-blue-900 uppercase tracking-wider flex items-center gap-1">
+                    <FileText className="w-3 h-3 text-blue-600" /> Add Field Investigation Notes
+                  </span>
+                  <span className="text-[9px] bg-slate-100 text-slate-600 px-1.5 py-0.5 rounded font-semibold">
+                    Final resolution by DLAO only
+                  </span>
+                </div>
+
+                <div className="space-y-1.5">
+                  <div>
+                    <label className="form-label text-[9.5px] mb-0.5">Investigation Status</label>
+                    <select
+                      value={status}
+                      onChange={(e) => setStatus(e.target.value)}
+                      className="form-select text-[11px] font-semibold py-1 px-2"
+                    >
+                      <option value="UNDER_REVIEW">UNDER REVIEW — I am investigating this</option>
+                      <option value="DETECTED">DETECTED — Reset to pending</option>
+                    </select>
+                  </div>
+
+                  <div>
+                    <label className="form-label text-[9.5px] mb-0.5">Field Investigation Findings *</label>
+                    <textarea
+                      value={remarks}
+                      onChange={(e) => setRemarks(e.target.value)}
+                      placeholder="Describe what you found on-ground... e.g. 'Re-measured with DGPS. Actual ground area is 2.12 acres. Boundary includes 0.38 acres of public road.'"
+                      className="form-input text-[11px] py-1.5 px-2 min-h-[60px] resize-y"
+                      rows={3}
+                      required
+                    />
+                  </div>
+                </div>
+
+                <div className="flex justify-end gap-1.5 pt-1 border-t border-slate-100">
+                  <button
+                    type="button"
+                    onClick={onClose}
+                    className="btn btn-secondary btn-sm text-[11px] py-1 px-2.5"
+                  >
+                    Close
+                  </button>
+                  <button
+                    type="submit"
+                    disabled={saving || !remarks.trim()}
+                    className="btn btn-sm text-[11px] font-semibold py-1 px-3 flex items-center gap-1 text-white"
+                    style={{ background: 'linear-gradient(135deg, #1e40af 0%, #1d4ed8 100%)' }}
+                  >
+                    {saving ? (
+                      <span className="spinner !border-white/30 !border-t-white" />
+                    ) : (
+                      <Save className="w-3 h-3" />
+                    )}
+                    Submit Investigation Notes to DLAO
+                  </button>
+                </div>
+              </form>
+            </>
+          )}
+
+          {/* DLAO / SGA / ADMIN: Full Resolution Authority */}
+          {!isFRO && (
+            <>
+              <div className="p-3 bg-gradient-to-r from-amber-50/90 to-orange-50/80 border border-amber-200 rounded-xl space-y-1.5">
+                <div className="flex items-center justify-between">
+                  <span className="text-[10px] font-black uppercase tracking-wider text-amber-900 flex items-center gap-1.5">
+                    <ShieldCheck className="w-3.5 h-3.5 text-amber-700" />
+                    Statutory DLAO Resolution SOP (RFCTLARR 2013)
+                  </span>
+                  <span className="text-[9px] font-bold bg-amber-200/80 text-amber-900 px-1.5 py-0.5 rounded">
+                    Decision Support Guide
+                  </span>
+                </div>
+
+                {mismatch.field_name === 'area_acres' && (
+                  <div className="text-[10.5px] text-slate-700 space-y-1">
+                    <p className="font-semibold text-amber-950">Measures required for Acreage / Boundary Discrepancy:</p>
+                    <ol className="list-decimal list-inside space-y-0.5 text-slate-600 pl-0.5">
+                      <li><strong className="text-slate-800">Lock Disbursement:</strong> Compensation payment is held until physical ground acreage is resolved.</li>
+                      <li><strong className="text-slate-800">Order Joint Measurement Survey (JMS):</strong> Depute FRO/Patwari + Agency Surveyor with DGPS.</li>
+                      <li><strong className="text-slate-800">Reconcile with Cadastral Map (Shajra):</strong> Compare physical boundary coordinates against official digitized revenue map.</li>
+                      <li><strong className="text-slate-800">Execute Panchnama:</strong> Draft on-site boundary verification memo signed by Landowner &amp; adjoining owners.</li>
+                      <li><strong className="text-slate-800">Pass Section 23 Award Order:</strong> Adjudicate final acquired area and release DBT compensation.</li>
+                    </ol>
+                  </div>
+                )}
+
+                {mismatch.field_name === 'owner_name' && (
+                  <div className="text-[10.5px] text-slate-700 space-y-1">
+                    <p className="font-semibold text-amber-950">Measures required for Landowner Title Discrepancy:</p>
+                    <ol className="list-decimal list-inside space-y-0.5 text-slate-600 pl-0.5">
+                      <li><strong className="text-slate-800">Issue Sec 21 Hearing Notice:</strong> Summon claimant for summary hearing with original identity proofs.</li>
+                      <li><strong className="text-slate-800">Verify Khatauni &amp; Pariwar Register:</strong> Inspect certified 12-year RoR extract and family lineage records.</li>
+                      <li><strong className="text-slate-800">Distinguish Alias vs Rival Claim:</strong>
+                        <ul className="list-disc list-inside pl-3 space-y-0.5 mt-0.5">
+                          <li><em>Same Person (Alias / Spelling):</em> Obtain Notarized Tehsildar Identity Affidavit.</li>
+                          <li><em>Disputed Ownership:</em> Refer to LARRA Court (Sec 64/77) and deposit compensation in civil escrow.</li>
+                        </ul>
+                      </li>
+                      <li><strong className="text-slate-800">Approve Mutation / Title:</strong> Mark Resolved and disburse to verified bank account.</li>
+                    </ol>
+                  </div>
+                )}
+
+                {mismatch.field_name !== 'area_acres' && mismatch.field_name !== 'owner_name' && (
+                  <div className="text-[10.5px] text-slate-700 space-y-1">
+                    <p className="font-semibold text-amber-950">General Cadastral Verification Procedure:</p>
+                    <ol className="list-decimal list-inside space-y-0.5 text-slate-600 pl-0.5">
+                      <li><strong className="text-slate-800">Verify Revenue Master:</strong> Check Tehsil mutation register and sub-division entries.</li>
+                      <li><strong className="text-slate-800">Request Field Verification:</strong> Assign FRO to verify the document against ground records.</li>
+                      <li><strong className="text-slate-800">Update Cadastral Record:</strong> Pass speaking order in BhoomiSetu to harmonize records.</li>
+                    </ol>
+                  </div>
+                )}
+              </div>
+
+              {/* DLAO: Full Resolution Form */}
+              <form onSubmit={handleSave} className="bg-white p-2.5 rounded-lg border border-indigo-100 shadow-sm space-y-1.5">
+                <div className="flex items-center justify-between">
+                  <span className="text-[10px] font-bold text-slate-900 uppercase tracking-wider flex items-center gap-1">
+                    <ShieldCheck className="w-3 h-3 text-indigo-600" /> DLAO Adjudication &amp; Resolution
+                  </span>
+                </div>
+
+                <div className="grid grid-cols-2 gap-2">
+                  <div>
+                    <label className="form-label text-[9.5px] mb-0.5">Resolution Status</label>
+                    <select
+                      value={status}
+                      onChange={(e) => setStatus(e.target.value)}
+                      className="form-select text-[11px] font-semibold py-1 px-2"
+                    >
+                      <option value="DETECTED">DETECTED — Pending review</option>
+                      <option value="UNDER_REVIEW">UNDER REVIEW — Investigation ongoing</option>
+                      <option value="RESOLVED">✅ RESOLVED — Adjudicated &amp; corrected</option>
+                      <option value="FALSE_POSITIVE">⚪ FALSE POSITIVE — AI flag incorrect</option>
+                    </select>
+                  </div>
+
+                  <div>
+                    <label className="form-label text-[9.5px] mb-0.5">Order / Remarks</label>
+                    <input
+                      type="text"
+                      value={remarks}
+                      onChange={(e) => setRemarks(e.target.value)}
+                      placeholder="Speaking order reference..."
+                      className="form-input text-[11px] py-1 px-2"
+                    />
+                  </div>
+                </div>
+
+                <div className="flex justify-end gap-1.5 pt-1 border-t border-slate-100">
+                  <button
+                    type="button"
+                    onClick={onClose}
+                    className="btn btn-secondary btn-sm text-[11px] py-1 px-2.5"
+                  >
+                    Close
+                  </button>
+                  <button
+                    type="submit"
+                    disabled={saving}
+                    className="btn btn-primary btn-sm text-[11px] font-semibold py-1 px-3 flex items-center gap-1"
+                  >
+                    {saving ? (
+                      <span className="spinner !border-white/30 !border-t-white" />
+                    ) : (
+                      <Save className="w-3 h-3" />
+                    )}
+                    Pass Resolution Order
+                  </button>
+                </div>
+              </form>
+            </>
+          )}
         </div>
       </div>
 

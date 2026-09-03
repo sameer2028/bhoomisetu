@@ -106,7 +106,7 @@ def _compare_fuzzy(extracted: dict, official: dict, field: str) -> list[dict]:
     similarity = fuzz.ratio(str(ext_val).strip().lower(), str(off_val).strip().lower())
 
     if similarity < FUZZY_MATCH_THRESHOLD:
-        severity = "HIGH" if similarity < 60 else "LOW"
+        severity = "HIGH" if (similarity < 85 or field == "owner_name") else "MEDIUM"
         return [{
             "field_name": field,
             "official_value": str(off_val),

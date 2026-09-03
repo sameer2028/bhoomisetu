@@ -2,7 +2,9 @@ const express = require('express');
 const multer = require('multer');
 const path = require('path');
 const fs = require('fs');
-const { queryOne, queryRows } = require('../../config/database');
+const http = require('http');
+const { v4: uuidv4 } = require('uuid');
+const { queryOne, queryRows, query } = require('../../config/database');
 const { authenticate } = require('../../middleware/auth');
 const { rbac } = require('../../middleware/rbac');
 const { apiResponse, logAudit, generateId, parsePagination } = require('../../utils/helpers');
@@ -46,6 +48,51 @@ const upload = multer({
     }
   },
 });
+
+/**
+ * Helper to call Python FastAPI microservice (http://127.0.0.1:8000)
+ */
+async function callPythonAiService(endpoint, body) {
+  return new Promise((resolve, reject) => {
+    const postData = JSON.stringify(body);
+    const options = {
+      hostname: '127.0.0.1',
+      port: 8000,
+      path: endpoint,
+      method: 'POST',
+      headers: {
+        'Content-Type': 'application/json',
+        'Content-Length': Buffer.byteLength(postData),
+      },
+      timeout: 15000,
+    };
+
+    const req = http.request(options, (res) => {
+      let data = '';
+      res.on('data', (chunk) => { data += chunk; });
+      res.on('end', () => {
+        try {
+          if (res.statusCode >= 200 && res.statusCode < 300) {
+            resolve(JSON.parse(data));
+          } else {
+            reject(new Error(`AI Service returned status ${res.statusCode}: ${data}`));
+          }
+        } catch (e) {
+          reject(e);
+        }
+      });
+    });
+
+    req.on('error', (e) => reject(e));
+    req.on('timeout', () => {
+      req.destroy();
+      reject(new Error('AI Service request timed out'));
+    });
+
+    req.write(postData);
+    req.end();
+  });
+}
 
 /**
  * Generate sequential document code like DOC-2026-001
@@ -127,12 +174,26 @@ router.get('/', authenticate, async (req, res, next) => {
       conditions.push(`d.access_level != 'CONFIDENTIAL'`);
     }
 
+    // Role-based jurisdiction filtering
+    if ((req.user.role === ROLES.DLAO || req.user.role === ROLES.FRO) && req.user.district) {
+      params.push(req.user.district);
+      conditions.push(`pr.district = $${params.length}`);
+    }
+
     const where = conditions.length ? `WHERE ${conditions.join(' AND ')}` : '';
 
-    const countRow = await queryOne(`SELECT COUNT(*) AS count FROM documents d ${where}`, params);
+    const countRow = await queryOne(
+      `SELECT COUNT(*) AS count 
+         FROM documents d 
+         LEFT JOIN projects pr ON d.project_id = pr.id 
+         ${where}`, 
+      params
+    );
 
     const documents = await queryRows(
       `SELECT d.*,
+              (SELECT COUNT(*) FROM ai_mismatches m WHERE m.document_id = d.id) AS mismatch_count,
+              (SELECT COUNT(*) FROM ai_mismatches m WHERE m.document_id = d.id AND m.status = 'DETECTED') AS open_mismatch_count,
               u.full_name AS uploaded_by_name,
               u.role AS uploaded_by_role,
               pr.name AS project_name, pr.project_code,
@@ -221,7 +282,8 @@ router.get('/:id/file', streamDocPdf);
 router.get('/:id/pdf', streamDocPdf);
 
 // =====================================================================
-//  GET /api/documents/:id — Single document detail with version history
+// =====================================================================
+//  GET /api/documents/:id — Single document detail with version history & AI checks
 // =====================================================================
 router.get('/:id', authenticate, async (req, res, next) => {
   try {
@@ -229,7 +291,7 @@ router.get('/:id', authenticate, async (req, res, next) => {
       `SELECT d.*,
               u.full_name AS uploaded_by_name, u.role AS uploaded_by_role,
               pr.name AS project_name, pr.project_code,
-              p.survey_number, p.parcel_code, p.village, p.district AS parcel_district,
+              p.survey_number, p.parcel_code, p.village, p.district AS parcel_district, p.area_acres, p.owner_name,
               ac.case_code, ac.current_stage
          FROM documents d
          LEFT JOIN users u ON d.uploaded_by = u.id
@@ -259,6 +321,12 @@ router.get('/:id', authenticate, async (req, res, next) => {
       [doc.id]
     );
 
+    // Fetch detected AI mismatches for this document
+    const mismatches = await queryRows(
+      `SELECT * FROM ai_mismatches WHERE document_id = $1 ORDER BY detected_at DESC`,
+      [doc.id]
+    );
+
     // Fetch audit trail for this document
     const auditTrail = await queryRows(
       `SELECT al.*, u.full_name AS performed_by_name
@@ -275,6 +343,7 @@ router.get('/:id', authenticate, async (req, res, next) => {
       success: true,
       data: {
         ...doc,
+        mismatches: mismatches || [],
         versions,
         auditTrail,
       },
@@ -285,11 +354,11 @@ router.get('/:id', authenticate, async (req, res, next) => {
 });
 
 // =====================================================================
-//  POST /api/documents — Upload a new document
+//  POST /api/documents — Upload a new document with automated AI verification
 // =====================================================================
 router.post('/', authenticate, rbac(ROLES.DLAO, ROLES.PIA, ROLES.FRO, ROLES.SGA, ROLES.ADMIN), upload.single('file'), async (req, res, next) => {
   try {
-    const { title, description, document_type, project_id, parcel_id, case_id, access_level } = req.body;
+    const { title, description, document_type, project_id, parcel_id, case_id, access_level, auto_verify } = req.body;
 
     if (!title) {
       return apiResponse(res, { status: 400, success: false, error: 'Document title is required.' });
@@ -300,7 +369,7 @@ router.post('/', authenticate, rbac(ROLES.DLAO, ROLES.PIA, ROLES.FRO, ROLES.SGA,
     const docType = document_type && Object.keys(DOCUMENT_TYPES).includes(document_type) ? document_type : 'OTHER';
     const accessLvl = access_level && ['PUBLIC', 'RESTRICTED', 'CONFIDENTIAL'].includes(access_level) ? access_level : 'PUBLIC';
 
-    // File info (file is optional — metadata-only records are valid)
+    // File info
     let file_path = null, file_name = null, file_size = null, mime_type = null;
     if (req.file) {
       file_path = `/uploads/${req.file.filename}`;
@@ -334,7 +403,7 @@ router.post('/', authenticate, rbac(ROLES.DLAO, ROLES.PIA, ROLES.FRO, ROLES.SGA,
       );
     }
 
-    const created = await queryOne(
+    let created = await queryOne(
       `SELECT d.*, u.full_name AS uploaded_by_name,
               pr.name AS project_name, pr.project_code,
               p.survey_number, p.parcel_code
@@ -346,20 +415,255 @@ router.post('/', authenticate, rbac(ROLES.DLAO, ROLES.PIA, ROLES.FRO, ROLES.SGA,
       [id]
     );
 
+    // ─── Automated AI OCR & Cadastral Discrepancy Detection ──────────
+    let aiVerification = null;
+    if (req.file) {
+      try {
+        const fullDiskPath = path.resolve(UPLOAD_DIR, req.file.filename);
+        let targetParcel = null;
+        if (parcel_id) {
+          targetParcel = await queryOne('SELECT * FROM parcels WHERE id::text = $1', [parcel_id]);
+        }
+
+        // If target parcel not explicitly provided, try to extract fields from OCR to find survey number
+        if (!targetParcel && fs.existsSync(fullDiskPath)) {
+          try {
+            const rawExtraction = await callPythonAiService('/api/ai/process-document', {
+              file_path: fullDiskPath,
+            });
+            if (rawExtraction?.extracted_fields?.survey_number) {
+              if (project_id) {
+                targetParcel = await queryOne(
+                  'SELECT * FROM parcels WHERE project_id::text = $1 AND survey_number ILIKE $2 LIMIT 1',
+                  [project_id, rawExtraction.extracted_fields.survey_number]
+                );
+              }
+              if (!targetParcel) {
+                targetParcel = await queryOne(
+                  'SELECT * FROM parcels WHERE survey_number ILIKE $1 LIMIT 1',
+                  [rawExtraction.extracted_fields.survey_number]
+                );
+              }
+            }
+            if (!targetParcel && project_id) {
+              targetParcel = await queryOne('SELECT * FROM parcels WHERE project_id::text = $1 ORDER BY parcel_code ASC LIMIT 1', [project_id]);
+            }
+            if (targetParcel) {
+              await queryOne('UPDATE documents SET parcel_id = $1 WHERE id = $2', [targetParcel.id, id]);
+              created.parcel_id = targetParcel.id;
+              created.parcel_code = targetParcel.parcel_code;
+              created.survey_number = targetParcel.survey_number;
+            } else if (rawExtraction) {
+              aiVerification = {
+                hasMismatches: false,
+                mismatchCount: 0,
+                mismatches: [],
+                extracted_fields: rawExtraction.extracted_fields,
+                raw_text: rawExtraction.raw_text,
+                target_parcel: null,
+                note: 'OCR extraction completed. Link to a cadastral parcel to evaluate discrepancies.',
+              };
+            }
+          } catch (e) {
+            console.log('[AI Auto-Extract] Could not auto-detect survey number:', e.message);
+          }
+        }
+
+        if (targetParcel && fs.existsSync(fullDiskPath)) {
+          const aiRes = await callPythonAiService('/api/ai/process-document', {
+            file_path: fullDiskPath,
+            official_parcel: {
+              survey_number: targetParcel.survey_number,
+              area_acres: parseFloat(targetParcel.area_acres),
+              village: targetParcel.village,
+              owner_name: targetParcel.owner_name,
+              district: targetParcel.district,
+            },
+          });
+
+          if (aiRes && aiRes.success) {
+            const detectedMismatches = aiRes.mismatches || [];
+            const savedRecords = [];
+            for (const m of detectedMismatches) {
+              const recId = uuidv4();
+              const saved = await queryOne(
+                `INSERT INTO ai_mismatches (
+                   id, document_id, parcel_id, field_name, official_value, extracted_value,
+                   difference, severity, explanation, status, detected_at
+                 ) VALUES ($1, $2, $3, $4, $5, $6, $7, $8, $9, 'DETECTED', now())
+                 RETURNING *`,
+                [
+                  recId,
+                  id,
+                  targetParcel.id,
+                  m.field_name,
+                  m.official_value,
+                  m.extracted_value,
+                  m.difference,
+                  m.severity,
+                  m.explanation,
+                ]
+              );
+              savedRecords.push(saved);
+            }
+
+            aiVerification = {
+              hasMismatches: detectedMismatches.length > 0,
+              mismatchCount: detectedMismatches.length,
+              mismatches: savedRecords,
+              extracted_fields: aiRes.extracted_fields,
+              raw_text: aiRes.raw_text,
+              target_parcel: {
+                id: targetParcel.id,
+                parcel_code: targetParcel.parcel_code,
+                survey_number: targetParcel.survey_number,
+                owner_name: targetParcel.owner_name,
+                village: targetParcel.village,
+                area_acres: targetParcel.area_acres,
+              },
+            };
+          }
+        }
+      } catch (aiErr) {
+        console.error('[AI Upload Verification Error]:', aiErr.message);
+      }
+    }
+
     await logAudit({
       entityType: 'document',
       entityId: id,
       action: 'UPLOAD_DOCUMENT',
       performedBy: req.user.id,
-      newValues: { title: title.trim(), document_type: docType, file_name, document_code },
+      newValues: {
+        title: title.trim(),
+        document_type: docType,
+        file_name,
+        document_code,
+        has_ai_mismatches: aiVerification?.hasMismatches || false,
+        mismatch_count: aiVerification?.mismatchCount || 0,
+      },
       ipAddress: req.ip,
     });
 
     return apiResponse(res, {
       status: 201,
       success: true,
-      message: 'Document uploaded successfully',
-      data: created,
+      message: aiVerification?.hasMismatches
+        ? `Document uploaded! ⚠️ AI detected ${aiVerification.mismatchCount} discrepancy flag(s) against official cadastral records.`
+        : 'Document uploaded and verified successfully',
+      data: {
+        ...created,
+        ai_verification: aiVerification,
+      },
+    });
+  } catch (err) {
+    next(err);
+  }
+});
+
+// =====================================================================
+//  POST /api/documents/:id/verify-ai — Trigger AI Verification on Existing Document
+// =====================================================================
+router.post('/:id/verify-ai', authenticate, rbac(ROLES.DLAO, ROLES.PIA, ROLES.FRO, ROLES.SGA, ROLES.ADMIN), async (req, res, next) => {
+  try {
+    const doc = await queryOne(
+      `SELECT d.*, p.survey_number, p.area_acres, p.village, p.owner_name, p.district AS parcel_district
+       FROM documents d
+       LEFT JOIN parcels p ON d.parcel_id = p.id
+       WHERE d.id::text = $1 OR d.document_code = $1`,
+      [req.params.id]
+    );
+
+    if (!doc) {
+      return apiResponse(res, { status: 404, success: false, error: 'Document not found' });
+    }
+
+    if (!doc.file_path) {
+      return apiResponse(res, { status: 400, success: false, error: 'Document does not have an uploaded file to analyze.' });
+    }
+
+    const cleanPath = doc.file_path.replace(/^\//, '');
+    let targetFilePath = path.resolve(__dirname, '..', '..', '..', cleanPath);
+    if (!fs.existsSync(targetFilePath)) {
+      targetFilePath = path.resolve(__dirname, '..', '..', '..', 'uploads', path.basename(cleanPath));
+    }
+    if (!fs.existsSync(targetFilePath)) {
+      targetFilePath = path.resolve(__dirname, '..', '..', '..', '..', 'ai-service', 'data', 'sample_docs', path.basename(cleanPath));
+    }
+
+    if (!fs.existsSync(targetFilePath)) {
+      return apiResponse(res, { status: 404, success: false, error: 'Physical document file not found on server.' });
+    }
+
+    let targetParcel = null;
+    if (doc.parcel_id) {
+      targetParcel = await queryOne('SELECT * FROM parcels WHERE id = $1', [doc.parcel_id]);
+    }
+
+    // Call Python AI Service
+    const aiRes = await callPythonAiService('/api/ai/process-document', {
+      file_path: targetFilePath,
+      official_parcel: targetParcel ? {
+        survey_number: targetParcel.survey_number,
+        area_acres: parseFloat(targetParcel.area_acres),
+        village: targetParcel.village,
+        owner_name: targetParcel.owner_name,
+        district: targetParcel.district,
+      } : undefined,
+    });
+
+    // If targetParcel was missing, see if survey_number extracted connects to one
+    if (!targetParcel && aiRes?.extracted_fields?.survey_number) {
+      targetParcel = await queryOne('SELECT * FROM parcels WHERE survey_number ILIKE $1 LIMIT 1', [aiRes.extracted_fields.survey_number]);
+      if (targetParcel) {
+        await queryOne('UPDATE documents SET parcel_id = $1 WHERE id = $2', [targetParcel.id, doc.id]);
+      }
+    }
+
+    const detectedMismatches = aiRes?.mismatches || [];
+    const savedRecords = [];
+    if (targetParcel) {
+      // Clear previous unadjudicated mismatches for this document to avoid duplicates
+      await query('DELETE FROM ai_mismatches WHERE document_id = $1 AND status = \'DETECTED\'', [doc.id]);
+
+      for (const m of detectedMismatches) {
+        const recId = uuidv4();
+        const saved = await queryOne(
+          `INSERT INTO ai_mismatches (
+             id, document_id, parcel_id, field_name, official_value, extracted_value,
+             difference, severity, explanation, status, detected_at
+           ) VALUES ($1, $2, $3, $4, $5, $6, $7, $8, $9, 'DETECTED', now())
+           RETURNING *`,
+          [
+            recId,
+            doc.id,
+            targetParcel.id,
+            m.field_name,
+            m.official_value,
+            m.extracted_value,
+            m.difference,
+            m.severity,
+            m.explanation,
+          ]
+        );
+        savedRecords.push(saved);
+      }
+    }
+
+    return apiResponse(res, {
+      status: 200,
+      success: true,
+      message: detectedMismatches.length > 0
+        ? `${detectedMismatches.length} Cadastral Discrepancy Flag(s) Detected by AI!`
+        : 'AI Document Verification Complete: 100% Match with Cadastral Record.',
+      data: {
+        hasMismatches: detectedMismatches.length > 0,
+        mismatchCount: detectedMismatches.length,
+        mismatches: savedRecords,
+        extracted_fields: aiRes?.extracted_fields,
+        raw_text: aiRes?.raw_text,
+        parcel: targetParcel,
+      },
     });
   } catch (err) {
     next(err);

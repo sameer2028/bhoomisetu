@@ -117,13 +117,22 @@ router.get('/families', authenticate, async (req, res, next) => {
       paramIdx++;
     }
 
+    // Role-based jurisdiction filtering
+    if ((req.user.role === 'DLAO' || req.user.role === 'FRO') && req.user.district) {
+      conditions.push(`p.district = $${paramIdx++}`);
+      params.push(req.user.district);
+    }
+
     const whereClause = conditions.length > 0 ? `WHERE ${conditions.join(' AND ')}` : '';
     const havingClause = isDelayedOnly
       ? `HAVING COUNT(ra.id) FILTER (WHERE ra.status = 'DELAYED' OR (ra.status != 'COMPLETED' AND ra.due_date IS NOT NULL AND ra.due_date < CURRENT_DATE)) > 0`
       : '';
 
     const countRow = await queryOne(
-      `SELECT COUNT(*) AS total FROM families f ${whereClause}`,
+      `SELECT COUNT(*) AS total 
+       FROM families f 
+       LEFT JOIN projects p ON f.project_id = p.id 
+       ${whereClause}`,
       params
     );
     const total = parseInt(countRow.total, 10) || 0;
@@ -372,10 +381,20 @@ router.get('/activities', authenticate, async (req, res, next) => {
       paramIdx++;
     }
 
+    // Role-based jurisdiction filtering
+    if ((req.user.role === 'DLAO' || req.user.role === 'FRO') && req.user.district) {
+      conditions.push(`p.district = $${paramIdx++}`);
+      params.push(req.user.district);
+    }
+
     const whereClause = conditions.length > 0 ? `WHERE ${conditions.join(' AND ')}` : '';
 
     const countRow = await queryOne(
-      `SELECT COUNT(*) AS total FROM rr_activities ra LEFT JOIN families f ON f.id = ra.family_id ${whereClause}`,
+      `SELECT COUNT(*) AS total 
+       FROM rr_activities ra 
+       LEFT JOIN families f ON f.id = ra.family_id 
+       LEFT JOIN projects p ON p.id = f.project_id
+       ${whereClause}`,
       params
     );
     const total = parseInt(countRow.total, 10) || 0;

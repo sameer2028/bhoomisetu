@@ -1,6 +1,7 @@
 import { useState, useEffect, useCallback } from 'react';
 import { Link, useSearchParams } from 'react-router-dom';
 import { useAuth } from '../../contexts/AuthContext';
+import { toLandReference } from '../../services/landRecordMapper';
 import api from '../../services/api';
 import ParcelCreateModal from './ParcelCreateModal';
 import {
@@ -117,49 +118,65 @@ export default function ParcelListPage() {
         </div>
       </div>
 
-      {/* Filter & Search Controls */}
-      <div className="card p-4 flex flex-col md:flex-row items-center gap-3">
-        <div className="relative flex-1 w-full">
-          <Search className="w-4 h-4 text-slate-400 absolute left-3 top-1/2 -translate-y-1/2" />
+      {/* Modern Compact Horizontal Enterprise Filter Bar */}
+      <div className="bg-white rounded-2xl border border-slate-200/90 shadow-card p-3 flex flex-wrap lg:flex-nowrap items-center gap-2.5">
+        {/* Search */}
+        <div className="relative flex-1 min-w-[220px] w-full lg:w-auto">
+          <Search className="w-4 h-4 text-slate-400 absolute left-3.5 top-1/2 -translate-y-1/2" />
           <input
             type="text"
             placeholder="Search by survey no. (e.g. 123/2), owner name, village, or parcel code..."
             value={search}
             onChange={(e) => setSearch(e.target.value)}
-            className="form-input form-input-search text-xs"
+            className="form-input form-input-search text-xs w-full"
           />
         </div>
 
-        <div className="flex flex-col sm:flex-row items-center gap-2 w-full md:w-auto">
-          {/* Project Filter */}
-          <select
-            value={projectIdFilter}
-            onChange={(e) => setProjectIdFilter(e.target.value)}
-            className="form-select text-xs w-full sm:w-60"
-          >
-            <option value="">All Associated Projects</option>
-            {projects.map((p) => (
-              <option key={p.id} value={p.id}>
-                [{p.project_code}] {p.name}
-              </option>
-            ))}
-          </select>
+        {/* Dropdowns & Controls */}
+        <select
+          value={projectIdFilter}
+          onChange={(e) => setProjectIdFilter(e.target.value)}
+          className="form-select text-xs w-auto min-w-[180px]"
+        >
+          <option value="">All Associated Projects</option>
+          {projects.map((p) => (
+            <option key={p.id} value={p.id}>
+              [{p.project_code}] {p.name}
+            </option>
+          ))}
+        </select>
 
-          {/* Status Filter */}
-          <select
-            value={statusFilter}
-            onChange={(e) => setStatusFilter(e.target.value)}
-            className="form-select text-xs w-full sm:w-48"
-          >
-            <option value="">All Acquisition Statuses</option>
-            <option value="PROPOSED">Proposed</option>
-            <option value="NOTIFIED">Notified</option>
-            <option value="UNDER_ACQUISITION">Under Acquisition</option>
-            <option value="ACQUIRED">Acquired</option>
-            <option value="POSSESSION_TAKEN">Possession Taken</option>
-            <option value="RR_ISSUE">R&amp;R Flagged</option>
-          </select>
-        </div>
+        <select
+          value={statusFilter}
+          onChange={(e) => setStatusFilter(e.target.value)}
+          className="form-select text-xs w-auto min-w-[160px]"
+        >
+          <option value="">All Acquisition Statuses</option>
+          <option value="PROPOSED">Proposed</option>
+          <option value="NOTIFIED">Notified</option>
+          <option value="UNDER_ACQUISITION">Under Acquisition</option>
+          <option value="ACQUIRED">Acquired</option>
+          <option value="POSSESSION_TAKEN">Possession Taken</option>
+          <option value="RR_ISSUE">R&amp;R Flagged</option>
+        </select>
+
+        <label className="flex items-center gap-1.5 px-3 py-2 rounded-lg bg-slate-50 border border-slate-200 hover:bg-slate-100 cursor-pointer select-none text-xs font-semibold text-slate-700 whitespace-nowrap transition-colors flex-shrink-0">
+          <input
+            type="checkbox"
+            checked={statusFilter === 'RR_ISSUE'}
+            onChange={(e) => setStatusFilter(e.target.checked ? 'RR_ISSUE' : '')}
+            className="w-3.5 h-3.5 rounded text-rose-600 focus:ring-rose-500 border-slate-300"
+          />
+          <Flag className={`w-3.5 h-3.5 ${statusFilter === 'RR_ISSUE' ? 'text-rose-600' : 'text-slate-400'}`} />
+          <span className={statusFilter === 'RR_ISSUE' ? 'text-rose-700 font-bold' : ''}>Flagged Only</span>
+        </label>
+
+        <button
+          onClick={() => { setSearch(''); setStatusFilter(''); setProjectIdFilter(''); }}
+          className="btn btn-secondary btn-sm text-xs font-semibold flex items-center gap-1.5 flex-shrink-0"
+        >
+          <Filter className="w-3.5 h-3.5 text-slate-400" /> Filters
+        </button>
       </div>
 
       {/* Parcels Table / Card List */}
@@ -186,11 +203,9 @@ export default function ParcelListPage() {
             <table className="data-table">
               <thead>
                 <tr>
-                  <th>Parcel Code</th>
-                  <th>Survey No.</th>
-                  <th>Village &amp; District</th>
-                  <th>Area</th>
-                  <th>Owner Name</th>
+                  <th>Land Ref.</th>
+                  <th>Land Details</th>
+                  <th>Owner / Titleholder</th>
                   <th>Associated Project</th>
                   <th>Acquisition Status</th>
                   <th className="text-right">Action</th>
@@ -200,26 +215,32 @@ export default function ParcelListPage() {
                 {parcels.map((parcel) => (
                   <tr key={parcel.id} className="hover:bg-blue-50/40 transition-colors">
                     <td>
-                      <div className="flex items-center gap-1.5">
-                        <span className="font-mono font-bold text-blue-900 text-xs">{parcel.parcel_code}</span>
+                      <div className="flex flex-col gap-1">
+                        <span className="font-mono font-bold text-blue-900 text-xs">
+                          {toLandReference({
+                            parcelCode: parcel.parcel_code,
+                            surveyNumber: parcel.survey_number,
+                            village: parcel.village,
+                            year: parcel.created_at ? new Date(parcel.created_at).getFullYear() : '2026'
+                          })}
+                        </span>
                         {Number(parcel.open_mismatches_count) > 0 && (
                           <Link
                             to={`/ai/mismatch?search=${parcel.parcel_code}`}
-                            className="inline-flex items-center gap-1 px-1.5 py-0.5 rounded bg-rose-100 text-rose-800 border border-rose-200 text-[10px] font-extrabold hover:bg-rose-200 transition-colors"
+                            className="inline-flex items-center gap-1 px-1.5 py-0.5 rounded bg-rose-100 text-rose-800 border border-rose-200 text-[10px] font-extrabold hover:bg-rose-200 transition-colors w-max"
                             title={`${parcel.open_mismatches_count} open discrepancy flag(s) — Click to inspect in AI Verification`}
                           >
                             <Flag className="w-2.5 h-2.5 fill-rose-600 text-rose-600" />
-                            <span>{parcel.open_mismatches_count}</span>
+                            <span>{parcel.open_mismatches_count} Discrepancies</span>
                           </Link>
                         )}
                       </div>
                     </td>
-                    <td className="font-bold text-slate-900 text-xs">{parcel.survey_number}</td>
                     <td>
-                      <div className="font-semibold text-slate-800 text-xs">{parcel.village}</div>
-                      <div className="text-[10.5px] text-slate-400">{parcel.district}, {parcel.state}</div>
+                      <div className="font-bold text-slate-900 text-xs">Survey No. {parcel.survey_number}</div>
+                      <div className="text-[10.5px] text-slate-500 font-medium">{parcel.village}, {parcel.district}</div>
+                      <div className="text-[10px] text-slate-400">{parcel.area_acres} Acres</div>
                     </td>
-                    <td className="font-extrabold text-slate-900 text-xs">{parcel.area_acres} Acres</td>
                     <td>
                       <div className="flex items-center gap-1.5 text-slate-800 font-medium text-xs">
                         <User className="w-3.5 h-3.5 text-slate-400 flex-shrink-0" />

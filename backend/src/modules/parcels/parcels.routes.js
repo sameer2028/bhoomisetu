@@ -75,9 +75,21 @@ router.get('/', authenticate, async (req, res, next) => {
       );
     }
 
+    // Role-based jurisdiction filtering (skipped if project_id is given or all=true)
+    if (!project_id && req.query.all !== 'true' && (req.user.role === ROLES.DLAO || req.user.role === ROLES.FRO) && req.user.district) {
+      params.push(req.user.district);
+      conditions.push(`pr.district = $${params.length}`);
+    }
+
     const where = conditions.length ? `WHERE ${conditions.join(' AND ')}` : '';
 
-    const countRow = await queryOne(`SELECT COUNT(*) AS count FROM parcels p ${where}`, params);
+    const countRow = await queryOne(
+      `SELECT COUNT(*) AS count 
+         FROM parcels p 
+         LEFT JOIN projects pr ON p.project_id = pr.id 
+         ${where}`, 
+      params
+    );
 
     const parcels = await queryRows(
       `SELECT ${PARCEL_COLUMNS},

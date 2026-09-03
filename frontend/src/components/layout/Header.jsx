@@ -14,8 +14,12 @@ import {
   Users as UsersIcon,
   AlertTriangle,
   ChevronRight,
-  ExternalLink
+  ExternalLink,
+  Menu,
+  HelpCircle,
 } from 'lucide-react';
+import { toLandReference } from '../../services/landRecordMapper';
+import LandRecordGuide from '../common/LandRecordGuide';
 
 const PRIORITY_BADGES = {
   CRITICAL: 'bg-rose-100 text-rose-800 border-rose-200',
@@ -24,7 +28,7 @@ const PRIORITY_BADGES = {
   LOW: 'bg-slate-100 text-slate-700 border-slate-200',
 };
 
-export default function Header() {
+export default function Header({ mobileOpen, setMobileOpen }) {
   const { user, roleLabel } = useAuth();
   const navigate = useNavigate();
 
@@ -33,6 +37,7 @@ export default function Header() {
   const [searchResults, setSearchResults] = useState(null);
   const [isSearching, setIsSearching] = useState(false);
   const [isSearchOpen, setIsSearchOpen] = useState(false);
+  const [isGuideOpen, setIsGuideOpen] = useState(false);
   const searchInputRef = useRef(null);
   const searchContainerRef = useRef(null);
 
@@ -82,7 +87,7 @@ export default function Header() {
       }
       setIsNotificationsOpen(false);
 
-      if (alertItem.case_id) navigate('/workflow');
+      if (alertItem.case_id) navigate('/cases');
       else if (alertItem.parcel_id) navigate('/parcels');
       else if (alertItem.project_id) navigate('/projects');
       else navigate('/alerts');
@@ -151,9 +156,9 @@ export default function Header() {
 
   const totalResults = searchResults
     ? (searchResults.projects?.length || 0) +
-      (searchResults.parcels?.length || 0) +
-      (searchResults.cases?.length || 0) +
-      (searchResults.families?.length || 0)
+    (searchResults.parcels?.length || 0) +
+    (searchResults.cases?.length || 0) +
+    (searchResults.families?.length || 0)
     : 0;
 
   return (
@@ -166,15 +171,26 @@ export default function Header() {
       </div>
 
       {/* Main Government Bar */}
-      <div className="h-16 flex items-center justify-between px-4 sm:px-6">
-        {/* Left — Official Emblem & Bilingual Title */}
-        <div className="flex items-center gap-3">
+      <div className="h-16 flex items-center justify-between px-3 sm:px-6">
+        {/* Left — Mobile Hamburger + Official Emblem & Bilingual Title */}
+        <div className="flex items-center gap-2.5 sm:gap-3">
+          {/* Hamburger Button for Mobile View */}
+          <button
+            type="button"
+            onClick={() => setMobileOpen && setMobileOpen(!mobileOpen)}
+            className="lg:hidden p-2 rounded-xl text-slate-700 hover:bg-slate-100 hover:text-slate-900 border border-slate-200 shadow-sm flex items-center justify-center flex-shrink-0 cursor-pointer"
+            title="Toggle Navigation Menu"
+            aria-label="Toggle Navigation Menu"
+          >
+            <Menu className="w-5 h-5 text-slate-800" />
+          </button>
+
           <img
             src="/emblem.png"
             alt="State Emblem of India"
-            className="h-12 w-auto object-contain flex-shrink-0"
+            className="h-10 sm:h-12 w-auto object-contain flex-shrink-0"
           />
-          <div className="border-l border-neutral-300 pl-3">
+          <div className="border-l border-neutral-300 pl-2.5 sm:pl-3">
             <div className="flex items-center gap-1.5">
               <span className="text-[10px] font-bold text-emerald-800 uppercase tracking-widest leading-none">
                 Government of India • भारत सरकार
@@ -291,8 +307,15 @@ export default function Header() {
                           <div className="flex items-center gap-2">
                             <MapPin className="w-4 h-4 text-emerald-700 flex-shrink-0" />
                             <div>
-                              <p className="font-bold text-slate-900">Survey #{pc.survey_number} ({pc.village})</p>
-                              <p className="text-[10px] text-slate-500 font-mono">{pc.parcel_code} • {pc.project_name}</p>
+                              <p className="font-bold text-slate-900">
+                                {toLandReference({
+                                  parcelCode: pc.parcel_code,
+                                  surveyNumber: pc.survey_number,
+                                  village: pc.village,
+                                  year: pc.created_at ? new Date(pc.created_at).getFullYear() : '2026'
+                                })}
+                              </p>
+                              <p className="text-[10px] text-slate-500 font-mono">Survey #{pc.survey_number} • {pc.village} • {pc.project_name}</p>
                             </div>
                           </div>
                           <ChevronRight className="w-3.5 h-3.5 text-slate-400" />
@@ -311,7 +334,7 @@ export default function Header() {
                         <div
                           key={c.id}
                           onClick={() => {
-                            navigate('/workflow');
+                            navigate('/cases');
                             setIsSearchOpen(false);
                           }}
                           className="p-2 rounded-lg hover:bg-slate-100 cursor-pointer flex items-center justify-between"
@@ -319,8 +342,15 @@ export default function Header() {
                           <div className="flex items-center gap-2">
                             <FileText className="w-4 h-4 text-indigo-700 flex-shrink-0" />
                             <div>
-                              <p className="font-bold text-slate-900">{c.case_number}</p>
-                              <p className="text-[10px] text-slate-500">Stage: {c.stage} • {c.project_name}</p>
+                              <p className="font-bold text-slate-900">{c.case_code}</p>
+                              <p className="text-[10px] text-slate-500 font-mono">
+                                {c.parcel_code ? toLandReference({
+                                  parcelCode: c.parcel_code,
+                                  surveyNumber: c.survey_number,
+                                  village: c.village,
+                                  year: c.created_at ? new Date(c.created_at).getFullYear() : '2026'
+                                }) : 'No land linked'} • Stage: {c.stage} • {c.project_name}
+                              </p>
                             </div>
                           </div>
                           <ChevronRight className="w-3.5 h-3.5 text-slate-400" />
@@ -348,7 +378,14 @@ export default function Header() {
                             <UsersIcon className="w-4 h-4 text-teal-700 flex-shrink-0" />
                             <div>
                               <p className="font-bold text-slate-900">{f.head_of_family}</p>
-                              <p className="text-[10px] text-slate-500 font-mono">{f.family_code} • {f.category} ({f.members_count} members)</p>
+                              <p className="text-[10px] text-slate-500 font-mono">
+                                {f.parcel_code ? toLandReference({
+                                  parcelCode: f.parcel_code,
+                                  surveyNumber: f.survey_number,
+                                  village: f.village,
+                                  year: f.created_at ? new Date(f.created_at).getFullYear() : '2026'
+                                }) : 'No land linked'} • {f.category} Family • {f.members_count} Members
+                              </p>
                             </div>
                           </div>
                           <ChevronRight className="w-3.5 h-3.5 text-slate-400" />
@@ -362,9 +399,22 @@ export default function Header() {
           </div>
 
           {/* Interactive Notifications Bell Dropdown */}
-          <div ref={notificationsRef} className="relative">
+          <div className="flex items-center gap-1 sm:gap-2">
+            {/* Guide Button */}
             <button
               type="button"
+              onClick={() => setIsGuideOpen(true)}
+              aria-label="View Land Record Guide"
+              className="p-2 rounded-lg text-neutral-600 hover:bg-neutral-100 transition-colors"
+              title="How Land Records Connect"
+            >
+              <HelpCircle className="w-4 h-4" />
+            </button>
+            <LandRecordGuide isOpen={isGuideOpen} onClose={() => setIsGuideOpen(false)} />
+
+            <div ref={notificationsRef} className="relative">
+              <button
+                type="button"
               onClick={() => setIsNotificationsOpen(!isNotificationsOpen)}
               aria-label="View notifications"
               className="relative p-2 rounded-lg text-neutral-600 hover:bg-neutral-100 transition-colors"
@@ -406,9 +456,8 @@ export default function Header() {
                       <div
                         key={a.id}
                         onClick={() => handleAlertClick(a)}
-                        className={`p-3 cursor-pointer hover:bg-slate-50 transition-colors flex items-start gap-2.5 ${
-                          !a.is_read ? 'bg-blue-50/40' : ''
-                        }`}
+                        className={`p-3 cursor-pointer hover:bg-slate-50 transition-colors flex items-start gap-2.5 ${!a.is_read ? 'bg-blue-50/40' : ''
+                          }`}
                       >
                         <AlertTriangle className={`w-4 h-4 mt-0.5 flex-shrink-0 ${a.priority === 'CRITICAL' ? 'text-rose-600' : 'text-amber-500'}`} />
                         <div className="flex-1 space-y-0.5">
@@ -439,6 +488,7 @@ export default function Header() {
                 </div>
               </div>
             )}
+            </div>
           </div>
 
           {/* Officer Role & Profile Badge */}

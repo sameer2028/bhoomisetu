@@ -7,6 +7,7 @@ import CompensationCreateModal from './CompensationCreateModal';
 import {
   IndianRupee,
   Search,
+  Filter,
   Building2,
   ChevronRight,
   User,
@@ -209,133 +210,125 @@ export default function CompensationListPage() {
       </div>
 
       {/* Top Progress & KPI Summary */}
-      <div className="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-4 gap-4">
+      <div className="grid grid-cols-2 sm:grid-cols-4 gap-3.5">
         {/* Total Assessed */}
-        <div className="card p-4 border-l-4 border-l-blue-600">
-          <div className="flex items-center justify-between">
-            <span className="text-xs font-bold text-slate-500 uppercase tracking-wider">Total Assessed Award</span>
-            <div className="w-8 h-8 rounded-lg bg-blue-50 text-blue-600 flex items-center justify-center font-bold">
-              ₹
+        <div className="kpi-card kpi-card-blue">
+          <div className="flex items-center gap-2.5 mb-2">
+            <div className="p-2 rounded-xl bg-blue-50 text-blue-700">
+              <IndianRupee className="w-4 h-4" />
+            </div>
+            <div>
+              <p className="text-[10px] font-bold text-slate-500 uppercase tracking-wider">Total Assessed</p>
+              <p className="text-xl font-black text-slate-900 leading-none mt-0.5">{formatCompactINR(summary.total_assessed)}</p>
             </div>
           </div>
-          <div className="mt-2 flex items-baseline gap-2">
-            <span className="text-2xl font-black text-slate-900">
-              {formatCompactINR(summary.total_assessed)}
-            </span>
-            <span className="text-[11px] text-slate-400 font-mono">
-              ({formatCurrency(summary.total_assessed)})
-            </span>
-          </div>
-          <p className="text-[11px] text-slate-500 mt-1">
-            Across {summary.total_records} assessed land parcels
-          </p>
+          <p className="text-[10px] text-slate-400">Across {summary.total_records} assessed parcels</p>
         </div>
 
         {/* Total Paid */}
-        <div className="card p-4 border-l-4 border-l-emerald-500">
-          <div className="flex items-center justify-between">
-            <span className="text-xs font-bold text-emerald-700 uppercase tracking-wider">Total Disbursed</span>
-            <div className="w-8 h-8 rounded-lg bg-emerald-50 text-emerald-600 flex items-center justify-center">
+        <div className="kpi-card kpi-card-green">
+          <div className="flex items-center gap-2.5 mb-2">
+            <div className="p-2 rounded-xl bg-emerald-50 text-emerald-700">
               <CheckCircle2 className="w-4 h-4" />
             </div>
+            <div>
+              <p className="text-[10px] font-bold text-slate-500 uppercase tracking-wider">Total Disbursed</p>
+              <p className="text-xl font-black text-emerald-700 leading-none mt-0.5">{formatCompactINR(summary.total_paid)}</p>
+            </div>
           </div>
-          <div className="mt-2 flex items-baseline gap-2">
-            <span className="text-2xl font-black text-emerald-700">
-              {formatCompactINR(summary.total_paid)}
-            </span>
-            <span className="text-[11px] text-emerald-600 font-mono">
-              ({formatCurrency(summary.total_paid)})
-            </span>
-          </div>
-          <p className="text-[11px] text-emerald-600 mt-1 font-semibold">
-            {summary.fully_paid_count} fully settled • {summary.partially_paid_count} partially paid
-          </p>
+          <p className="text-[10px] text-slate-400">{summary.fully_paid_count} settled • {summary.partially_paid_count} partial</p>
         </div>
 
         {/* Total Pending */}
-        <div className="card p-4 border-l-4 border-l-rose-500">
-          <div className="flex items-center justify-between">
-            <span className="text-xs font-bold text-rose-700 uppercase tracking-wider">Pending Disbursement</span>
-            <div className="w-8 h-8 rounded-lg bg-rose-50 text-rose-600 flex items-center justify-center">
-              <AlertTriangle className="w-4 h-4" />
+        <div className="kpi-card kpi-card-amber">
+          <div className="flex items-center gap-2.5 mb-2">
+            <div className="p-2 rounded-xl bg-amber-50 text-amber-700">
+              <Clock className="w-4 h-4" />
+            </div>
+            <div>
+              <p className="text-[10px] font-bold text-slate-500 uppercase tracking-wider">Pending Release</p>
+              <p className="text-xl font-black text-amber-700 leading-none mt-0.5">{formatCompactINR(summary.total_pending)}</p>
             </div>
           </div>
-          <div className="mt-2 flex items-baseline gap-2">
-            <span className="text-2xl font-black text-rose-700">
-              {formatCompactINR(summary.total_pending)}
-            </span>
-            <span className="text-[11px] text-rose-600 font-mono">
-              ({formatCurrency(summary.total_pending)})
-            </span>
-          </div>
-          <p className="text-[11px] text-rose-600 mt-1 font-semibold">
-            {summary.pending_count} cases awaiting payment / mandate
-          </p>
+          <p className="text-[10px] text-slate-400">{summary.pending_count} pending DBT mandate</p>
         </div>
 
         {/* Overall Completion Progress */}
-        <div className="card p-4 border-l-4 border-l-purple-600">
-          <div className="flex items-center justify-between">
-            <span className="text-xs font-bold text-purple-700 uppercase tracking-wider">Overall Disbursement</span>
-            <div className="w-8 h-8 rounded-lg bg-purple-50 text-purple-600 flex items-center justify-center">
+        <div className="kpi-card kpi-card-green">
+          <div className="flex items-center gap-2.5 mb-2">
+            <div className="p-2 rounded-xl bg-teal-50 text-teal-700">
               <TrendingUp className="w-4 h-4" />
             </div>
+            <div>
+              <p className="text-[10px] font-bold text-slate-500 uppercase tracking-wider">Disbursement Progress</p>
+              <p className="text-xl font-black text-teal-800 leading-none mt-0.5">{summary.percentage_complete}%</p>
+            </div>
           </div>
-          <div className="mt-2 flex items-center justify-between">
-            <span className="text-2xl font-black text-purple-900">
-              {summary.percentage_complete}%
-            </span>
-            <span className="text-xs text-purple-700 font-bold">Complete</span>
-          </div>
-          <div className="w-full bg-slate-100 rounded-full h-2 mt-2 overflow-hidden">
+          <div className="w-full bg-slate-100 rounded-full h-1.5 overflow-hidden mt-1">
             <div
-              className="h-full bg-gradient-to-r from-emerald-500 to-purple-600 rounded-full transition-all duration-500"
+              className="h-full bg-teal-600 rounded-full transition-all duration-500"
               style={{ width: `${Math.min(100, summary.percentage_complete)}%` }}
             />
           </div>
         </div>
       </div>
 
-      {/* Filter & Search Bar */}
-      <div className="card p-4 flex flex-col md:flex-row items-center gap-3">
-        <div className="relative flex-1 w-full">
-          <Search className="w-4 h-4 text-slate-400 absolute left-3 top-1/2 -translate-y-1/2" />
+      {/* Modern Compact Horizontal Enterprise Filter Bar */}
+      <div className="bg-white rounded-2xl border border-slate-200/90 shadow-card p-3 flex flex-wrap lg:flex-nowrap items-center gap-2.5">
+        {/* Search */}
+        <div className="relative flex-1 min-w-[220px] w-full lg:w-auto">
+          <Search className="w-4 h-4 text-slate-400 absolute left-3.5 top-1/2 -translate-y-1/2" />
           <input
             type="text"
-            placeholder="Search by parcel code (e.g. P-101), survey no., owner name, or remarks..."
+            placeholder="Search by beneficiary name, award reference no., parcel code, or village..."
             value={search}
             onChange={(e) => setSearch(e.target.value)}
-            className="form-input form-input-search text-xs"
+            className="form-input form-input-search text-xs w-full"
           />
         </div>
 
-        <div className="flex flex-col sm:flex-row items-center gap-2 w-full md:w-auto">
-          {/* Project Filter */}
-          <select
-            value={projectIdFilter}
-            onChange={(e) => setProjectIdFilter(e.target.value)}
-            className="form-select text-xs w-full sm:w-60"
-          >
-            <option value="">All Associated Projects</option>
-            {projects.map((p) => (
-              <option key={p.id} value={p.id}>
-                [{p.project_code}] {p.name}
-              </option>
-            ))}
-          </select>
+        {/* Dropdowns & Controls */}
+        <select
+          value={projectIdFilter}
+          onChange={(e) => setProjectIdFilter(e.target.value)}
+          className="form-select text-xs w-auto min-w-[180px]"
+        >
+          <option value="">All Projects</option>
+          {projects.map((p) => (
+            <option key={p.id} value={p.id}>
+              [{p.project_code}] {p.name}
+            </option>
+          ))}
+        </select>
 
-          {/* Status Filter */}
-          <select
-            value={statusFilter}
-            onChange={(e) => setStatusFilter(e.target.value)}
-            className="form-select text-xs w-full sm:w-48"
-          >
-            <option value="">All Payment Statuses</option>
-            <option value="Pending">Pending</option>
-            <option value="Partially Paid">Partially Paid</option>
-            <option value="Fully Paid">Fully Paid</option>
-          </select>
-        </div>
+        <select
+          value={statusFilter}
+          onChange={(e) => setStatusFilter(e.target.value)}
+          className="form-select text-xs w-auto min-w-[160px]"
+        >
+          <option value="">All Payment Statuses</option>
+          <option value="Fully Paid">Fully Paid</option>
+          <option value="Partially Paid">Partially Paid</option>
+          <option value="Pending">Pending</option>
+        </select>
+
+        <label className="flex items-center gap-1.5 px-3 py-2 rounded-lg bg-slate-50 border border-slate-200 hover:bg-slate-100 cursor-pointer select-none text-xs font-semibold text-slate-700 whitespace-nowrap transition-colors flex-shrink-0">
+          <input
+            type="checkbox"
+            checked={statusFilter === 'Pending'}
+            onChange={(e) => setStatusFilter(e.target.checked ? 'Pending' : '')}
+            className="w-3.5 h-3.5 rounded text-amber-600 focus:ring-amber-500 border-slate-300"
+          />
+          <Clock className={`w-3.5 h-3.5 ${statusFilter === 'Pending' ? 'text-amber-600' : 'text-slate-400'}`} />
+          <span className={statusFilter === 'Pending' ? 'text-amber-700 font-bold' : ''}>Pending Only</span>
+        </label>
+
+        <button
+          onClick={() => { setSearch(''); setStatusFilter(''); setProjectIdFilter(''); }}
+          className="btn btn-secondary btn-sm text-xs font-semibold flex items-center gap-1.5 flex-shrink-0"
+        >
+          <Filter className="w-3.5 h-3.5 text-slate-400" /> Filters
+        </button>
       </div>
 
       {/* Compensation Table */}

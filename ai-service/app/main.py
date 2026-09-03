@@ -1,7 +1,7 @@
 """
 main.py
 
-Real FastAPI endpoints for the AI service, matching the /api/ai
+FastAPI endpoints for the AI service, matching the /api/ai
 routes defined in the architecture doc. Wires together:
   ocr.py -> extractor.py -> comparator.py -> risk.py
 using data_adapter.py as the single point of contact with data
@@ -9,6 +9,7 @@ using data_adapter.py as the single point of contact with data
 Phase 7 lands).
 """
 
+from pathlib import Path
 from fastapi import FastAPI, HTTPException
 from fastapi.middleware.cors import CORSMiddleware
 from pydantic import BaseModel
@@ -23,7 +24,7 @@ from app.data_adapter import (
     save_mismatches,
 )
 from app.ocr import extract_text
-from app.extractor import extract_fields
+from app.extractor import extract_fields, extract_fields_with_confidence
 from app.comparator import compare_fields
 from app.risk import calculate_risk_score
 
@@ -60,15 +61,23 @@ class RiskScoreResponse(BaseModel):
     model_version: str = "v1.2-weighted"
 
 
+class ProcessDocumentRequest(BaseModel):
+    file_path: str
+    official_parcel: dict | None = None
+
 # ---------- Health / status ----------
 
 
 @app.get("/")
+@app.head("/")
 def read_root():
-    return {"message": "NLA AI Service is running"}
+    return {"message": "NLA AI Service is running", "service": "National Land Acquisition AI Microservice"}
 
 
 @app.get("/health")
+@app.head("/health")
+@app.get("/api/health")
+@app.head("/api/health")
 def health_check():
     try:
         conn = get_db_connection()
@@ -79,8 +88,9 @@ def health_check():
 
 
 @app.get("/api/ai/status")
+@app.head("/api/ai/status")
 def ai_status():
-    return {"service": "NLA AI Service", "status": "operational"}
+    return {"service": "NLA AI Service", "status": "operational", "capabilities": ["OCR", "Field_Extraction", "Cadastral_Comparison", "Risk_Scoring"]}
 
 
 # ---------- Feature 1: Document extraction ----------
@@ -90,8 +100,7 @@ def ai_status():
 def extract_document(document_filename: str):
     """
     Runs OCR + field extraction on a document.
-    document_filename refers to a file in data/sample_docs/ for now
-    (mocked, since real document uploads don't exist yet).
+    document_filename refers to a file in data/sample_docs/ for now.
     """
     try:
         file_path = get_document(document_filename)
@@ -148,6 +157,36 @@ def compare_document(request: CompareRequest):
     }
 
 
+@app.post("/api/ai/process-document")
+def api_process_document(req: ProcessDocumentRequest):
+    """
+    Full End-to-End pipeline: OCR -> Structured Extraction -> Comparison against official record.
+    """
+    file_path = Path(req.file_path)
+    if not file_path.exists():
+        raise HTTPException(status_code=404, detail=f"File not found: {req.file_path}")
+
+    try:
+        raw_text = extract_text(file_path)
+        extracted = extract_fields_with_confidence(raw_text)
+        mismatches = []
+        if req.official_parcel:
+            mismatches = compare_fields(extracted["fields"], req.official_parcel)
+
+        return {
+            "success": True,
+            "raw_text": raw_text,
+            "extracted_fields": extracted["fields"],
+            "missing_fields": extracted["missing_fields"],
+            "fully_extracted": extracted["fully_extracted"],
+            "has_mismatches": len(mismatches) > 0,
+            "mismatch_count": len(mismatches),
+            "mismatches": mismatches,
+        }
+    except Exception as e:
+        raise HTTPException(status_code=500, detail=f"Document processing failed: {str(e)}")
+
+
 # ---------- Feature 2: Risk scoring ----------
 
 
@@ -195,12 +234,12 @@ def api_calculate_risk(
         delayed_rr_count=delayed_rr_count,
         open_mismatches_count=open_mismatches_count,
     )
-    return RiskScoreResponse(
-        score=score,
-        risk_level=risk_level,
-        factors=factors,
-        model_version="v1.2-weighted",
-    )
+    return {
+        "score": score,
+        "risk_level": risk_level,
+        "factors": factors,
+        "model_version": "v1.2-weighted",
+    }
 
 
 if __name__ == "__main__":

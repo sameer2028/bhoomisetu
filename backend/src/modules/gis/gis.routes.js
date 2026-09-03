@@ -18,12 +18,20 @@ const VALID_STATUSES = Object.values(ACQUISITION_STATUS);
  * search (survey number / parcel code / owner / village), bbox
  * (minLng,minLat,maxLng,maxLat), and within_corridor.
  */
-function buildParcelFilter(queryParams, { requireGeometry = true } = {}) {
+function buildParcelFilter(queryParams, { requireGeometry = true, user = null } = {}) {
   const conditions = [];
   const params = [];
 
   if (requireGeometry) {
     conditions.push('p.geometry IS NOT NULL');
+  }
+
+  // Role-based jurisdiction filtering
+  if (user && (user.role === 'DLAO' || user.role === 'FRO') && user.district) {
+    params.push(user.district);
+    // Use project's district if possible, but the base queries don't always join projects easily here
+    // In buildParcelFilter, parcels has its own district. Let's use p.district
+    conditions.push(`p.district = $${params.length}`);
   }
 
   if (queryParams.project_id) {
@@ -100,7 +108,7 @@ function buildParcelFilter(queryParams, { requireGeometry = true } = {}) {
  */
 router.get('/parcels', authenticate, async (req, res, next) => {
   try {
-    const { where, params } = buildParcelFilter(req.query);
+    const { where, params } = buildParcelFilter(req.query, { user: req.user });
 
     const rows = await queryRows(
       `SELECT p.id,
@@ -240,6 +248,17 @@ router.get('/parcels/:id', authenticate, async (req, res, next) => {
  */
 router.get('/projects', authenticate, async (req, res, next) => {
   try {
+    const conditions = [];
+    const params = [];
+
+    // Role-based jurisdiction filtering
+    if ((req.user.role === 'DLAO' || req.user.role === 'FRO') && req.user.district) {
+      params.push(req.user.district);
+      conditions.push(`pr.district = $${params.length}`);
+    }
+
+    const where = conditions.length ? `WHERE ${conditions.join(' AND ')}` : '';
+
     const projects = await queryRows(
       `SELECT pr.id,
               pr.project_code,
@@ -265,8 +284,10 @@ router.get('/projects', authenticate, async (req, res, next) => {
               ))::json AS extent
          FROM projects pr
          LEFT JOIN parcels p ON p.project_id = pr.id
+         ${where}
          GROUP BY pr.id
-         ORDER BY pr.project_code ASC`
+         ORDER BY pr.project_code ASC`,
+      params
     );
 
     return apiResponse(res, { status: 200, success: true, data: projects });
@@ -360,7 +381,7 @@ router.get('/corridors/:projectId', authenticate, async (req, res, next) => {
  */
 router.get('/stats', authenticate, async (req, res, next) => {
   try {
-    const { where, params } = buildParcelFilter(req.query, { requireGeometry: false });
+    const { where, params } = buildParcelFilter(req.query, { requireGeometry: false, user: req.user });
 
     const byStatus = await queryRows(
       `SELECT p.acquisition_status AS status,
@@ -412,7 +433,7 @@ router.get('/stats', authenticate, async (req, res, next) => {
  */
 router.get('/extent', authenticate, async (req, res, next) => {
   try {
-    const { where, params } = buildParcelFilter(req.query);
+    const { where, params } = buildParcelFilter(req.query, { user: req.user });
 
     const row = await queryOne(
       `SELECT ST_AsGeoJSON(ST_Envelope(ST_Collect(p.geometry)))::json AS extent,

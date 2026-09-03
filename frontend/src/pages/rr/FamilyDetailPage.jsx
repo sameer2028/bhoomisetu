@@ -2,6 +2,9 @@ import { useState, useEffect, useCallback } from 'react';
 import { useParams, Link, useNavigate } from 'react-router-dom';
 import { useAuth } from '../../contexts/AuthContext';
 import api from '../../services/api';
+import LandRecordIdentity from '../../components/common/LandRecordIdentity';
+import LandRecordContext from '../../components/common/LandRecordContext';
+import TechnicalReferences from '../../components/common/TechnicalReferences';
 import {
   ArrowLeft,
   CheckCircle2,
@@ -490,37 +493,59 @@ export default function FamilyDetailPage() {
           <ArrowLeft className="w-4 h-4" /> Back to R&R Pipeline
         </Link>
 
-        <div className="flex flex-col md:flex-row md:items-center justify-between gap-4 bg-white p-6 rounded-xl border border-slate-200 shadow-sm relative overflow-hidden">
-          <div className="flex items-start gap-4">
-            <div className="w-12 h-12 rounded-xl bg-blue-50 border border-blue-200 flex items-center justify-center text-blue-800 font-bold text-lg flex-shrink-0">
-              <UsersIcon className="w-6 h-6" />
-            </div>
-            <div>
-              <div className="flex items-center gap-2 flex-wrap">
-                <span className="text-xs font-mono font-bold text-slate-800 bg-slate-100 px-2 py-0.5 rounded border border-slate-200">
-                  {family.family_code}
+        <div className="flex flex-col md:flex-row md:items-start justify-between gap-4 bg-white p-5 md:p-6 rounded-xl border-t-4 border-t-amber-500 shadow-sm relative overflow-hidden">
+          <div className="flex-1">
+            {family.parcel_code && (
+              <LandRecordIdentity
+                parcelCode={family.parcel_code}
+                surveyNumber={family.survey_number}
+                village={family.village}
+                area={family.area_acres}
+              />
+            )}
+            
+            <div className={family.parcel_code ? "mt-5" : ""}>
+              <div className="flex items-center gap-2 mb-4 flex-wrap">
+                <span className="badge bg-amber-50 text-amber-800 font-bold border-amber-200">
+                  <UsersIcon className="w-3 h-3 mr-1" /> R&R Case
                 </span>
                 <span className="badge bg-indigo-50 text-indigo-900 border-indigo-200 font-semibold">
                   {family.category} FAMILY
                 </span>
-                <span className="badge bg-blue-50 text-blue-800 border-blue-200">
-                  IN PROGRESS
+                <span className="text-xs font-semibold text-slate-500 bg-slate-100 px-2 py-0.5 rounded border border-slate-200">
+                  👨‍👩‍👧‍👦 {family.members_count} Members
                 </span>
               </div>
-              <h1 className="text-xl font-bold text-slate-900 mt-1">{family.head_of_family}</h1>
-              <p className="text-xs text-slate-500 font-mono">
-                👨‍👩‍👧‍👦 {family.members_count} Family Members • {family.project_name} ({family.project_code})
-              </p>
+              <h1 className="text-xl font-bold text-slate-900 mb-4">{family.head_of_family}</h1>
+              
+              <LandRecordContext
+                project={{
+                  id: family.project_id,
+                  name: family.project_name,
+                  code: family.project_code,
+                }}
+                ownerName={family.head_of_family}
+              />
+              
+              <div className="mt-5">
+                <TechnicalReferences
+                  parcelCode={family.parcel_code}
+                  projectCode={family.project_code}
+                  projectId={family.project_id}
+                  surveyNumber={family.survey_number}
+                  familyCode={family.family_code}
+                />
+              </div>
             </div>
           </div>
 
-          <div className="flex items-center gap-2">
+          <div className="flex items-center gap-2 flex-shrink-0">
             {canDelete && (
               <button
                 onClick={() => setShowDeleteModal(true)}
                 className="btn bg-rose-50 hover:bg-rose-100 text-rose-700 border border-rose-200 text-xs font-semibold flex items-center gap-1.5 shadow-sm"
               >
-                <Trash2 className="w-4 h-4 text-rose-600" /> Delete Family
+                <Trash2 className="w-4 h-4 text-rose-600" /> Delete
               </button>
             )}
 
@@ -528,7 +553,7 @@ export default function FamilyDetailPage() {
               onClick={() => setShowAddActivityModal(true)}
               className="btn btn-primary text-xs font-semibold flex items-center gap-1.5 shadow-sm"
             >
-              <Plus className="w-4 h-4" /> Add R&R Task
+              <Plus className="w-4 h-4" /> Add Task
             </button>
           </div>
         </div>
@@ -574,11 +599,10 @@ export default function FamilyDetailPage() {
               <button
                 key={st.key}
                 onClick={() => setActiveStageKey(st.key)}
-                className={`flex-1 text-center py-2 px-1 border-b-2 text-xs font-bold transition-all ${
-                  isActive
+                className={`flex-1 text-center py-2 px-1 border-b-2 text-xs font-bold transition-all ${isActive
                     ? 'border-blue-600 text-blue-800 bg-blue-50/50'
                     : 'border-slate-200 text-slate-500 hover:text-slate-800'
-                }`}
+                  }`}
               >
                 {st.label}
               </button>
@@ -768,13 +792,12 @@ export default function FamilyDetailPage() {
                       </div>
 
                       <span
-                        className={`badge ${
-                          act.status === 'COMPLETED'
+                        className={`badge ${act.status === 'COMPLETED'
                             ? 'bg-emerald-50 text-emerald-800 border-emerald-200 font-semibold'
                             : act.status === 'DELAYED'
-                            ? 'bg-rose-50 text-rose-800 border-rose-200 font-semibold'
-                            : 'bg-indigo-50 text-indigo-800 border-indigo-200 font-semibold'
-                        }`}
+                              ? 'bg-rose-50 text-rose-800 border-rose-200 font-semibold'
+                              : 'bg-indigo-50 text-indigo-800 border-indigo-200 font-semibold'
+                          }`}
                       >
                         {act.status}
                       </span>
@@ -929,7 +952,7 @@ export default function FamilyDetailPage() {
                 <div className="flex justify-between items-end pt-8 font-sans">
                   <div className="text-center w-44">
                     <div className="border-t border-slate-400 pt-1 text-[11px] font-bold text-slate-800">
-                      Beneficiary Head Signature<br/>
+                      Beneficiary Head Signature<br />
                       <span className="text-slate-500 font-normal">{family.head_of_family}</span>
                     </div>
                   </div>
@@ -939,7 +962,7 @@ export default function FamilyDetailPage() {
                       ✓ VERIFIED & DIGITALLY SEALED
                     </div>
                     <div className="border-t border-slate-400 pt-1 text-[11px] font-bold text-slate-800">
-                      District Land Acquisition Officer<br/>
+                      District Land Acquisition Officer<br />
                       <span className="text-slate-500 font-normal">(DLAO Official Seal & Sign)</span>
                     </div>
                   </div>

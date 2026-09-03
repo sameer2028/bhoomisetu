@@ -29,6 +29,21 @@ services:
       retries: 20
       start_period: 10s
 
+  ai-service:
+    build:
+      context: ./ai-service
+      dockerfile: Dockerfile
+    container_name: nla_ai_service
+    restart: unless-stopped
+    ports:
+      - "8000:8000"
+    environment:
+      - DATABASE_URL=postgresql://nla_user:nla_dev_password@db:5432/nla_db
+      - PORT=8000
+    depends_on:
+      db:
+        condition: service_healthy
+
 volumes:
   nla_pgdata:
     name: nla_pgdata

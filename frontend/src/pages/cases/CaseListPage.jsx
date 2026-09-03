@@ -1,7 +1,8 @@
-import { useState, useEffect, useCallback } from 'react';
+import { useState, useEffect, useCallback, useMemo } from 'react';
 import { Link } from 'react-router-dom';
 import { useAuth } from '../../contexts/AuthContext';
 import api from '../../services/api';
+import { toLandReference } from '../../services/landRecordMapper';
 import {
   GitBranch,
   Plus,
@@ -17,7 +18,29 @@ import {
   X,
   Layers,
   CheckCircle2,
+  MoreVertical,
+  Compass,
+  ShieldCheck,
+  Award,
+  Bell,
+  IndianRupee,
+  Flag,
+  Users as UsersIcon,
 } from 'lucide-react';
+
+const STAGES_ORDER = [
+  'PROJECT_PROPOSAL',
+  'LAND_IDENTIFICATION',
+  'VERIFICATION',
+  'APPROVAL',
+  'NOTIFICATION',
+  'COMPENSATION',
+  'AWARD',
+  'PAYMENT',
+  'POSSESSION',
+  'RR',
+  'CLOSURE',
+];
 
 const STAGE_LABELS = {
   PROJECT_PROPOSAL: 'Project Proposal',
@@ -33,19 +56,33 @@ const STAGE_LABELS = {
   CLOSURE: 'Closure',
 };
 
+const STAGE_ICONS = {
+  PROJECT_PROPOSAL: FolderKanban,
+  LAND_IDENTIFICATION: Compass,
+  VERIFICATION: ShieldCheck,
+  APPROVAL: Award,
+  NOTIFICATION: Bell,
+  COMPENSATION: IndianRupee,
+  AWARD: Award,
+  PAYMENT: IndianRupee,
+  POSSESSION: Flag,
+  RR: UsersIcon,
+  CLOSURE: CheckCircle2,
+};
+
 const PRIORITY_STYLES = {
   LOW: 'bg-slate-100 text-slate-700 border-slate-200',
   MEDIUM: 'bg-blue-50 text-blue-800 border-blue-200',
-  HIGH: 'bg-orange-50 text-orange-800 border-orange-200',
-  CRITICAL: 'bg-rose-50 text-rose-800 border-rose-200',
+  HIGH: 'bg-orange-50 text-orange-800 border-orange-200 font-bold',
+  CRITICAL: 'bg-rose-50 text-rose-800 border-rose-200 font-bold',
 };
 
 const STATUS_STYLES = {
-  PENDING: 'bg-amber-50 text-amber-800 border-amber-200',
-  IN_PROGRESS: 'bg-indigo-50 text-indigo-800 border-indigo-200',
-  COMPLETED: 'bg-emerald-50 text-emerald-800 border-emerald-200',
-  SENT_BACK: 'bg-orange-50 text-orange-800 border-orange-200',
-  REJECTED: 'bg-rose-50 text-rose-800 border-rose-200',
+  PENDING: 'bg-amber-50 text-amber-800 border-amber-200 font-semibold',
+  IN_PROGRESS: 'bg-indigo-50 text-indigo-800 border-indigo-200 font-semibold',
+  COMPLETED: 'bg-emerald-50 text-emerald-800 border-emerald-200 font-semibold',
+  SENT_BACK: 'bg-orange-50 text-orange-800 border-orange-200 font-semibold',
+  REJECTED: 'bg-rose-50 text-rose-800 border-rose-200 font-semibold',
 };
 
 export default function CaseListPage() {
@@ -56,6 +93,7 @@ export default function CaseListPage() {
   const [stageFilter, setStageFilter] = useState('');
   const [statusFilter, setStatusFilter] = useState('');
   const [priorityFilter, setPriorityFilter] = useState('');
+  const [sortBy, setSortBy] = useState('newest');
   const [overdueOnly, setOverdueOnly] = useState(false);
   const [isCreateOpen, setIsCreateOpen] = useState(false);
   const [meta, setMeta] = useState({ total: 0 });
@@ -84,7 +122,30 @@ export default function CaseListPage() {
     fetchCases();
   }, [fetchCases]);
 
+  // Client-side sorting for rapid responsiveness
+  const sortedCases = useMemo(() => {
+    const list = [...cases];
+    if (sortBy === 'newest') {
+      list.sort((a, b) => new Date(b.created_at || 0) - new Date(a.created_at || 0));
+    } else if (sortBy === 'oldest') {
+      list.sort((a, b) => new Date(a.created_at || 0) - new Date(b.created_at || 0));
+    } else if (sortBy === 'due_date') {
+      list.sort((a, b) => new Date(a.due_date || '9999-12-31') - new Date(b.due_date || '9999-12-31'));
+    } else if (sortBy === 'priority') {
+      const order = { CRITICAL: 0, HIGH: 1, MEDIUM: 2, LOW: 3 };
+      list.sort((a, b) => (order[a.priority] ?? 4) - (order[b.priority] ?? 4));
+    }
+    return list;
+  }, [cases, sortBy]);
+
   const canCreate = hasRole('DLAO', 'PIA', 'ADMIN');
+
+  const getCardBorderColor = (c) => {
+    if (c.overdue) return 'border-l-4 border-l-rose-500';
+    if (c.status === 'COMPLETED') return 'border-l-4 border-l-emerald-500';
+    if (c.status === 'IN_PROGRESS') return 'border-l-4 border-l-blue-500';
+    return 'border-l-4 border-l-amber-400';
+  };
 
   return (
     <div className="space-y-6">
@@ -92,7 +153,7 @@ export default function CaseListPage() {
       <div className="flex flex-col sm:flex-row sm:items-center justify-between gap-4">
         <div className="page-header mb-0">
           <h1 className="page-title flex items-center gap-2">
-            <GitBranch className="w-6 h-6 text-blue-700" /> Statutory Acquisition Workflow
+            <GitBranch className="w-6 h-6 text-blue-700" /> Land Acquisition Cases
           </h1>
           <p className="page-subtitle">
             Track and manage land acquisition cases through the 11-stage statutory pipeline
@@ -110,94 +171,152 @@ export default function CaseListPage() {
       </div>
 
       {/* Stats Bar */}
-      <div className="grid grid-cols-2 sm:grid-cols-4 gap-3">
-        <div className="kpi-card">
-          <p className="text-[11px] font-semibold text-slate-500 uppercase tracking-wider mb-1">Total Cases</p>
-          <p className="text-2xl font-extrabold text-slate-900">{meta.total}</p>
+      <div className="grid grid-cols-2 sm:grid-cols-4 gap-3.5">
+        <div className="kpi-card kpi-card-green">
+          <div className="flex items-center gap-2.5 mb-2">
+            <div className="p-2 rounded-xl bg-emerald-50 text-emerald-700">
+              <FolderKanban className="w-4 h-4" />
+            </div>
+            <div>
+              <p className="text-[10px] font-bold text-slate-500 uppercase tracking-wider">Total Cases</p>
+              <p className="text-xl font-black text-slate-900 leading-none mt-0.5">{meta.total}</p>
+            </div>
+          </div>
+          <p className="text-[10px] text-slate-400">All cases in pipeline</p>
         </div>
-        <div className="kpi-card">
-          <p className="text-[11px] font-semibold text-slate-500 uppercase tracking-wider mb-1">In Progress</p>
-          <p className="text-2xl font-extrabold text-indigo-700">
-            {cases.filter(c => c.status === 'IN_PROGRESS').length}
-          </p>
+
+        <div className="kpi-card kpi-card-blue">
+          <div className="flex items-center gap-2.5 mb-2">
+            <div className="p-2 rounded-xl bg-blue-50 text-blue-700">
+              <GitBranch className="w-4 h-4" />
+            </div>
+            <div>
+              <p className="text-[10px] font-bold text-slate-500 uppercase tracking-wider">In Progress</p>
+              <p className="text-xl font-black text-indigo-700 leading-none mt-0.5">
+                {cases.filter(c => c.status === 'IN_PROGRESS').length}
+              </p>
+            </div>
+          </div>
+          <p className="text-[10px] text-slate-400">Active statutory cases</p>
         </div>
-        <div className="kpi-card">
-          <p className="text-[11px] font-semibold text-slate-500 uppercase tracking-wider mb-1">Pending Action</p>
-          <p className="text-2xl font-extrabold text-amber-600">
-            {cases.filter(c => c.status === 'PENDING' || c.status === 'SENT_BACK').length}
-          </p>
+
+        <div className="kpi-card kpi-card-amber">
+          <div className="flex items-center gap-2.5 mb-2">
+            <div className="p-2 rounded-xl bg-amber-50 text-amber-700">
+              <Clock className="w-4 h-4" />
+            </div>
+            <div>
+              <p className="text-[10px] font-bold text-slate-500 uppercase tracking-wider">Pending Action</p>
+              <p className="text-xl font-black text-amber-600 leading-none mt-0.5">
+                {cases.filter(c => c.status === 'PENDING' || c.status === 'SENT_BACK').length}
+              </p>
+            </div>
+          </div>
+          <p className="text-[10px] text-slate-400">Awaiting officer action</p>
         </div>
-        <div className="kpi-card">
-          <p className="text-[11px] font-semibold text-slate-500 uppercase tracking-wider mb-1">Overdue Cases</p>
-          <p className="text-2xl font-extrabold text-rose-600">
-            {cases.filter(c => c.overdue).length}
-          </p>
+
+        <div className="kpi-card kpi-card-red">
+          <div className="flex items-center gap-2.5 mb-2">
+            <div className="p-2 rounded-xl bg-rose-50 text-rose-700">
+              <AlertTriangle className="w-4 h-4" />
+            </div>
+            <div>
+              <p className="text-[10px] font-bold text-slate-500 uppercase tracking-wider">Overdue Cases</p>
+              <p className="text-xl font-black text-rose-600 leading-none mt-0.5">
+                {cases.filter(c => c.overdue).length}
+              </p>
+            </div>
+          </div>
+          <p className="text-[10px] text-slate-400">Require immediate attention</p>
         </div>
       </div>
 
-      {/* Filter & Search Bar */}
-      <div className="card p-4 space-y-3">
-        <div className="flex flex-col sm:flex-row items-center gap-3">
-          <div className="relative flex-1 w-full">
-            <Search className="w-4 h-4 text-slate-400 absolute left-3 top-1/2 -translate-y-1/2" />
-            <input
-              type="text"
-              placeholder="Search by case code (e.g. CAS-...), project name, parcel, or assigned officer..."
-              value={search}
-              onChange={(e) => setSearch(e.target.value)}
-              className="form-input form-input-search text-xs"
-            />
-          </div>
-
-          <button
-            onClick={() => setOverdueOnly(!overdueOnly)}
-            className={`btn btn-sm flex items-center gap-1.5 whitespace-nowrap text-xs font-semibold ${
-              overdueOnly ? 'bg-rose-50 text-rose-800 border border-rose-300' : 'btn-secondary'
-            }`}
-          >
-            <AlertTriangle className="w-3.5 h-3.5" />
-            Overdue Only
-          </button>
+      {/* Modern Compact Horizontal Enterprise Filter Bar */}
+      <div className="bg-white rounded-2xl border border-slate-200/90 shadow-card p-3 flex flex-wrap lg:flex-nowrap items-center gap-2.5">
+        {/* Search */}
+        <div className="relative flex-1 min-w-[220px] w-full lg:w-auto">
+          <Search className="w-4 h-4 text-slate-400 absolute left-3.5 top-1/2 -translate-y-1/2" />
+          <input
+            type="text"
+            placeholder="Search by case code, project, parcel, or officer..."
+            value={search}
+            onChange={(e) => setSearch(e.target.value)}
+            className="form-input form-input-search text-xs w-full"
+          />
         </div>
 
-        <div className="flex flex-wrap items-center gap-2">
-          <Filter className="w-4 h-4 text-slate-400" />
-          <select
-            value={stageFilter}
-            onChange={(e) => setStageFilter(e.target.value)}
-            className="form-select text-xs w-auto min-w-[160px]"
-          >
-            <option value="">All 11 Stages</option>
-            {Object.entries(STAGE_LABELS).map(([key, label]) => (
-              <option key={key} value={key}>{label}</option>
-            ))}
-          </select>
+        {/* Dropdowns & Controls in the same horizontal line */}
+        <select
+          value={stageFilter}
+          onChange={(e) => setStageFilter(e.target.value)}
+          className="form-select text-xs w-auto min-w-[140px]"
+        >
+          <option value="">All 11 Stages</option>
+          {Object.entries(STAGE_LABELS).map(([key, label]) => (
+            <option key={key} value={key}>{label}</option>
+          ))}
+        </select>
 
-          <select
-            value={statusFilter}
-            onChange={(e) => setStatusFilter(e.target.value)}
-            className="form-select text-xs w-auto min-w-[130px]"
-          >
-            <option value="">All Statuses</option>
-            <option value="PENDING">Pending</option>
-            <option value="IN_PROGRESS">In Progress</option>
-            <option value="COMPLETED">Completed</option>
-            <option value="SENT_BACK">Sent Back</option>
-            <option value="REJECTED">Rejected</option>
-          </select>
+        <select
+          value={statusFilter}
+          onChange={(e) => setStatusFilter(e.target.value)}
+          className="form-select text-xs w-auto min-w-[125px]"
+        >
+          <option value="">All Statuses</option>
+          <option value="PENDING">Pending</option>
+          <option value="IN_PROGRESS">In Progress</option>
+          <option value="COMPLETED">Completed</option>
+          <option value="SENT_BACK">Sent Back</option>
+          <option value="REJECTED">Rejected</option>
+        </select>
 
-          <select
-            value={priorityFilter}
-            onChange={(e) => setPriorityFilter(e.target.value)}
-            className="form-select text-xs w-auto min-w-[130px]"
-          >
-            <option value="">All Priorities</option>
-            <option value="LOW">Low</option>
-            <option value="MEDIUM">Medium</option>
-            <option value="HIGH">High</option>
-            <option value="CRITICAL">Critical</option>
-          </select>
-        </div>
+        <select
+          value={priorityFilter}
+          onChange={(e) => setPriorityFilter(e.target.value)}
+          className="form-select text-xs w-auto min-w-[120px]"
+        >
+          <option value="">All Priorities</option>
+          <option value="LOW">Low</option>
+          <option value="MEDIUM">Medium</option>
+          <option value="HIGH">High</option>
+          <option value="CRITICAL">Critical</option>
+        </select>
+
+        <select
+          value={sortBy}
+          onChange={(e) => setSortBy(e.target.value)}
+          className="form-select text-xs w-auto min-w-[140px]"
+        >
+          <option value="newest">Sort: Newest First</option>
+          <option value="oldest">Sort: Oldest First</option>
+          <option value="due_date">Sort: Due Date</option>
+          <option value="priority">Sort: Priority</option>
+        </select>
+
+        <label className="flex items-center gap-1.5 px-3 py-2 rounded-lg bg-slate-50 border border-slate-200 hover:bg-slate-100 cursor-pointer select-none text-xs font-semibold text-slate-700 whitespace-nowrap transition-colors flex-shrink-0">
+          <input
+            type="checkbox"
+            checked={overdueOnly}
+            onChange={(e) => setOverdueOnly(e.target.checked)}
+            className="w-3.5 h-3.5 rounded text-rose-600 focus:ring-rose-500 border-slate-300"
+          />
+          <AlertTriangle className={`w-3.5 h-3.5 ${overdueOnly ? 'text-rose-600' : 'text-slate-400'}`} />
+          <span className={overdueOnly ? 'text-rose-700 font-bold' : ''}>Overdue Only</span>
+        </label>
+
+        <button
+          onClick={() => {
+            setSearch('');
+            setStageFilter('');
+            setStatusFilter('');
+            setPriorityFilter('');
+            setOverdueOnly(false);
+            setSortBy('newest');
+          }}
+          className="btn btn-secondary btn-sm text-xs font-semibold flex items-center gap-1.5 flex-shrink-0"
+        >
+          <Filter className="w-3.5 h-3.5 text-slate-400" /> Filters
+        </button>
       </div>
 
       {/* Cases List */}
@@ -206,7 +325,7 @@ export default function CaseListPage() {
           <div className="spinner spinner-lg mb-3" />
           <p className="text-xs text-slate-500 font-medium">Loading acquisition cases...</p>
         </div>
-      ) : cases.length === 0 ? (
+      ) : sortedCases.length === 0 ? (
         <div className="card p-12 text-center">
           <div className="w-14 h-14 rounded-2xl bg-slate-100 flex items-center justify-center mx-auto mb-3 text-slate-400">
             <GitBranch className="w-7 h-7" />
@@ -220,76 +339,157 @@ export default function CaseListPage() {
         </div>
       ) : (
         <div className="grid grid-cols-1 lg:grid-cols-2 gap-4">
-          {cases.map((c) => (
-            <Link
-              key={c.id}
-              to={`/cases/${c.id}`}
-              className="card hover:border-blue-300 transition-all group flex flex-col overflow-hidden"
-            >
-              <div className="card-body flex-1">
-                {/* Top row: code + badges */}
-                <div className="flex items-start justify-between gap-2 mb-3">
-                  <div className="flex items-center gap-2 flex-wrap">
-                    <span className="text-xs font-mono font-bold text-blue-800 bg-blue-50 px-2 py-0.5 rounded border border-blue-200">
-                      {c.case_code}
-                    </span>
-                    <span className={`badge ${PRIORITY_STYLES[c.priority] || ''}`}>
-                      {c.priority}
-                    </span>
-                    {c.overdue && (
-                      <span className="badge bg-rose-50 text-rose-800 border border-rose-200 flex items-center gap-1">
-                        <AlertTriangle className="w-3 h-3 text-rose-600" /> OVERDUE
+          {sortedCases.map((c) => {
+            const stageIndex = STAGES_ORDER.indexOf(c.current_stage) >= 0 ? STAGES_ORDER.indexOf(c.current_stage) : 0;
+            const stageNumber = stageIndex + 1;
+            const StageIcon = STAGE_ICONS[c.current_stage] || Compass;
+
+            return (
+              <div
+                key={c.id}
+                className={`bg-white rounded-2xl border border-slate-200/90 shadow-card hover:border-blue-300 hover:shadow-md transition-all flex flex-col justify-between overflow-hidden ${getCardBorderColor(c)}`}
+              >
+                <div className="p-5 flex-1 flex flex-col justify-between space-y-4">
+                  {/* TOP: Case ID, Priority, Overdue | Status, More */}
+                  <div className="flex items-start justify-between gap-2">
+                    <div className="flex items-center gap-2 flex-wrap">
+                      <span className="text-xs font-mono font-black text-blue-700 bg-blue-50 px-2.5 py-0.5 rounded-lg border border-blue-100">
+                        {c.case_code}
                       </span>
-                    )}
+                      <span className={`badge ${PRIORITY_STYLES[c.priority] || 'bg-slate-100 text-slate-700'}`}>
+                        {c.priority}
+                      </span>
+                      {c.overdue && (
+                        <span className="badge bg-rose-50 text-rose-700 border border-rose-200 flex items-center gap-1 font-bold">
+                          <AlertTriangle className="w-3 h-3 text-rose-600" /> OVERDUE
+                        </span>
+                      )}
+                    </div>
+
+                    <div className="flex items-center gap-1.5">
+                      <span className={`badge ${STATUS_STYLES[c.status] || 'bg-slate-100 text-slate-700'}`}>
+                        {c.status?.replace('_', ' ')}
+                      </span>
+                      <button
+                        type="button"
+                        aria-label="More case options"
+                        className="p-1 rounded-lg text-slate-400 hover:text-slate-600 hover:bg-slate-100 transition-colors"
+                      >
+                        <MoreVertical className="w-4 h-4" />
+                      </button>
+                    </div>
                   </div>
-                  <span className={`badge ${STATUS_STYLES[c.status] || ''}`}>
-                    {c.status?.replace('_', ' ')}
+
+                  {/* CURRENT STAGE */}
+                  <div>
+                    <div className="flex items-center gap-2.5">
+                      <div className="w-8 h-8 rounded-xl bg-blue-50 text-blue-600 flex items-center justify-center flex-shrink-0 border border-blue-100">
+                        <StageIcon className="w-4 h-4" />
+                      </div>
+                      <div>
+                        <span className="text-[10px] uppercase tracking-wider text-slate-400 font-bold block leading-none mb-1">
+                          Current Stage
+                        </span>
+                        <p className="text-xs font-bold text-slate-900 leading-none">
+                          {STAGE_LABELS[c.current_stage] || c.current_stage}{' '}
+                          <span className="text-[11px] text-slate-400 font-normal ml-1">
+                            Stage {stageNumber} of 11
+                          </span>
+                        </p>
+                      </div>
+                    </div>
+
+                    {/* 11-step Horizontal Pipeline */}
+                    <div className="flex items-center w-full mt-3 px-1">
+                      {STAGES_ORDER.map((stage, idx) => {
+                        const isCompleted = idx < stageIndex;
+                        const isCurrent = idx === stageIndex;
+                        return (
+                          <div key={stage} className="flex items-center flex-1 last:flex-none">
+                            <div
+                              className={`w-2.5 h-2.5 rounded-full flex-shrink-0 transition-all ${
+                                isCurrent
+                                  ? 'bg-blue-600 ring-4 ring-blue-100 scale-110'
+                                  : isCompleted
+                                  ? 'bg-blue-600'
+                                  : 'bg-slate-200'
+                              }`}
+                              title={`Stage ${idx + 1}: ${STAGE_LABELS[stage]}`}
+                            />
+                            {idx < STAGES_ORDER.length - 1 && (
+                              <div
+                                className={`h-0.5 w-full mx-0.5 transition-all ${
+                                  idx < stageIndex ? 'bg-blue-600' : 'bg-slate-200'
+                                }`}
+                              />
+                            )}
+                          </div>
+                        );
+                      })}
+                    </div>
+                  </div>
+
+                  {/* CASE INFORMATION: 2-column Grid */}
+                  <div className="grid grid-cols-2 gap-x-4 gap-y-3 pt-2 border-t border-slate-100/80">
+                    <div>
+                      <span className="text-[10px] uppercase tracking-wider text-slate-400 font-bold block mb-0.5">
+                        Project
+                      </span>
+                      <span className="text-xs font-semibold text-slate-800 truncate block" title={c.project_name}>
+                        {c.project_name || 'No project'}
+                      </span>
+                    </div>
+
+                    <div>
+                      <span className="text-[10px] uppercase tracking-wider text-slate-400 font-bold block mb-0.5">
+                        Land Reference
+                      </span>
+                      <span className="text-xs font-mono font-bold text-blue-900 truncate block">
+                        {c.parcel_code ? toLandReference({
+                          parcelCode: c.parcel_code,
+                          surveyNumber: c.survey_number,
+                          village: c.village,
+                          year: c.created_at ? new Date(c.created_at).getFullYear() : '2026'
+                        }) : 'No land linked'}
+                      </span>
+                    </div>
+
+                    <div>
+                      <span className="text-[10px] uppercase tracking-wider text-slate-400 font-bold block mb-0.5">
+                        Assigned Officer
+                      </span>
+                      <span className="text-xs font-semibold text-slate-800 truncate block" title={c.assigned_officer_name}>
+                        {c.assigned_officer_name || 'Unassigned'}
+                        {c.assigned_officer_district ? ` (${c.assigned_officer_district})` : ''}
+                      </span>
+                    </div>
+
+                    <div>
+                      <span className="text-[10px] uppercase tracking-wider text-slate-400 font-bold block mb-0.5">
+                        Target Date
+                      </span>
+                      <span className={`text-xs font-semibold block ${c.overdue ? 'text-rose-600 font-bold' : 'text-slate-800'}`}>
+                        {c.due_date ? new Date(c.due_date).toLocaleDateString('en-IN', { day: 'numeric', month: 'short', year: 'numeric' }) : 'No deadline'}
+                      </span>
+                    </div>
+                  </div>
+                </div>
+
+                {/* BOTTOM: Created Date + Action */}
+                <div className="px-5 py-3 bg-slate-50/80 border-t border-slate-100 flex items-center justify-between">
+                  <span className="text-[11px] text-slate-400 font-medium">
+                    Created on: {c.created_at ? new Date(c.created_at).toLocaleDateString('en-IN', { day: 'numeric', month: 'short', year: 'numeric' }) : 'N/A'}
                   </span>
-                </div>
-
-                {/* Stage indicator */}
-                <div className="mb-3.5 bg-slate-50 p-2.5 rounded-lg border border-slate-100">
-                  <span className="text-[10px] uppercase tracking-wider text-slate-400 font-bold block">Current Stage</span>
-                  <p className="text-xs font-bold text-slate-900 mt-0.5 flex items-center gap-2">
-                    <span className="w-2 h-2 rounded-full bg-blue-600 inline-block animate-pulse" />
-                    {STAGE_LABELS[c.current_stage] || c.current_stage}
-                  </p>
-                </div>
-
-                {/* Details */}
-                <div className="grid grid-cols-2 gap-2 text-xs text-slate-600 bg-slate-50/50 p-3 rounded-lg border border-slate-100">
-                  <div className="flex items-center gap-1.5 truncate">
-                    <FolderKanban className="w-3.5 h-3.5 text-slate-400 flex-shrink-0" />
-                    <span className="truncate">{c.project_name || 'No project'}</span>
-                  </div>
-                  <div className="flex items-center gap-1.5 truncate">
-                    <MapPin className="w-3.5 h-3.5 text-slate-400 flex-shrink-0" />
-                    <span className="truncate">{c.parcel_code || 'No parcel linked'}</span>
-                  </div>
-                  <div className="flex items-center gap-1.5 truncate">
-                    <User className="w-3.5 h-3.5 text-slate-400 flex-shrink-0" />
-                    <span className="truncate">{c.assigned_officer_name || 'Unassigned'}</span>
-                  </div>
-                  <div className="flex items-center gap-1.5">
-                    <Calendar className="w-3.5 h-3.5 text-slate-400 flex-shrink-0" />
-                    <span className={c.overdue ? 'text-rose-600 font-bold' : ''}>
-                      {c.due_date ? new Date(c.due_date).toLocaleDateString('en-IN', { day: 'numeric', month: 'short', year: 'numeric' }) : 'No deadline'}
-                    </span>
-                  </div>
+                  <Link
+                    to={`/cases/${c.id}`}
+                    className="text-xs font-bold text-blue-700 hover:text-blue-900 flex items-center gap-1 hover:translate-x-0.5 transition-transform"
+                  >
+                    View Case Pipeline <ChevronRight className="w-4 h-4" />
+                  </Link>
                 </div>
               </div>
-
-              {/* Footer */}
-              <div className="px-6 py-3 bg-slate-50/80 border-t border-slate-100 flex items-center justify-between">
-                <span className="text-[11px] text-slate-400 font-mono font-medium">
-                  {c.project_code}
-                </span>
-                <span className="text-xs font-bold text-blue-700 flex items-center gap-1 group-hover:translate-x-0.5 transition-transform">
-                  View Case Pipeline <ChevronRight className="w-4 h-4" />
-                </span>
-              </div>
-            </Link>
-          ))}
+            );
+          })}
         </div>
       )}
 
@@ -322,7 +522,7 @@ function CreateCaseModal({ onClose, onCreated }) {
   const [error, setError] = useState('');
 
   useEffect(() => {
-    api.get('/projects?limit=100').then(res => setProjects(res.data.data || [])).catch(() => {});
+    api.get('/projects?limit=100&all=true').then(res => setProjects(res.data.data || [])).catch(() => {});
   }, []);
 
   useEffect(() => {

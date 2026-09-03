@@ -132,7 +132,7 @@ export default function MismatchListPage() {
     district: 'District',
   };
 
-  const canRunCheck = hasRole('DLAO', 'PIA', 'FRO', 'ADMIN');
+  const canRunCheck = hasRole('DLAO', 'PIA', 'SGA', 'FRO', 'ADMIN');
 
   return (
     <div className="space-y-6">
@@ -151,115 +151,138 @@ export default function MismatchListPage() {
           {canRunCheck && (
             <button
               onClick={() => setIsRunCheckOpen(true)}
-              className="btn btn-primary text-xs font-semibold flex items-center gap-2"
+              className="btn btn-primary text-xs font-semibold flex items-center gap-2 shadow-sm"
             >
-              <Plus className="w-4 h-4" /> Run Document Check
+              <Sparkles className="w-4 h-4 text-amber-300" /> Analyse New Document
             </button>
           )}
         </div>
       </div>
 
       {/* KPI Metric Overview */}
-      <div className="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-4 gap-4">
-        <div className="kpi-card">
-          <div className="flex items-center justify-between mb-2">
-            <span className="text-xs font-semibold text-slate-500 uppercase tracking-wider">Total Discrepancies</span>
-            <div className="w-8 h-8 rounded-lg bg-blue-50 border border-blue-100 flex items-center justify-center text-blue-700">
+      <div className="grid grid-cols-2 sm:grid-cols-4 gap-3.5">
+        <div className="kpi-card kpi-card-blue">
+          <div className="flex items-center gap-2.5 mb-2">
+            <div className="p-2 rounded-xl bg-blue-50 text-blue-700">
               <FileText className="w-4 h-4" />
             </div>
+            <div>
+              <p className="text-[10px] font-bold text-slate-500 uppercase tracking-wider">Total Discrepancies</p>
+              <p className="text-xl font-black text-slate-900 leading-none mt-0.5">{summaryMetrics.total}</p>
+            </div>
           </div>
-          <div className="text-2xl font-extrabold text-slate-900">{summaryMetrics.total}</div>
-          <span className="text-[11px] text-slate-400 font-medium">Logged across statutory documents</span>
+          <p className="text-[10px] text-slate-400">Across statutory records</p>
         </div>
 
-        <div className="kpi-card">
-          <div className="flex items-center justify-between mb-2">
-            <span className="text-xs font-semibold text-slate-500 uppercase tracking-wider">High / Critical Flags</span>
-            <div className="w-8 h-8 rounded-lg bg-rose-50 border border-rose-100 flex items-center justify-center text-rose-700">
+        <div className="kpi-card kpi-card-red">
+          <div className="flex items-center gap-2.5 mb-2">
+            <div className="p-2 rounded-xl bg-rose-50 text-rose-700">
               <AlertTriangle className="w-4 h-4" />
             </div>
+            <div>
+              <p className="text-[10px] font-bold text-slate-500 uppercase tracking-wider">Critical Flags</p>
+              <p className="text-xl font-black text-rose-600 leading-none mt-0.5">{summaryMetrics.highCritical}</p>
+            </div>
           </div>
-          <div className="text-2xl font-extrabold text-rose-700">{summaryMetrics.highCritical}</div>
-          <span className="text-[11px] text-rose-600 font-semibold">Priority verification required</span>
+          <p className="text-[10px] text-slate-400">Priority verification needed</p>
         </div>
 
-        <div className="kpi-card">
-          <div className="flex items-center justify-between mb-2">
-            <span className="text-xs font-semibold text-slate-500 uppercase tracking-wider">Under Field Review</span>
-            <div className="w-8 h-8 rounded-lg bg-indigo-50 border border-indigo-100 flex items-center justify-center text-indigo-700">
+        <div className="kpi-card kpi-card-amber">
+          <div className="flex items-center gap-2.5 mb-2">
+            <div className="p-2 rounded-xl bg-amber-50 text-amber-700">
               <Clock className="w-4 h-4" />
             </div>
-          </div>
-          <div className="text-2xl font-extrabold text-indigo-700">{summaryMetrics.underReview}</div>
-          <span className="text-[11px] text-slate-400 font-medium">Assigned to revenue officers</span>
-        </div>
-
-        <div className="kpi-card">
-          <div className="flex items-center justify-between mb-2">
-            <span className="text-xs font-semibold text-slate-500 uppercase tracking-wider">Resolved / Cleared</span>
-            <div className="w-8 h-8 rounded-lg bg-emerald-50 border border-emerald-100 flex items-center justify-center text-emerald-700">
-              <CheckCircle2 className="w-4 h-4" />
+            <div>
+              <p className="text-[10px] font-bold text-slate-500 uppercase tracking-wider">Under Field Review</p>
+              <p className="text-xl font-black text-amber-700 leading-none mt-0.5">{summaryMetrics.underReview}</p>
             </div>
           </div>
-          <div className="text-2xl font-extrabold text-emerald-700">{summaryMetrics.resolved}</div>
-          <span className="text-[11px] text-emerald-600 font-semibold">Audited and closed</span>
+          <p className="text-[10px] text-slate-400">Assigned to revenue officers</p>
+        </div>
+
+        <div className="kpi-card kpi-card-green">
+          <div className="flex items-center gap-2.5 mb-2">
+            <div className="p-2 rounded-xl bg-emerald-50 text-emerald-700">
+              <CheckCircle2 className="w-4 h-4" />
+            </div>
+            <div>
+              <p className="text-[10px] font-bold text-slate-500 uppercase tracking-wider">Resolved / Cleared</p>
+              <p className="text-xl font-black text-emerald-700 leading-none mt-0.5">{summaryMetrics.resolved}</p>
+            </div>
+          </div>
+          <p className="text-[10px] text-slate-400">Audited and closed</p>
         </div>
       </div>
 
-      {/* Filter & Search Bar */}
-      <div className="card p-4 flex flex-col md:flex-row items-center gap-3">
-        <div className="relative flex-1 w-full">
-          <Search className="w-4 h-4 text-slate-400 absolute left-3 top-1/2 -translate-y-1/2" />
+      {/* Modern Compact Horizontal Enterprise Filter Bar */}
+      <div className="bg-white rounded-2xl border border-slate-200/90 shadow-card p-3 flex flex-wrap lg:flex-nowrap items-center gap-2.5">
+        {/* Search */}
+        <div className="relative flex-1 min-w-[220px] w-full lg:w-auto">
+          <Search className="w-4 h-4 text-slate-400 absolute left-3.5 top-1/2 -translate-y-1/2" />
           <input
             type="text"
-            placeholder="Search by parcel code (e.g. P-101), survey no., village, or field..."
+            placeholder="Search by parcel code (e.g. P-101), survey no., village, or field name..."
             value={search}
             onChange={(e) => setSearch(e.target.value)}
-            className="form-input form-input-search text-xs"
+            className="form-input form-input-search text-xs w-full"
           />
         </div>
 
-        <div className="flex flex-col sm:flex-row items-center gap-2 w-full md:w-auto">
-          {/* Project Filter */}
-          <select
-            value={projectIdFilter}
-            onChange={(e) => setProjectIdFilter(e.target.value)}
-            className="form-select text-xs w-full sm:w-56"
-          >
-            <option value="">All Projects</option>
-            {projects.map((p) => (
-              <option key={p.id} value={p.id}>
-                [{p.project_code}] {p.name}
-              </option>
-            ))}
-          </select>
+        {/* Dropdowns & Controls */}
+        <select
+          value={projectIdFilter}
+          onChange={(e) => setProjectIdFilter(e.target.value)}
+          className="form-select text-xs w-auto min-w-[180px]"
+        >
+          <option value="">All Projects</option>
+          {projects.map((p) => (
+            <option key={p.id} value={p.id}>
+              [{p.project_code}] {p.name}
+            </option>
+          ))}
+        </select>
 
-          {/* Severity Filter */}
-          <select
-            value={severityFilter}
-            onChange={(e) => setSeverityFilter(e.target.value)}
-            className="form-select text-xs w-full sm:w-40"
-          >
-            <option value="">All Severities</option>
-            <option value="CRITICAL">Critical</option>
-            <option value="HIGH">High</option>
-            <option value="MEDIUM">Medium</option>
-            <option value="LOW">Low</option>
-          </select>
+        <select
+          value={severityFilter}
+          onChange={(e) => setSeverityFilter(e.target.value)}
+          className="form-select text-xs w-auto min-w-[140px]"
+        >
+          <option value="">All Severities</option>
+          <option value="CRITICAL">Critical</option>
+          <option value="HIGH">High</option>
+          <option value="MEDIUM">Medium</option>
+          <option value="LOW">Low</option>
+        </select>
 
-          {/* Status Filter */}
-          <select
-            value={statusFilter}
-            onChange={(e) => setStatusFilter(e.target.value)}
-            className="form-select text-xs w-full sm:w-44"
-          >
-            <option value="">All Statuses</option>
-            <option value="DETECTED">Detected</option>
-            <option value="UNDER_REVIEW">Under Review</option>
-            <option value="RESOLVED">Resolved</option>
-            <option value="FALSE_POSITIVE">False Positive</option>
-          </select>
-        </div>
+        <select
+          value={statusFilter}
+          onChange={(e) => setStatusFilter(e.target.value)}
+          className="form-select text-xs w-auto min-w-[150px]"
+        >
+          <option value="">All Review Statuses</option>
+          <option value="DETECTED">Detected</option>
+          <option value="UNDER_REVIEW">Under Review</option>
+          <option value="RESOLVED">Resolved</option>
+          <option value="FALSE_POSITIVE">False Positive</option>
+        </select>
+
+        <label className="flex items-center gap-1.5 px-3 py-2 rounded-lg bg-slate-50 border border-slate-200 hover:bg-slate-100 cursor-pointer select-none text-xs font-semibold text-slate-700 whitespace-nowrap transition-colors flex-shrink-0">
+          <input
+            type="checkbox"
+            checked={severityFilter === 'CRITICAL'}
+            onChange={(e) => setSeverityFilter(e.target.checked ? 'CRITICAL' : '')}
+            className="w-3.5 h-3.5 rounded text-rose-600 focus:ring-rose-500 border-slate-300"
+          />
+          <AlertTriangle className={`w-3.5 h-3.5 ${severityFilter === 'CRITICAL' ? 'text-rose-600' : 'text-slate-400'}`} />
+          <span className={severityFilter === 'CRITICAL' ? 'text-rose-700 font-bold' : ''}>Critical Only</span>
+        </label>
+
+        <button
+          onClick={() => { setSearch(''); setProjectIdFilter(''); setSeverityFilter(''); setStatusFilter(''); }}
+          className="btn btn-secondary btn-sm text-xs font-semibold flex items-center gap-1.5 flex-shrink-0"
+        >
+          <Filter className="w-3.5 h-3.5 text-slate-400" /> Filters
+        </button>
       </div>
 
       {/* Discrepancy Table */}
@@ -344,10 +367,10 @@ export default function MismatchListPage() {
                     <td className="text-xs text-slate-500 font-medium whitespace-nowrap">
                       {m.detected_at
                         ? new Date(m.detected_at).toLocaleDateString('en-IN', {
-                            day: 'numeric',
-                            month: 'short',
-                            year: 'numeric',
-                          })
+                          day: 'numeric',
+                          month: 'short',
+                          year: 'numeric',
+                        })
                         : '—'}
                     </td>
 

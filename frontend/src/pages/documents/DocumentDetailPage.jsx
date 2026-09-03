@@ -7,6 +7,7 @@ import {
   Shield, ShieldAlert, ShieldCheck, Clock, User, Layers,
   FileWarning, History, Eye, CheckCircle2, AlertCircle, X, Save,
   ExternalLink, FileCheck, Building2, HardDrive,
+  Sparkles, AlertTriangle, RefreshCw,
 } from 'lucide-react';
 
 const DOC_TYPE_LABELS = {
@@ -55,6 +56,10 @@ export default function DocumentDetailPage() {
   const [versionFile, setVersionFile] = useState(null);
   const [changeNotes, setChangeNotes] = useState('');
   const [uploadingVersion, setUploadingVersion] = useState(false);
+
+  // AI Verification state
+  const [verifying, setVerifying] = useState(false);
+  const [aiResult, setAiResult] = useState(null);
 
   const fetchDocument = async () => {
     setLoading(true);
@@ -127,6 +132,19 @@ export default function DocumentDetailPage() {
     }
   };
 
+  const handleVerifyDocument = async () => {
+    setVerifying(true);
+    try {
+      const res = await api.post(`/documents/${doc.id}/verify-ai`);
+      setAiResult(res.data?.data);
+      await fetchDocument();
+    } catch (err) {
+      setError(err.response?.data?.error || 'AI verification failed.');
+    } finally {
+      setVerifying(false);
+    }
+  };
+
   const formatBytes = (bytes) => {
     if (!bytes) return '—';
     if (bytes < 1024) return `${bytes} B`;
@@ -176,6 +194,7 @@ export default function DocumentDetailPage() {
   const canDelete = ['SGA', 'ADMIN'].includes(user?.role);
   const isImage = doc.mime_type?.startsWith('image/') && !imgError;
   const isPdf = doc.mime_type === 'application/pdf' || doc.file_name?.endsWith('.pdf');
+  const activeMismatches = doc.mismatches || [];
 
   return (
     <div>
@@ -214,37 +233,15 @@ export default function DocumentDetailPage() {
                   <h1 className="text-xl font-extrabold text-neutral-900">{doc.title}</h1>
                 )}
                 <div className="flex flex-wrap items-center gap-2 mt-1">
-                  <span className="text-xs font-mono text-neutral-400 font-bold">{doc.document_code}</span>
-                  <span className={`px-2 py-0.5 rounded text-[10px] font-bold uppercase tracking-wide ${DOC_TYPE_COLORS[doc.document_type] || DOC_TYPE_COLORS.OTHER}`}>
-                    {editing ? (
-                      <select
-                        value={editForm.document_type}
-                        onChange={(e) => setEditForm(f => ({ ...f, document_type: e.target.value }))}
-                        className="bg-transparent border-none text-xs p-0 font-bold"
-                      >
-                        {Object.entries(DOC_TYPE_LABELS).map(([k, l]) => (
-                          <option key={k} value={k}>{l}</option>
-                        ))}
-                      </select>
-                    ) : (
-                      DOC_TYPE_LABELS[doc.document_type] || doc.document_type
-                    )}
+                  <span className="text-xs font-mono text-neutral-400">{doc.document_code}</span>
+                  <span className="text-neutral-300">•</span>
+                  <span className={`px-2 py-0.5 rounded text-[10px] font-bold tracking-wide uppercase ${DOC_TYPE_COLORS[doc.document_type] || DOC_TYPE_COLORS.OTHER}`}>
+                    {DOC_TYPE_LABELS[doc.document_type] || doc.document_type}
                   </span>
-                  <span className={`inline-flex items-center gap-1 px-2 py-0.5 rounded text-xs font-bold ${AccessObj.bg} ${AccessObj.color}`}>
+                  <span className="text-neutral-300">•</span>
+                  <span className={`inline-flex items-center gap-1 text-xs font-medium px-2 py-0.5 rounded-full ${AccessObj.bg} ${AccessObj.color}`}>
                     <AccessIcon className="w-3 h-3" />
-                    {editing ? (
-                      <select
-                        value={editForm.access_level}
-                        onChange={(e) => setEditForm(f => ({ ...f, access_level: e.target.value }))}
-                        className="bg-transparent border-none text-xs p-0 font-bold"
-                      >
-                        <option value="PUBLIC">Public</option>
-                        <option value="RESTRICTED">Restricted</option>
-                        <option value="CONFIDENTIAL">Confidential</option>
-                      </select>
-                    ) : (
-                      AccessObj.label
-                    )}
+                    {AccessObj.label}
                   </span>
                   <span className="text-xs text-neutral-500 font-mono bg-neutral-100 px-1.5 py-0.5 rounded font-bold">
                     v{doc.version}
@@ -254,7 +251,7 @@ export default function DocumentDetailPage() {
             </div>
 
             {/* Action Buttons */}
-            <div className="flex gap-2 flex-shrink-0">
+            <div className="flex flex-wrap gap-2 flex-shrink-0">
               {editing ? (
                 <>
                   <button onClick={() => setEditing(false)} className="btn btn-secondary text-xs flex items-center gap-1">
@@ -266,6 +263,19 @@ export default function DocumentDetailPage() {
                 </>
               ) : (
                 <>
+                  {doc.file_path && (
+                    <button
+                      onClick={handleVerifyDocument}
+                      disabled={verifying}
+                      className="btn text-xs flex items-center gap-1.5 font-bold text-amber-900 bg-amber-100 hover:bg-amber-200 border border-amber-300 shadow-xs"
+                    >
+                      {verifying ? (
+                        <><RefreshCw className="w-3.5 h-3.5 animate-spin text-amber-700" /> Scanning OCR &amp; Parcel...</>
+                      ) : (
+                        <><Sparkles className="w-3.5 h-3.5 text-amber-600" /> Run AI Cadastral Scan</>
+                      )}
+                    </button>
+                  )}
                   <a href={`/api/documents/${doc.id}/file`} target="_blank" rel="noreferrer" className="btn btn-secondary text-xs flex items-center gap-1">
                     <Download className="w-3.5 h-3.5" /> Download File
                   </a>
@@ -292,6 +302,111 @@ export default function DocumentDetailPage() {
       <div className="grid grid-cols-1 lg:grid-cols-3 gap-6">
         {/* Left Column — Details & Preview */}
         <div className="lg:col-span-2 space-y-6">
+          {/* AI Cadastral Verification Box */}
+          <div className={`card overflow-hidden border shadow-sm ${
+            activeMismatches.length > 0
+              ? 'border-rose-300 bg-gradient-to-b from-rose-50/50 to-white'
+              : 'border-emerald-200 bg-gradient-to-b from-emerald-50/40 to-white'
+          }`}>
+            <div className="card-header border-b border-neutral-100 flex items-center justify-between pb-3">
+              <div className="flex items-center gap-2">
+                <div className={`w-7 h-7 rounded-lg flex items-center justify-center ${
+                  activeMismatches.length > 0 ? 'bg-rose-100 text-rose-700' : 'bg-emerald-100 text-emerald-700'
+                }`}>
+                  <Sparkles className="w-4 h-4" />
+                </div>
+                <div>
+                  <h3 className="card-title text-xs font-bold text-neutral-900 uppercase tracking-wide">
+                    AI Cadastral Verification &amp; OCR Inspection
+                  </h3>
+                  <p className="text-[10px] text-neutral-500">
+                    Automated comparison between document text and surveyed revenue land record
+                  </p>
+                </div>
+              </div>
+              <div>
+                {activeMismatches.length > 0 ? (
+                  <span className="inline-flex items-center gap-1 px-2.5 py-1 rounded-full text-xs font-extrabold bg-rose-100 text-rose-800 border border-rose-300">
+                    <AlertTriangle className="w-3.5 h-3.5 text-rose-600" />
+                    {activeMismatches.length} Discrepancy Flag{activeMismatches.length === 1 ? '' : 's'} Active
+                  </span>
+                ) : (
+                  <span className="inline-flex items-center gap-1 px-2.5 py-1 rounded-full text-xs font-extrabold bg-emerald-100 text-emerald-800 border border-emerald-300">
+                    <CheckCircle2 className="w-3.5 h-3.5 text-emerald-600" />
+                    Verified Cadastral Match
+                  </span>
+                )}
+              </div>
+            </div>
+
+            <div className="card-body p-4 space-y-3">
+              {activeMismatches.length > 0 ? (
+                <div className="space-y-3">
+                  <div className="p-3 bg-rose-100/70 border border-rose-200 rounded-xl text-xs text-rose-900 flex items-start justify-between gap-2">
+                    <div className="flex items-start gap-2">
+                      <AlertTriangle className="w-4 h-4 text-rose-600 flex-shrink-0 mt-0.5" />
+                      <div>
+                        <strong>Attention DLAO:</strong> Intentional or unintentional discrepancies detected between this uploaded document and the master revenue record for parcel <strong>{doc.survey_number || 'Linked Land Record'}</strong>.
+                      </div>
+                    </div>
+                    <Link
+                      to="/ai/mismatches"
+                      className="px-3 py-1 bg-rose-700 text-white rounded-lg text-xs font-bold hover:bg-rose-800 transition-colors flex-shrink-0 whitespace-nowrap shadow-xs"
+                    >
+                      Resolve in AI Center &rarr;
+                    </Link>
+                  </div>
+
+                  <div className="grid grid-cols-1 md:grid-cols-2 gap-3">
+                    {activeMismatches.map((m) => (
+                      <div key={m.id} className="p-3 bg-white border border-rose-200 rounded-xl shadow-xs space-y-1.5">
+                        <div className="flex items-center justify-between">
+                          <span className="text-xs font-extrabold text-neutral-900 uppercase">
+                            {m.field_name.replace('_', ' ')}
+                          </span>
+                          <span className={`px-2 py-0.5 rounded text-[10px] font-bold ${
+                            m.severity === 'HIGH' || m.severity === 'CRITICAL' ? 'bg-rose-100 text-rose-800' : 'bg-amber-100 text-amber-800'
+                          }`}>
+                            {m.severity}
+                          </span>
+                        </div>
+                        <div className="grid grid-cols-2 gap-2 text-[11px] pt-1 border-t border-neutral-100">
+                          <div className="bg-neutral-50 p-1.5 rounded">
+                            <span className="text-[10px] text-neutral-400 block font-semibold">Master Record</span>
+                            <span className="font-bold text-neutral-800">{m.official_value}</span>
+                          </div>
+                          <div className="bg-rose-50 p-1.5 rounded">
+                            <span className="text-[10px] text-rose-500 block font-semibold">Document Text</span>
+                            <span className="font-bold text-rose-900">{m.extracted_value}</span>
+                          </div>
+                        </div>
+                        <p className="text-[11px] text-neutral-600 font-medium">
+                          {m.explanation}
+                        </p>
+                      </div>
+                    ))}
+                  </div>
+                </div>
+              ) : (
+                <div className="p-3 bg-emerald-50/80 border border-emerald-200 rounded-xl text-xs text-emerald-900 flex items-center justify-between gap-3">
+                  <div className="flex items-center gap-2">
+                    <CheckCircle2 className="w-4 h-4 text-emerald-600 flex-shrink-0" />
+                    <span>No unadjudicated discrepancies found for this document. Extracted acreage, owner, and survey number align with cadastral database records.</span>
+                  </div>
+                  {doc.file_path && (
+                    <button
+                      onClick={handleVerifyDocument}
+                      disabled={verifying}
+                      className="px-2.5 py-1 bg-white border border-emerald-300 text-emerald-800 rounded-lg text-xs font-bold hover:bg-emerald-100 transition-colors flex-shrink-0"
+                    >
+                      {verifying ? 'Scanning...' : 'Re-verify'}
+                    </button>
+                  )}
+                </div>
+              )}
+            </div>
+          </div>
+
           {/* Description */}
           <div className="card">
             <div className="card-header border-b border-neutral-100">

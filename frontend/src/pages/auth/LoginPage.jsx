@@ -27,9 +27,9 @@ export default function LoginPage() {
   };
 
   const demoAccounts = [
+    { role: 'SGA', email: 'sga@nla.gov.in', label: 'Senior Authority', badgeColor: 'bg-amber-50 text-amber-800 border-amber-200' },
     { role: 'DLAO', email: 'dlao@nla.gov.in', label: 'District LAO', badgeColor: 'bg-blue-50 text-blue-800 border-blue-200' },
     { role: 'PIA', email: 'pia@nla.gov.in', label: 'Project Agency', badgeColor: 'bg-purple-50 text-purple-800 border-purple-200' },
-    { role: 'SGA', email: 'sga@nla.gov.in', label: 'Senior Authority', badgeColor: 'bg-amber-50 text-amber-800 border-amber-200' },
     { role: 'FRO', email: 'fro@nla.gov.in', label: 'Field Officer', badgeColor: 'bg-emerald-50 text-emerald-800 border-emerald-200' },
   ];
 

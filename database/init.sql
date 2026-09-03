@@ -473,3 +473,19 @@ BEGIN
        FOR EACH ROW EXECUTE FUNCTION set_updated_at()', t);
   END LOOP;
 END $$;
+
+-- ---------------------------------------------------------------------------
+--  Phase 12: Immutable Audit Log Enforcement (Append-Only)
+-- ---------------------------------------------------------------------------
+CREATE OR REPLACE FUNCTION prevent_audit_log_modification()
+RETURNS TRIGGER AS $$
+BEGIN
+  RAISE EXCEPTION 'Audit log entries are immutable and cannot be updated or deleted.';
+END;
+$$ LANGUAGE plpgsql;
+
+DROP TRIGGER IF EXISTS trg_audit_log_immutable ON audit_log;
+CREATE TRIGGER trg_audit_log_immutable
+BEFORE UPDATE OR DELETE ON audit_log
+FOR EACH ROW EXECUTE FUNCTION prevent_audit_log_modification();
+
