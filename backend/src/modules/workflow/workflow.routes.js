@@ -402,6 +402,47 @@ router.get('/cases/:id', authenticate, async (req, res, next) => {
       aiRecommendation: riskScore < 80 ? 'Address pending mismatches or upload required documents to proceed safely.' : 'All checks passed. Safe to proceed to the next stage.',
     };
 
+    // ── Officer Decision Record (latest non-CREATE workflow event) ──
+    const lastDecisionEvent = await queryOne(
+      `SELECT we.action, we.remarks, we.created_at,
+              we.from_stage, we.to_stage,
+              u.id AS officer_id, u.full_name AS officer_name,
+              u.role AS officer_role, u.email AS officer_email
+         FROM workflow_events we
+         LEFT JOIN users u ON we.performed_by = u.id
+        WHERE we.case_id = $1
+          AND we.action != 'CREATE'
+        ORDER BY we.created_at DESC
+        LIMIT 1`,
+      [caseRecord.id]
+    );
+
+    let officerDecision = null;
+    if (lastDecisionEvent) {
+      // Generate signature ID from officer initials + last 4 chars of UUID + role
+      const nameParts = (lastDecisionEvent.officer_name || '').split(' ');
+      const initials = nameParts.map(p => p.charAt(0).toUpperCase()).join('');
+      const uuidFragment = (lastDecisionEvent.officer_id || '').slice(-4).toUpperCase();
+      const signatureId = `${initials}-${uuidFragment}-${lastDecisionEvent.officer_role || 'OFC'}`;
+
+      // Generate cursive-style display name (first initial + . + last name)
+      const signatureDisplay = nameParts.length > 1
+        ? `${nameParts[0].charAt(0)}.${nameParts[nameParts.length - 1]}`
+        : lastDecisionEvent.officer_name || 'Officer';
+
+      officerDecision = {
+        action: lastDecisionEvent.action,
+        remarks: lastDecisionEvent.remarks,
+        decided_at: lastDecisionEvent.created_at,
+        from_stage: lastDecisionEvent.from_stage,
+        to_stage: lastDecisionEvent.to_stage,
+        officer_name: lastDecisionEvent.officer_name,
+        officer_role: lastDecisionEvent.officer_role,
+        signature_id: signatureId,
+        signature_display: signatureDisplay,
+      };
+    }
+
     return apiResponse(res, {
       status: 200,
       success: true,
@@ -412,6 +453,7 @@ router.get('/cases/:id', authenticate, async (req, res, next) => {
         stageProgress,
         stageLabels: STAGE_LABELS,
         aiCompliance,
+        officerDecision,
       },
     });
   } catch (err) {
