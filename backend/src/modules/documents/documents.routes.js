@@ -525,6 +525,22 @@ router.post('/', authenticate, rbac(ROLES.DLAO, ROLES.PIA, ROLES.FRO, ROLES.SGA,
                 area_acres: targetParcel.area_acres,
               },
             };
+
+            // Auto-generate alert if mismatches found
+            if (detectedMismatches.length > 0) {
+              await query(
+                `INSERT INTO alerts (type, title, message, project_id, parcel_id, priority)
+                 VALUES ($1, $2, $3, $4, $5, $6)`,
+                [
+                  'DATA_MISMATCH',
+                  `AI Document Mismatch: ${title.trim()}`,
+                  `AI detected ${detectedMismatches.length} discrepancy flags in newly uploaded document "${title.trim()}" for Survey #${targetParcel.survey_number}.`,
+                  targetParcel.project_id,
+                  targetParcel.id,
+                  'HIGH'
+                ]
+              );
+            }
           }
         }
       } catch (aiErr) {
@@ -650,6 +666,22 @@ router.post('/:id/verify-ai', authenticate, rbac(ROLES.DLAO, ROLES.PIA, ROLES.FR
           ]
         );
         savedRecords.push(saved);
+      }
+
+      // Auto-generate alert if mismatches found
+      if (detectedMismatches.length > 0) {
+        await query(
+          `INSERT INTO alerts (type, title, message, project_id, parcel_id, priority)
+           VALUES ($1, $2, $3, $4, $5, $6)`,
+          [
+            'DATA_MISMATCH',
+            `AI Document Mismatch: ${doc.title.trim()}`,
+            `AI detected ${detectedMismatches.length} discrepancy flags in document "${doc.title.trim()}" for Survey #${targetParcel.survey_number}.`,
+            targetParcel.project_id,
+            targetParcel.id,
+            'HIGH'
+          ]
+        );
       }
     }
 
