@@ -522,7 +522,7 @@ function CreateCaseModal({ onClose, onCreated }) {
   const [error, setError] = useState('');
 
   useEffect(() => {
-    api.get('/projects?limit=100').then(res => setProjects(res.data.data || [])).catch(() => {});
+    api.get('/projects?limit=100&all=true').then(res => setProjects(res.data.data || [])).catch(() => {});
   }, []);
 
   useEffect(() => {

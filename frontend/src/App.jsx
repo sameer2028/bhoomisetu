@@ -73,6 +73,7 @@ export default function App() {
 
             {/* Phase 8 — AI Document Mismatch */}
             <Route path="/ai/mismatch" element={<MismatchListPage />} />
+            <Route path="/ai/mismatches" element={<MismatchListPage />} />
 
             {/* Phase 9 — Compensation */}
             <Route path="/compensation" element={<CompensationListPage />} />

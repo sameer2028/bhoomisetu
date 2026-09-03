@@ -24,7 +24,7 @@ export default function ParcelCreateModal({ isOpen, onClose, onCreated, defaultP
   useEffect(() => {
     if (isOpen) {
       // Fetch available projects for dropdown
-      api.get('/projects?limit=100').then((res) => {
+      api.get('/projects?limit=100&all=true').then((res) => {
         setProjects(res.data.data || []);
       }).catch(console.error);
 

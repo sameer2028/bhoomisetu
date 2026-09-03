@@ -37,8 +37,8 @@ router.get('/', authenticate, async (req, res, next) => {
       conditions.push(`(p.name ILIKE $${i} OR p.project_code ILIKE $${i} OR p.implementing_agency ILIKE $${i})`);
     }
 
-    // Role-based jurisdiction filtering
-    if ((req.user.role === ROLES.DLAO || req.user.role === ROLES.FRO) && req.user.district) {
+    // Role-based jurisdiction filtering (skipped if all=true or search is used)
+    if (req.query.all !== 'true' && (req.user.role === ROLES.DLAO || req.user.role === ROLES.FRO) && req.user.district && !search) {
       params.push(req.user.district);
       conditions.push(`p.district = $${params.length}`);
     }
