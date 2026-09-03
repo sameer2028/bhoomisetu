@@ -169,7 +169,7 @@ async function runSystemAlertScanner(reqUser = null, req = null) {
 
     for (const comp of pendingDisbursements) {
       const existing = await queryOne(
-        `SELECT id FROM alerts WHERE parcel_id = $1 AND type = 'HIGH_RISK' AND message LIKE '%Compensation disbursement%' AND is_acknowledged = FALSE`,
+        `SELECT id FROM alerts WHERE parcel_id = $1 AND type = 'HIGH_RISK' AND title LIKE '%Pending Compensation Disbursement%' AND is_acknowledged = FALSE`,
         [comp.parcel_id]
       );
       if (!existing) {
@@ -201,7 +201,7 @@ async function runSystemAlertScanner(reqUser = null, req = null) {
 
     for (const act of delayedRr) {
       const existing = await queryOne(
-        `SELECT id FROM alerts WHERE project_id = $1 AND type = 'OVERDUE' AND message LIKE '%R&R Milestone%' AND is_acknowledged = FALSE`,
+        `SELECT id FROM alerts WHERE project_id = $1 AND type = 'OVERDUE' AND title LIKE '%R&R Milestone Delay%' AND is_acknowledged = FALSE`,
         [act.project_id]
       );
       if (!existing) {
@@ -232,7 +232,7 @@ async function runSystemAlertScanner(reqUser = null, req = null) {
 
     for (const doc of pendingDocs) {
       const existing = await queryOne(
-        `SELECT id FROM alerts WHERE project_id = $1 AND type = 'MISSING_DOC' AND message LIKE '%Restricted document verification%' AND is_acknowledged = FALSE`,
+        `SELECT id FROM alerts WHERE project_id = $1 AND type = 'MISSING_DOC' AND title LIKE '%Document Sign-Off Pending%' AND is_acknowledged = FALSE`,
         [doc.project_id]
       );
       if (!existing) {

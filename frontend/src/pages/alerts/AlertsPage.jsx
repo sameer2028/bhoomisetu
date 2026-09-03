@@ -121,8 +121,9 @@ export default function AlertsPage() {
     try {
       setLoading(true);
       const [statsRes, alertsRes] = await Promise.all([
-        api.get('/alerts/stats'),
+        api.get('/alerts/stats', { timeout: 60000 }),
         api.get('/alerts', {
+          timeout: 60000,
           params: {
             type: activeTab !== 'ALL' ? activeTab : undefined,
             priority: priorityFilter !== 'ALL' ? priorityFilter : undefined,
@@ -139,7 +140,7 @@ export default function AlertsPage() {
       setAlerts(items);
 
       if (items.length === 0 && (!statsRes.data.data?.totalAlerts || statsRes.data.data?.totalAlerts === 0)) {
-        api.post('/alerts/scan').then((res) => {
+        api.post('/alerts/scan', {}, { timeout: 120000 }).then((res) => {
           if (res.data?.data?.generatedCount > 0) {
             fetchData();
           }
@@ -200,13 +201,17 @@ export default function AlertsPage() {
     try {
       setScanning(true);
       setScanMessage(null);
-      const res = await api.post('/alerts/scan');
+      const res = await api.post('/alerts/scan', {}, { timeout: 120000 });
       setScanMessage(res.data.message || 'SLA & statutory compliance rules evaluated successfully.');
       await fetchData();
       setTimeout(() => setScanMessage(null), 5000);
     } catch (err) {
       console.error('Diagnostic scan error:', err);
-      setScanMessage('Failed to complete diagnostic scan.');
+      if (err.code === 'ECONNABORTED') {
+        setScanMessage('Scan is taking longer than expected. Please refresh the page in a moment.');
+      } else {
+        setScanMessage('Failed to complete diagnostic scan. Please try again.');
+      }
     } finally {
       setScanning(false);
     }
