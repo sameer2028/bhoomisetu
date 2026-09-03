@@ -67,7 +67,7 @@ async function callPythonAiService(endpoint, body) {
         'Content-Type': 'application/json',
         'Content-Length': Buffer.byteLength(postData),
       },
-      timeout: 15000,
+      timeout: 60000,
     };
 
     const req = (parsedUrl.protocol === 'https:' ? https : http).request(options, (res) => {
