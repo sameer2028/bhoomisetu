@@ -34,7 +34,7 @@ router.get('/', authenticate, async (req, res, next) => {
     let paramIdx = 1;
 
     if (entity_type && entity_type !== 'ALL') {
-      conditions.push(`a.entity_type = $${paramIdx++}`);
+      conditions.push(`UPPER(a.entity_type) = $${paramIdx++}`);
       params.push(entity_type.toUpperCase());
     }
 

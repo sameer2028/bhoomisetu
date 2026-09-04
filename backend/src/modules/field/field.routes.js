@@ -185,6 +185,30 @@ router.post(
         return apiResponse(res, { status: 404, success: false, error: 'Parcel not found.' });
       }
 
+      // ── AI Mismatch Blocking Gate (blocks VERIFY_AND_APPROVE only) ──
+      if (action === 'VERIFY_AND_APPROVE') {
+        const openMismatches = await queryRows(
+          `SELECT id, field_name, official_value, extracted_value, severity, status
+             FROM ai_mismatches
+            WHERE parcel_id = $1
+              AND status IN ('DETECTED', 'UNDER_REVIEW')
+            ORDER BY severity DESC`,
+          [id]
+        );
+
+        if (openMismatches.length > 0) {
+          return apiResponse(res, {
+            status: 409,
+            success: false,
+            error: `Field inspection approval BLOCKED: This parcel has ${openMismatches.length} unresolved AI document discrepancy(ies). DLAO must resolve all mismatches before field verification can be approved.`,
+            data: {
+              blocked_by: 'AI_MISMATCH_GATE',
+              open_mismatches: openMismatches,
+            },
+          });
+        }
+      }
+
       const lat = gps_coordinates?.latitude ? parseFloat(gps_coordinates.latitude) : parcel.latitude || 26.8467;
       const lng = gps_coordinates?.longitude ? parseFloat(gps_coordinates.longitude) : parcel.longitude || 80.9462;
 
@@ -257,16 +281,33 @@ router.post(
         }
       }
 
-      if (action === 'FLAG_ISSUE') {
-        // Create alert for DLAO and State Officer
+      const dlaoUser = await queryOne(`SELECT id, full_name FROM users WHERE role = 'DLAO' ORDER BY id LIMIT 1`);
+
+      if (action === 'VERIFY_AND_APPROVE') {
         await query(
-          `INSERT INTO alerts (type, title, message, project_id, case_id, parcel_id, priority, is_read, is_acknowledged, created_at)
-           VALUES ('HIGH_RISK', 'Field Inspection Issue Flagged', $1, $2, $3, $4, 'HIGH', false, false, now())`,
+          `INSERT INTO alerts (type, title, message, project_id, case_id, parcel_id, target_user_id, priority, is_read, is_acknowledged, created_at)
+           VALUES ('HIGH_RISK', $1, $2, $3, $4, $5, $6, 'HIGH', false, false, now())`,
           [
-            `Field Officer flagged issue for parcel survey #${parcel.survey_number}: ${issue_type || remarks}`,
+            `Field Verification Completed: Survey #${parcel.survey_number}`,
+            `Field & Revenue Officer ${req.user?.full_name || 'FRO'} completed on-site GPS inspection for Survey #${parcel.survey_number} (${parcel.village}). Ready for DLAO Review.`,
             parcel.project_id,
             linkedCase ? linkedCase.id : null,
             parcel.id,
+            dlaoUser?.id || null,
+          ]
+        );
+      } else if (action === 'FLAG_ISSUE') {
+        // Create critical alert for DLAO
+        await query(
+          `INSERT INTO alerts (type, title, message, project_id, case_id, parcel_id, target_user_id, priority, is_read, is_acknowledged, created_at)
+           VALUES ('HIGH_RISK', $1, $2, $3, $4, $5, $6, 'CRITICAL', false, false, now())`,
+          [
+            `Field Inspection Issue Flagged: Survey #${parcel.survey_number}`,
+            `Field & Revenue Officer ${req.user?.full_name || 'FRO'} flagged an issue for Survey #${parcel.survey_number}: ${issue_type || remarks || 'Discrepancy detected during field survey'}.`,
+            parcel.project_id,
+            linkedCase ? linkedCase.id : null,
+            parcel.id,
+            dlaoUser?.id || null,
           ]
         );
       }

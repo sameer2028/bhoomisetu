@@ -120,7 +120,7 @@ function killPortProcess(port) {
         if (line.includes('LISTENING')) {
           const parts = line.trim().split(/\s+/);
           const pid = parts[parts.length - 1];
-          if (pid && pid !== String(process.pid)) {
+          if (pid && pid !== String(process.pid) && pid !== String(process.ppid)) {
             try {
               execSync(`taskkill /F /PID ${pid}`, { stdio: 'ignore' });
               console.log(`[Server] Automatically freed port ${port} (terminated PID ${pid})`);

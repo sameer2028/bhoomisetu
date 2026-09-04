@@ -319,6 +319,7 @@ router.get('/', authenticate, async (req, res, next) => {
       is_acknowledged,
       project_id,
       search,
+      sort,
       limit = 50,
       offset = 0,
     } = req.query;
@@ -399,6 +400,18 @@ router.get('/', authenticate, async (req, res, next) => {
     const unreadRow = await queryOne('SELECT COUNT(*) AS unread FROM alerts WHERE is_read = FALSE');
     const unreadCount = parseInt(unreadRow?.unread, 10) || 0;
 
+    const orderClause = (sort === 'newest' || sort === 'latest')
+      ? 'ORDER BY a.created_at DESC'
+      : `ORDER BY
+          CASE a.priority
+            WHEN 'CRITICAL' THEN 1
+            WHEN 'HIGH' THEN 2
+            WHEN 'MEDIUM' THEN 3
+            WHEN 'LOW' THEN 4
+            ELSE 5
+          END,
+          a.created_at DESC`;
+
     const querySql = `
       SELECT
         a.*,
@@ -423,15 +436,7 @@ router.get('/', authenticate, async (req, res, next) => {
       LEFT JOIN acquisition_cases c ON a.case_id = c.id
       LEFT JOIN users u ON a.target_user_id = u.id
       ${whereClause}
-      ORDER BY
-        CASE a.priority
-          WHEN 'CRITICAL' THEN 1
-          WHEN 'HIGH' THEN 2
-          WHEN 'MEDIUM' THEN 3
-          WHEN 'LOW' THEN 4
-          ELSE 5
-        END,
-        a.created_at DESC
+      ${orderClause}
       LIMIT $${paramIdx++} OFFSET $${paramIdx++}
     `;
 
@@ -450,6 +455,88 @@ router.get('/', authenticate, async (req, res, next) => {
         limit: parseInt(limit, 10) || 50,
         offset: parseInt(offset, 10) || 0,
       },
+    });
+  } catch (err) {
+    next(err);
+  }
+});
+
+// ─── POST /api/alerts (Direct Officer-to-Officer Notification) ───
+router.post('/', authenticate, async (req, res, next) => {
+  try {
+    const {
+      title,
+      message,
+      priority = 'HIGH',
+      type = 'ESCALATION',
+      target_role,
+      target_user_id,
+      project_id,
+      case_id,
+      parcel_id,
+    } = req.body;
+
+    if (!title || !message) {
+      return res.status(400).json({ success: false, error: 'Title and message are required.' });
+    }
+
+    let finalTargetUserId = target_user_id || null;
+    let recipientName = null;
+
+    if (!finalTargetUserId && target_role) {
+      const targetUser = await queryOne(
+        'SELECT id, full_name, role FROM users WHERE role = $1 ORDER BY id LIMIT 1',
+        [target_role]
+      );
+      if (targetUser) {
+        finalTargetUserId = targetUser.id;
+        recipientName = targetUser.full_name;
+      }
+    } else if (finalTargetUserId) {
+      const targetUser = await queryOne('SELECT full_name, role FROM users WHERE id = $1', [finalTargetUserId]);
+      if (targetUser) recipientName = targetUser.full_name;
+    }
+
+    const senderTitle = req.user?.full_name ? `From ${req.user.full_name} (${req.user.role || 'Officer'}): ` : '';
+    const formattedTitle = title.startsWith('From ') || title.startsWith('Notification') || title.startsWith('Alert') ? title : `${senderTitle}${title}`;
+
+    const newAlert = await queryOne(
+      `INSERT INTO alerts (type, title, message, project_id, case_id, parcel_id, target_user_id, priority, is_read, is_acknowledged, created_at)
+       VALUES ($1, $2, $3, $4, $5, $6, $7, $8, FALSE, FALSE, NOW())
+       RETURNING *`,
+      [
+        type || 'ESCALATION',
+        formattedTitle,
+        message,
+        project_id || null,
+        case_id || null,
+        parcel_id || null,
+        finalTargetUserId,
+        priority || 'HIGH',
+      ]
+    );
+
+    await logAudit(
+      'ALERT',
+      newAlert.id,
+      'DISPATCH_OFFICER_ALERT',
+      req.user?.id,
+      null,
+      {
+        title: formattedTitle,
+        target_role,
+        target_user_id: finalTargetUserId,
+        recipientName,
+        priority,
+      },
+      req
+    );
+
+    apiResponse(res, {
+      status: 201,
+      success: true,
+      message: `Statutory notification alert dispatched successfully to ${recipientName || target_role || 'designated authority'}.`,
+      data: newAlert,
     });
   } catch (err) {
     next(err);

@@ -1,5 +1,5 @@
-import { useState, useEffect, useCallback } from 'react';
-import { useNavigate } from 'react-router-dom';
+import { useState, useEffect, useCallback, useRef } from 'react';
+import { useNavigate, useSearchParams } from 'react-router-dom';
 import api from '../../services/api';
 import { useAuth } from '../../contexts/AuthContext';
 import {
@@ -28,7 +28,8 @@ import {
   Square,
   Info,
   Shield,
-  Send
+  Send,
+  ListChecks,
 } from 'lucide-react';
 
 const PRIORITY_STYLES = {
@@ -72,6 +73,115 @@ const TYPE_CONFIG = {
   HIGH_RISK: { label: 'High Risk Alert', icon: Flame, color: 'text-red-700 bg-red-50 border-red-200' },
 };
 
+const ROLE_ALERT_TEMPLATES = {
+  FRO: [
+    {
+      label: 'Ground Survey Verification',
+      title: 'Urgent Ground Survey Verification: Boundary Demarcation',
+      message: 'Please conduct an immediate on-site joint measurement survey (JMS) for the designated parcel to verify boundary coordinates and standing structures.',
+      priority: 'HIGH',
+      type: 'OVERDUE',
+    },
+    {
+      label: 'Area/Record Discrepancy',
+      title: 'Discrepancy Clarification Required: Area & Ownership Record',
+      message: 'AI document check detected area/name mismatch against official Khatauni records. Verify on-ground possession and submit a clarification report.',
+      priority: 'HIGH',
+      type: 'DATA_MISMATCH',
+    },
+    {
+      label: 'SLA Deadline Notice',
+      title: 'Critical SLA Notice: Pending Verification Survey',
+      message: 'Statutory verification deadline is approaching under Section 3A. Expedite field inspection and upload GPS-tagged photographs immediately.',
+      priority: 'CRITICAL',
+      type: 'DEADLINE_APPROACHING',
+    },
+    {
+      label: 'Tree & Structure Valuation',
+      title: 'Tree & Structure Valuation Schedule Inspection',
+      message: 'Inspect standing assets, borewells, and structural improvements on the parcel and submit an itemized valuation schedule for compensation assessment.',
+      priority: 'MEDIUM',
+      type: 'MISSING_DOC',
+    },
+  ],
+  DLAO: [
+    {
+      label: 'Verification Completed',
+      title: 'Field Verification Completed: Ready for Statutory Approval',
+      message: 'On-site GPS survey and boundary demarcation have been completed and verified by Revenue Officer. Case is ready for stage approval and Section 3D declaration.',
+      priority: 'HIGH',
+      type: 'HIGH_RISK',
+    },
+    {
+      label: 'Landowner Dispute Flagged',
+      title: 'Ground Dispute Flagged: Landowner Objection on Survey Line',
+      message: 'Landowners on-site raised boundary demarcation objections during joint measurement survey. Requires DLAO statutory hearing and dispute resolution.',
+      priority: 'CRITICAL',
+      type: 'HIGH_RISK',
+    },
+    {
+      label: 'Compensation Variance',
+      title: 'Compensation Calculation Review: Crop & Structure Variance',
+      message: 'Field assessment reveals structural valuation variance compared to initial DPR estimate. Please review updated compensation matrix.',
+      priority: 'MEDIUM',
+      type: 'HIGH_RISK',
+    },
+    {
+      label: 'Gazette Draft Review',
+      title: 'Urgent Gazette Notification Draft Review (Section 11 / 3A)',
+      message: 'Preliminary notification draft prepared with verified survey schedule. Requesting review and authorization for Gazette publication.',
+      priority: 'HIGH',
+      type: 'MISSING_DOC',
+    },
+  ],
+  SGA: [
+    {
+      label: 'Tier-2 SLA Escalation',
+      title: 'Tier-2 Statutory SLA Escalation: Critical Timeline Breach',
+      message: 'Statutory timeline for acquisition stage has exceeded 15 days due to inter-departmental clearances. Escalated for Senior Government oversight and intervention.',
+      priority: 'CRITICAL',
+      type: 'ESCALATION',
+    },
+    {
+      label: 'Alignment Sanction',
+      title: 'Cabinet Sanction Request: Project Corridor Alignment Adjustment',
+      message: 'Corridor alignment adjustment required following ground feasibility review. Requesting Competent Authority administrative sanction.',
+      priority: 'HIGH',
+      type: 'ESCALATION',
+    },
+    {
+      label: 'R&R Package Clearance',
+      title: 'R&R Entitlement Package Approval for Displaced Families',
+      message: 'Rehabilitation & Resettlement survey completed for project-affected families. Requesting final clearance of special assistance disbursement package.',
+      priority: 'HIGH',
+      type: 'HIGH_RISK',
+    },
+    {
+      label: 'Statutory Audit Report',
+      title: 'Quarterly RFCTLARR Statutory Compliance Audit Report',
+      message: 'Quarterly statutory compliance and award disbursement audit report submitted for executive review.',
+      priority: 'MEDIUM',
+      type: 'DEADLINE_APPROACHING',
+    },
+  ],
+  ADMIN: [
+    {
+      label: 'Cadastral Layer Sync',
+      title: 'Cadastral Khasra Layer Synchronization Request',
+      message: 'Cadastral Khasra geo-layer synchronization required for newly notified project revenue villages.',
+      priority: 'MEDIUM',
+      type: 'HIGH_RISK',
+    },
+    {
+      label: 'Officer Reassignment',
+      title: 'User Authorization Update: Revenue Officer Reassignment',
+      message: 'Update system authorization and district assignment for newly posted Revenue Field Officers.',
+      priority: 'LOW',
+      type: 'OVERDUE',
+    },
+  ],
+};
+
 export default function AlertsPage() {
   const { user } = useAuth();
   const navigate = useNavigate();
@@ -99,7 +209,14 @@ export default function AlertsPage() {
   const [activeTab, setActiveTab] = useState('ALL'); // ALL, DEADLINE_ALL, MISSING_DOC, DATA_MISMATCH, ESCALATION, HIGH_RISK
   const [priorityFilter, setPriorityFilter] = useState('ALL');
   const [statusFilter, setStatusFilter] = useState('ALL'); // ALL, UNREAD, PENDING_ACTION, ACKNOWLEDGED
+  const [sortBy, setSortBy] = useState('newest'); // 'newest' | 'priority'
   const [searchQuery, setSearchQuery] = useState('');
+
+  // Target Highlight State (when navigated from notification or external link)
+  const [searchParams, setSearchParams] = useSearchParams();
+  const highlightId = searchParams.get('highlight');
+  const [highlightActive, setHighlightActive] = useState(!!highlightId);
+  const highlightRef = useRef(null);
 
   // Bulk Selection State
   const [selectedAlertIds, setSelectedAlertIds] = useState(new Set());
@@ -111,15 +228,25 @@ export default function AlertsPage() {
   const [acknowledgeRemarks, setAcknowledgeRemarks] = useState('');
   const [isEscalateModalOpen, setIsEscalateModalOpen] = useState(false);
   const [escalateReason, setEscalateReason] = useState('');
-  const [escalateTargetRole, setEscalateTargetRole] = useState('SGA');
+  const [escalateTargetRole, setEscalateTargetRole] = useState('FRO');
   const [actionLoading, setActionLoading] = useState(false);
   const [isEscalationTrailModalOpen, setIsEscalationTrailModalOpen] = useState(false);
   const [trailAlert, setTrailAlert] = useState(null);
 
-  // Fetch stats & alerts
-  const fetchData = useCallback(async () => {
+  // Send Direct Officer Alert State
+  const [isSendAlertModalOpen, setIsSendAlertModalOpen] = useState(false);
+  const [sendAlertForm, setSendAlertForm] = useState({
+    target_role: 'FRO',
+    priority: 'HIGH',
+    type: 'ESCALATION',
+    title: '',
+    message: '',
+  });
+
+  // Fetch stats & alerts (supports silent background refresh)
+  const fetchData = useCallback(async (isBackground = false) => {
     try {
-      setLoading(true);
+      if (!isBackground) setLoading(true);
       const [statsRes, alertsRes] = await Promise.all([
         api.get('/alerts/stats', { timeout: 60000 }),
         api.get('/alerts', {
@@ -130,6 +257,7 @@ export default function AlertsPage() {
             is_read: statusFilter === 'UNREAD' ? 'false' : undefined,
             is_acknowledged: statusFilter === 'PENDING_ACTION' ? 'false' : statusFilter === 'ACKNOWLEDGED' ? 'true' : undefined,
             search: searchQuery.trim() || undefined,
+            sort: sortBy,
             limit: 100,
           },
         }),
@@ -142,20 +270,61 @@ export default function AlertsPage() {
       if (items.length === 0 && (!statsRes.data.data?.totalAlerts || statsRes.data.data?.totalAlerts === 0)) {
         api.post('/alerts/scan', {}, { timeout: 120000 }).then((res) => {
           if (res.data?.data?.generatedCount > 0) {
-            fetchData();
+            fetchData(false);
           }
         }).catch(() => {});
       }
     } catch (err) {
       console.error('Failed to fetch alerts:', err);
     } finally {
-      setLoading(false);
+      if (!isBackground) setLoading(false);
     }
-  }, [activeTab, priorityFilter, statusFilter, searchQuery]);
+  }, [activeTab, priorityFilter, statusFilter, searchQuery, sortBy]);
 
   useEffect(() => {
-    fetchData();
+    fetchData(false);
+
+    // Live auto-polling every 3.5 seconds
+    const interval = setInterval(() => {
+      fetchData(true);
+    }, 3500);
+
+    // Cross-tab broadcast listener for immediate live updates
+    let channel;
+    try {
+      channel = new BroadcastChannel('bhoomisetu_notifications');
+      channel.onmessage = (e) => {
+        if (e.data?.type === 'NEW_ALERT') {
+          fetchData(true);
+        }
+      };
+    } catch (e) {}
+
+    return () => {
+      clearInterval(interval);
+      if (channel) channel.close();
+    };
   }, [fetchData]);
+
+  // Auto-scroll and highlight target alert when navigated with ?highlight=
+  useEffect(() => {
+    if (highlightId && !loading && highlightRef.current) {
+      setTimeout(() => {
+        highlightRef.current?.scrollIntoView({ behavior: 'smooth', block: 'center' });
+      }, 250);
+
+      const timer = setTimeout(() => {
+        setHighlightActive(false);
+        setSearchParams((prev) => {
+          const next = new URLSearchParams(prev);
+          next.delete('highlight');
+          return next;
+        }, { replace: true });
+      }, 4500);
+
+      return () => clearTimeout(timer);
+    }
+  }, [highlightId, loading, setSearchParams]);
 
   // Bulk Selection Helpers
   const toggleSelectAll = () => {
@@ -302,8 +471,91 @@ export default function AlertsPage() {
       setIsEscalateModalOpen(false);
       setSelectedAlert(null);
       await fetchData();
+
+      // Trigger instant cross-tab live notification
+      try {
+        const ch = new BroadcastChannel('bhoomisetu_notifications');
+        ch.postMessage({ type: 'NEW_ALERT' });
+        ch.close();
+      } catch (err) {}
     } catch (err) {
       console.error('Failed to escalate alert:', err);
+    } finally {
+      setActionLoading(false);
+    }
+  };
+
+  // Helper to open Send Alert modal with role-based default template
+  const openSendAlertModal = (targetRole = 'FRO') => {
+    const templates = ROLE_ALERT_TEMPLATES[targetRole] || ROLE_ALERT_TEMPLATES.FRO;
+    const defaultTemplate = templates[0] || {
+      title: '',
+      message: '',
+      priority: 'HIGH',
+      type: 'ESCALATION',
+    };
+    setSendAlertForm({
+      target_role: targetRole,
+      title: defaultTemplate.title,
+      message: defaultTemplate.message,
+      priority: defaultTemplate.priority,
+      type: defaultTemplate.type,
+    });
+    setIsSendAlertModalOpen(true);
+  };
+
+  const handleTargetRoleChange = (role) => {
+    const templates = ROLE_ALERT_TEMPLATES[role] || ROLE_ALERT_TEMPLATES.FRO;
+    const defaultTemplate = templates[0] || {
+      title: '',
+      message: '',
+      priority: 'HIGH',
+      type: 'ESCALATION',
+    };
+    setSendAlertForm({
+      target_role: role,
+      title: defaultTemplate.title,
+      message: defaultTemplate.message,
+      priority: defaultTemplate.priority,
+      type: defaultTemplate.type,
+    });
+  };
+
+  const applyTemplate = (tmpl) => {
+    setSendAlertForm((prev) => ({
+      ...prev,
+      title: tmpl.title,
+      message: tmpl.message,
+      priority: tmpl.priority,
+      type: tmpl.type || prev.type,
+    }));
+  };
+
+  // Submit Direct Officer Alert
+  const handleConfirmSendAlert = async (e) => {
+    e.preventDefault();
+    if (!sendAlertForm.title.trim() || !sendAlertForm.message.trim()) return;
+    try {
+      setActionLoading(true);
+      await api.post('/alerts', sendAlertForm);
+      setIsSendAlertModalOpen(false);
+      setSendAlertForm({
+        target_role: 'FRO',
+        priority: 'HIGH',
+        type: 'ESCALATION',
+        title: '',
+        message: '',
+      });
+      await fetchData();
+
+      // Broadcast to other tabs/windows instantly
+      try {
+        const ch = new BroadcastChannel('bhoomisetu_notifications');
+        ch.postMessage({ type: 'NEW_ALERT' });
+        ch.close();
+      } catch (err) {}
+    } catch (err) {
+      console.error('Failed to send officer alert:', err);
     } finally {
       setActionLoading(false);
     }
@@ -340,10 +592,29 @@ export default function AlertsPage() {
           </p>
         </div>
 
-        <div className="flex items-center gap-2.5 flex-wrap">
+        <div className="flex items-center gap-2 flex-wrap xl:flex-nowrap justify-start sm:justify-end shrink-0">
+          <button
+            onClick={() => openSendAlertModal('FRO')}
+            className="btn btn-primary text-xs px-3.5 py-2 flex items-center gap-1.5 font-bold shadow-xs bg-blue-700 hover:bg-blue-800 border-blue-700 text-white whitespace-nowrap"
+            title="Dispatch direct statutory notification to Field Officer, DLAO, or Senior Authority"
+          >
+            <Send className="w-3.5 h-3.5" />
+            Send Officer Alert
+          </button>
+
+          <button
+            onClick={handleRunScan}
+            disabled={scanning}
+            className="btn btn-primary text-xs px-3.5 py-2 flex items-center gap-1.5 font-bold shadow-xs bg-emerald-800 hover:bg-emerald-900 border-emerald-900 text-white whitespace-nowrap"
+            title="Evaluate statutory SLA compliance rules"
+          >
+            <RefreshCw className={`w-3.5 h-3.5 ${scanning ? 'animate-spin' : ''}`} />
+            {scanning ? 'Evaluating...' : 'Run SLA Scan'}
+          </button>
+
           <button
             onClick={handleExportCSV}
-            className="btn btn-outline text-xs px-3 py-2 flex items-center gap-1.5 font-semibold text-slate-700 hover:bg-slate-100"
+            className="btn btn-outline text-xs px-2.5 py-2 flex items-center gap-1.5 font-semibold text-slate-700 hover:bg-slate-100 whitespace-nowrap"
             title="Download full statutory alerts report"
           >
             <Download className="w-3.5 h-3.5 text-slate-500" />
@@ -352,19 +623,11 @@ export default function AlertsPage() {
 
           <button
             onClick={handleMarkAllRead}
-            className="btn btn-outline text-xs px-3 py-2 flex items-center gap-1.5 font-semibold"
+            className="btn btn-outline text-xs px-2.5 py-2 flex items-center gap-1.5 font-semibold text-slate-700 hover:bg-slate-100 whitespace-nowrap"
+            title="Mark all alerts as read"
           >
             <Check className="w-3.5 h-3.5 text-blue-700" />
-            Mark All Read
-          </button>
-
-          <button
-            onClick={handleRunScan}
-            disabled={scanning}
-            className="btn btn-primary text-xs px-4 py-2 flex items-center gap-2 font-bold shadow-md bg-emerald-800 hover:bg-emerald-900 border-emerald-900"
-          >
-            <RefreshCw className={`w-3.5 h-3.5 ${scanning ? 'animate-spin' : ''}`} />
-            {scanning ? 'Evaluating Rules...' : 'Run SLA Diagnostic Scan'}
+            Mark Read
           </button>
         </div>
       </div>
@@ -600,6 +863,18 @@ export default function AlertsPage() {
                 <option value="PENDING_ACTION">Pending Acknowledge</option>
                 <option value="ACKNOWLEDGED">Acknowledged</option>
               </select>
+
+              <div className="flex items-center gap-1.5 text-xs font-semibold text-slate-600 ml-1">
+                <span>Sort:</span>
+              </div>
+              <select
+                value={sortBy}
+                onChange={(e) => setSortBy(e.target.value)}
+                className="form-select py-1.5 px-2.5 text-xs rounded-lg bg-slate-50 border-slate-200 font-bold text-emerald-900"
+              >
+                <option value="newest">Newest First</option>
+                <option value="priority">Critical SLA Priority</option>
+              </select>
             </div>
           </div>
         </div>
@@ -629,13 +904,24 @@ export default function AlertsPage() {
               };
               const TypeIcon = typeMeta.icon;
               const isSelected = selectedAlertIds.has(alertItem.id);
+              const isHighlighted = highlightActive && highlightId === alertItem.id;
 
               return (
                 <div
                   key={alertItem.id}
+                  id={`alert-${alertItem.id}`}
+                  ref={highlightId === alertItem.id ? highlightRef : null}
                   className={`p-4 sm:p-5 transition-all hover:bg-slate-50 flex flex-col md:flex-row items-start md:items-center justify-between gap-4 ${
                     priority.border
-                  } ${isSelected ? 'bg-blue-50/60 border-l-blue-600' : !alertItem.is_read ? 'bg-blue-50/20' : 'bg-white'}`}
+                  } ${
+                    isHighlighted
+                      ? 'ring-4 ring-amber-400 bg-amber-50/90 shadow-2xl border-l-4 border-l-amber-500 scale-[1.01] transition-all duration-300 animate-pulse'
+                      : isSelected
+                      ? 'bg-blue-50/60 border-l-blue-600'
+                      : !alertItem.is_read
+                      ? 'bg-blue-50/20'
+                      : 'bg-white'
+                  }`}
                 >
                   {/* Left: Checkbox, Icon & Alert Details */}
                   <div className="flex items-start gap-3 min-w-0 flex-1">
@@ -1056,8 +1342,9 @@ export default function AlertsPage() {
                   onChange={(e) => setEscalateTargetRole(e.target.value)}
                   className="form-select text-xs w-full mt-1"
                 >
-                  <option value="SGA">Senior Government Authority (SGA / Joint Secretary)</option>
+                  <option value="FRO">Field &amp; Revenue Officer (FRO)</option>
                   <option value="DLAO">District Land Acquisition Officer (DLAO)</option>
+                  <option value="SGA">Senior Government Authority (SGA / Joint Secretary)</option>
                   <option value="ADMIN">State System Administrator (ADMIN)</option>
                 </select>
               </div>
@@ -1077,7 +1364,7 @@ export default function AlertsPage() {
               </div>
 
               <div className="p-3 bg-rose-50 rounded-xl border border-rose-200 text-rose-900 text-[11px] leading-relaxed">
-                Escalation upgrades this issue to <strong>CRITICAL PRIORITY</strong> and dispatches statutory notifications to the designated higher authority.
+                Escalation upgrades this issue to <strong>CRITICAL PRIORITY</strong> and dispatches statutory notifications to the designated authority.
               </div>
 
               <div className="flex items-center justify-end gap-2 pt-2">
@@ -1094,6 +1381,151 @@ export default function AlertsPage() {
                   className="btn btn-primary text-xs px-4 py-2 bg-rose-700 hover:bg-rose-800 border-rose-800 font-bold"
                 >
                   {actionLoading ? 'Escalating...' : 'Confirm Escalation'}
+                </button>
+              </div>
+            </form>
+          </div>
+        </div>
+      )}
+
+      {/* Direct Officer Alert Modal (FO to DLAO / DLAO to FO) */}
+      {isSendAlertModalOpen && (
+        <div className="fixed inset-0 z-50 flex items-center justify-center p-4 bg-slate-900/60 backdrop-blur-sm">
+          <div className="bg-white rounded-2xl max-w-lg w-full shadow-2xl border border-slate-200 overflow-hidden animate-fadeIn">
+            <div className="p-4 bg-blue-50 border-b border-blue-200 flex items-center justify-between">
+              <div className="flex items-center gap-2">
+                <Send className="w-4 h-4 text-blue-700" />
+                <h3 className="font-bold text-blue-950 text-sm">
+                  Send Statutory Notification / Alert to Officer
+                </h3>
+              </div>
+              <button
+                onClick={() => setIsSendAlertModalOpen(false)}
+                className="text-slate-400 hover:text-slate-600"
+              >
+                <X className="w-4 h-4" />
+              </button>
+            </div>
+
+            <form onSubmit={handleConfirmSendAlert} className="p-5 space-y-4 text-xs">
+              <div className="grid grid-cols-2 gap-3">
+                <div>
+                  <label className="form-label font-bold text-slate-700">
+                    Recipient Officer / Role *
+                  </label>
+                  <select
+                    value={sendAlertForm.target_role}
+                    onChange={(e) => handleTargetRoleChange(e.target.value)}
+                    className="form-select text-xs w-full mt-1 font-semibold text-slate-900"
+                  >
+                    <option value="FRO">Field &amp; Revenue Officer (FRO)</option>
+                    <option value="DLAO">District Land Acquisition Officer (DLAO)</option>
+                    <option value="SGA">Senior Government Authority (SGA / Ministry)</option>
+                    <option value="ADMIN">System Administrator (ADMIN)</option>
+                  </select>
+                </div>
+
+                <div>
+                  <label className="form-label font-bold text-slate-700">
+                    Priority Level *
+                  </label>
+                  <select
+                    value={sendAlertForm.priority}
+                    onChange={(e) => setSendAlertForm({ ...sendAlertForm, priority: e.target.value })}
+                    className="form-select text-xs w-full mt-1 font-semibold"
+                  >
+                    <option value="CRITICAL">🔴 CRITICAL (Urgent Top Priority)</option>
+                    <option value="HIGH">🟠 HIGH Priority</option>
+                    <option value="MEDIUM">🟡 MEDIUM Priority</option>
+                    <option value="LOW">⚪ LOW Priority</option>
+                  </select>
+                </div>
+              </div>
+
+              {/* Dynamic Role-Specific Suggestion Templates */}
+              <div className="space-y-2 bg-blue-50/50 p-3 rounded-xl border border-blue-200/80">
+                <div className="flex items-center justify-between">
+                  <span className="text-[11px] font-bold text-blue-950 flex items-center gap-1.5">
+                    <ListChecks className="w-3.5 h-3.5 text-blue-700" />
+                    Suggested Directives for {sendAlertForm.target_role === 'FRO' ? 'Field Officer (FRO)' : sendAlertForm.target_role === 'DLAO' ? 'District Officer (DLAO)' : sendAlertForm.target_role === 'SGA' ? 'Senior Authority (SGA)' : 'Admin'}:
+                  </span>
+                  <span className="text-[10px] text-blue-700 font-medium bg-blue-100/70 px-1.5 py-0.5 rounded">
+                    Click to auto-fill
+                  </span>
+                </div>
+
+                <div className="flex items-center gap-1.5 flex-wrap pt-0.5">
+                  {(ROLE_ALERT_TEMPLATES[sendAlertForm.target_role] || []).map((tmpl, idx) => {
+                    const isSelected = sendAlertForm.title === tmpl.title;
+                    return (
+                      <button
+                        key={idx}
+                        type="button"
+                        onClick={() => applyTemplate(tmpl)}
+                        className={`text-[10px] font-bold px-2.5 py-1.5 rounded-lg border transition-all text-left flex items-center gap-1 ${
+                          isSelected
+                            ? 'bg-blue-700 text-white border-blue-800 shadow-xs ring-2 ring-blue-400/50'
+                            : 'bg-white text-slate-700 border-slate-300 hover:bg-slate-100 hover:border-slate-400'
+                        }`}
+                      >
+                        {isSelected && <Check className="w-3 h-3 text-white" />}
+                        <span>{tmpl.label}</span>
+                      </button>
+                    );
+                  })}
+                </div>
+              </div>
+
+              <div>
+                <label className="form-label font-bold text-slate-700">
+                  Notification Title *
+                </label>
+                <input
+                  type="text"
+                  required
+                  value={sendAlertForm.title}
+                  onChange={(e) => setSendAlertForm({ ...sendAlertForm, title: e.target.value })}
+                  placeholder="e.g. Urgent Field Survey verification for Survey #123"
+                  className="form-input text-xs w-full mt-1 font-semibold"
+                />
+              </div>
+
+              <div>
+                <label className="form-label font-bold text-slate-700">
+                  Message / Statutory Directive *
+                </label>
+                <textarea
+                  rows={4}
+                  required
+                  value={sendAlertForm.message}
+                  onChange={(e) => setSendAlertForm({ ...sendAlertForm, message: e.target.value })}
+                  placeholder="Enter detailed directives, required actions, or boundary clarification notes..."
+                  className="form-input text-xs w-full mt-1"
+                />
+              </div>
+
+              <div className="p-3 bg-blue-50 rounded-xl border border-blue-200 text-blue-900 text-[11px] leading-relaxed flex items-start gap-2">
+                <Info className="w-4 h-4 text-blue-700 flex-shrink-0 mt-0.5" />
+                <span>
+                  Dispatched notifications will appear <strong>instantly in real time</strong> on the recipient's notification bell and alerts board with audio alert chime.
+                </span>
+              </div>
+
+              <div className="flex items-center justify-end gap-2 pt-2">
+                <button
+                  type="button"
+                  onClick={() => setIsSendAlertModalOpen(false)}
+                  className="btn btn-outline text-xs px-4 py-2"
+                >
+                  Cancel
+                </button>
+                <button
+                  type="submit"
+                  disabled={actionLoading}
+                  className="btn btn-primary text-xs px-4 py-2 bg-blue-700 hover:bg-blue-800 border-blue-800 font-bold flex items-center gap-1.5"
+                >
+                  <Send className="w-3.5 h-3.5" />
+                  {actionLoading ? 'Dispatching...' : 'Send Live Notification'}
                 </button>
               </div>
             </form>

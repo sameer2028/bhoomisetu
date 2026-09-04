@@ -28,6 +28,8 @@ export default function MismatchDetailModal({ isOpen, onClose, mismatch, onUpdat
   const [successMsg, setSuccessMsg] = useState('');
   const [errorMsg, setErrorMsg] = useState('');
   const [showPdfViewer, setShowPdfViewer] = useState(false);
+  const [history, setHistory] = useState([]);
+  const [loadingHistory, setLoadingHistory] = useState(false);
 
   useEffect(() => {
     if (mismatch) {
@@ -35,8 +37,28 @@ export default function MismatchDetailModal({ isOpen, onClose, mismatch, onUpdat
       setRemarks('');
       setSuccessMsg('');
       setErrorMsg('');
+      fetchHistory();
     }
   }, [mismatch]);
+
+  const fetchHistory = async () => {
+    if (!mismatch?.id) return;
+    setLoadingHistory(true);
+    try {
+      const res = await api.get('/audit', {
+        params: { entity_type: 'ai_mismatch', entity_id: mismatch.id, limit: 10 }
+      });
+      // Filter for logs that have remarks or specifically FRO actions
+      const logsWithRemarks = (res.data.data || []).filter(
+        log => log.new_values?.remarks
+      );
+      setHistory(logsWithRemarks);
+    } catch (err) {
+      console.error('Failed to fetch mismatch history:', err);
+    } finally {
+      setLoadingHistory(false);
+    }
+  };
 
   if (!isOpen || !mismatch) return null;
 
@@ -208,6 +230,39 @@ export default function MismatchDetailModal({ isOpen, onClose, mismatch, onUpdat
               {mismatch.explanation}
             </p>
           </div>
+
+          {/* LRO / FRO Investigation Notes History */}
+          {history.length > 0 && (
+            <div className="p-2 rounded-lg bg-slate-50 border border-slate-200 text-xs space-y-2">
+              <h4 className="text-[10px] font-bold text-slate-800 uppercase tracking-wider flex items-center gap-1">
+                <FileText className="w-3.5 h-3.5 text-slate-500" /> Investigation Notes & History
+              </h4>
+              <div className="space-y-2">
+                {history.map((log) => (
+                  <div key={log.id} className="bg-white p-2 rounded border border-slate-100 shadow-sm">
+                    <div className="flex justify-between items-start mb-1">
+                      <span className="font-semibold text-slate-800 text-[10px]">
+                        {log.actor_name} <span className="text-slate-400 font-normal">({log.actor_role})</span>
+                      </span>
+                      <span className="text-[9px] text-slate-400">
+                        {new Date(log.created_at).toLocaleString()}
+                      </span>
+                    </div>
+                    <p className="text-[11px] text-slate-700 leading-snug">
+                      {log.new_values.remarks}
+                    </p>
+                    {log.new_values.status && (
+                      <div className="mt-1">
+                        <span className="text-[9px] font-medium bg-slate-100 text-slate-600 px-1.5 py-0.5 rounded">
+                          Changed status to: {log.new_values.status.replace('_', ' ')}
+                        </span>
+                      </div>
+                    )}
+                  </div>
+                ))}
+              </div>
+            </div>
+          )}
 
           {/* Reference Links Bar */}
           <div className="grid grid-cols-2 gap-2 text-xs">

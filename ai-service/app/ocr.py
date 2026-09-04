@@ -12,7 +12,7 @@ structured fields (survey number, area, etc.) happens in extractor.py.
 
 from pathlib import Path
 import pytesseract
-from PIL import Image
+from PIL import Image, ImageEnhance, ImageOps
 import pdfplumber
 
 

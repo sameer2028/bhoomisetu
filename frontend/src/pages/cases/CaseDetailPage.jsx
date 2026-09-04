@@ -1656,6 +1656,7 @@ function TransitionModal({ action, caseData, onClose, onSuccess }) {
   const [remarks, setRemarks] = useState('');
   const [submitting, setSubmitting] = useState(false);
   const [error, setError] = useState('');
+  const [blockedMismatches, setBlockedMismatches] = useState(null); // AI gate block data
 
   const config = ACTION_CONFIG[action] || {
     label: action,
@@ -1681,7 +1682,14 @@ function TransitionModal({ action, caseData, onClose, onSuccess }) {
       });
       onSuccess();
     } catch (err) {
-      setError(err.response?.data?.error || 'Transition failed.');
+      const resData = err.response?.data;
+      if (resData?.data?.blocked_by === 'AI_MISMATCH_GATE') {
+        setBlockedMismatches(resData.data.open_mismatches || []);
+        setError('');
+      } else {
+        setError(resData?.error || 'Transition failed.');
+        setBlockedMismatches(null);
+      }
     } finally {
       setSubmitting(false);
     }
@@ -1767,6 +1775,50 @@ function TransitionModal({ action, caseData, onClose, onSuccess }) {
               </div>
             );
           })()}
+
+          {/* AI Mismatch Blocking Gate Banner */}
+          {blockedMismatches && (
+            <div className="bg-rose-50 border-2 border-rose-300 rounded-xl overflow-hidden">
+              <div className="flex items-center gap-2 px-4 py-2.5 bg-rose-100 border-b border-rose-200">
+                <AlertTriangle className="w-4 h-4 text-rose-700 flex-shrink-0" />
+                <span className="text-xs font-extrabold text-rose-800 uppercase tracking-wider">
+                  Stage Advancement BLOCKED — Unresolved AI Discrepancies
+                </span>
+              </div>
+              <div className="p-3.5 space-y-2">
+                <p className="text-[11px] text-rose-700 font-semibold">
+                  This parcel has <strong>{blockedMismatches.length}</strong> unresolved document mismatch(es).
+                  DLAO must resolve all discrepancies in <strong>AI Mismatch</strong> before this case can proceed.
+                </p>
+                <div className="space-y-1.5">
+                  {blockedMismatches.map((m, i) => (
+                    <div key={i} className="bg-white border border-rose-200 rounded-lg px-3 py-2 text-[11px]">
+                      <div className="flex items-center justify-between mb-0.5">
+                        <span className="font-bold text-rose-900 capitalize">{m.field_name?.replace('_', ' ')}</span>
+                        <span className={`px-1.5 py-0.5 rounded text-[10px] font-extrabold ${
+                          m.severity === 'HIGH' ? 'bg-rose-100 text-rose-800' :
+                          m.severity === 'MEDIUM' ? 'bg-amber-100 text-amber-800' :
+                          'bg-slate-100 text-slate-700'
+                        }`}>{m.severity}</span>
+                      </div>
+                      <div className="flex gap-3 text-slate-600">
+                        <span>Official: <strong className="text-slate-900">{m.official_value}</strong></span>
+                        <span>•</span>
+                        <span>Extracted: <strong className="text-rose-800">{m.extracted_value}</strong></span>
+                      </div>
+                    </div>
+                  ))}
+                </div>
+                <Link
+                  to="/ai/mismatch"
+                  onClick={onClose}
+                  className="inline-flex items-center gap-1.5 text-[11px] font-bold text-rose-700 hover:text-rose-900 underline mt-1"
+                >
+                  <AlertTriangle className="w-3 h-3" /> Go to AI Mismatch to resolve discrepancies →
+                </Link>
+              </div>
+            </div>
+          )}
 
           {error && (
             <div className="bg-rose-50 border border-rose-200 text-rose-800 rounded-xl p-3 font-semibold">

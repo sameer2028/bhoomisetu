@@ -127,7 +127,7 @@ export default function DashboardPage() {
     { label: 'Land Acquired', value: `${formatNumber(stats.landAcquired)} / ${formatNumber(stats.landProposed)} acres`, icon: MapPin, color: 'text-emerald-700', bg: 'bg-emerald-50 border-emerald-100', link: '/parcels' },
     { label: 'Compensation Paid', value: formatCurrency(stats.compensationPaid), icon: IndianRupee, color: 'text-teal-700', bg: 'bg-teal-50 border-teal-100', link: '/compensation' },
     { label: 'Affected (Displaced)', value: `${formatNumber(stats.affectedFamilies)} (${formatNumber(stats.displacedFamilies)})`, icon: Users, color: 'text-purple-700', bg: 'bg-purple-50 border-purple-100', link: '/rr' },
-    { label: 'R&R Progress', value: stats.rrTotal > 0 ? `${Math.round((stats.rrCompleted / stats.rrTotal) * 100)}%` : '92%', icon: Home, color: 'text-indigo-700', bg: 'bg-indigo-50 border-indigo-100', link: '/rr' },
+    { label: 'R&R Progress', value: stats.rrTotal > 0 ? `${Math.round((stats.rrCompleted / stats.rrTotal) * 100)}%` : '0%', icon: Home, color: 'text-indigo-700', bg: 'bg-indigo-50 border-indigo-100', link: '/rr' },
     { label: 'Active Cases', value: formatNumber(stats.activeCases), icon: GitBranch, color: 'text-sky-700', bg: 'bg-sky-50 border-sky-100', link: '/cases' },
     { label: 'Overdue Cases', value: formatNumber(stats.overdueCases), icon: Clock, color: 'text-rose-700', bg: 'bg-rose-50 border-rose-100', link: '/cases' },
     { label: 'High-Risk Projects', value: formatNumber(stats.highRiskProjects), icon: AlertTriangle, color: 'text-rose-700', bg: 'bg-rose-50 border-rose-200', link: '#high-risk-section' },

@@ -562,6 +562,45 @@ router.post('/cases/:id/transition', authenticate, rbac(ROLES.DLAO, ROLES.SGA, R
       });
     }
 
+    // ── AI Mismatch Blocking Gate ──────────────────────────────────────
+    // Block forward/approve transitions if parcel has unresolved AI mismatches.
+    // SEND_BACK and REJECT are always allowed regardless of mismatches.
+    const isForwardingAction = ['FORWARD', 'APPROVE', 'COMPLETE'].includes(normalizedAction);
+    if (isForwardingAction && caseRecord.parcel_id) {
+      const openMismatches = await queryRows(
+        `SELECT id, field_name, official_value, extracted_value, severity, status
+           FROM ai_mismatches
+          WHERE parcel_id = $1
+            AND status IN ('DETECTED', 'UNDER_REVIEW')
+          ORDER BY severity DESC`,
+        [caseRecord.parcel_id]
+      );
+
+      if (openMismatches.length > 0) {
+        const mismatchSummary = openMismatches
+          .map(m => `"${m.field_name}" (${m.severity}: official="${m.official_value}" vs extracted="${m.extracted_value}", status=${m.status})`)
+          .join('; ');
+
+        return apiResponse(res, {
+          status: 409,
+          success: false,
+          error: `Stage advancement BLOCKED: This parcel has ${openMismatches.length} unresolved AI document discrepancy(ies) that must be resolved by DLAO before this case can proceed. Mismatches: [${mismatchSummary}]. Go to /ai/mismatch and mark them RESOLVED or FALSE_POSITIVE first.`,
+          data: {
+            blocked_by: 'AI_MISMATCH_GATE',
+            open_mismatches: openMismatches.map(m => ({
+              id: m.id,
+              field_name: m.field_name,
+              official_value: m.official_value,
+              extracted_value: m.extracted_value,
+              severity: m.severity,
+              status: m.status,
+            })),
+          },
+        });
+      }
+    }
+    // ── End AI Mismatch Blocking Gate ──────────────────────────────────
+
     const toStage = stageTransitions[normalizedAction];
     const fromStage = caseRecord.current_stage;
 
