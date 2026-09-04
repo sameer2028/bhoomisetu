@@ -1,5 +1,5 @@
-import { useState, useEffect, useCallback, useMemo } from 'react';
-import { Link } from 'react-router-dom';
+import { useState, useEffect, useCallback, useMemo, useRef } from 'react';
+import { Link, useSearchParams } from 'react-router-dom';
 import { useAuth } from '../../contexts/AuthContext';
 import api from '../../services/api';
 import { toLandReference } from '../../services/landRecordMapper';
@@ -87,6 +87,10 @@ const STATUS_STYLES = {
 
 export default function CaseListPage() {
   const { hasRole } = useAuth();
+  const [searchParams, setSearchParams] = useSearchParams();
+  const highlightId = searchParams.get('highlight');
+  const [highlightActive, setHighlightActive] = useState(!!highlightId);
+  const highlightRef = useRef(null);
   const [cases, setCases] = useState([]);
   const [loading, setLoading] = useState(true);
   const [search, setSearch] = useState('');
@@ -121,6 +125,21 @@ export default function CaseListPage() {
   useEffect(() => {
     fetchCases();
   }, [fetchCases]);
+
+  // Auto-scroll and highlight the target case from alerts
+  useEffect(() => {
+    if (highlightId && !loading && highlightRef.current) {
+      setTimeout(() => {
+        highlightRef.current?.scrollIntoView({ behavior: 'smooth', block: 'center' });
+      }, 300);
+      // Remove highlight after 3.5 seconds
+      const timer = setTimeout(() => {
+        setHighlightActive(false);
+        setSearchParams({}, { replace: true });
+      }, 3500);
+      return () => clearTimeout(timer);
+    }
+  }, [highlightId, loading, setSearchParams]);
 
   // Client-side sorting for rapid responsiveness
   const sortedCases = useMemo(() => {
@@ -344,10 +363,17 @@ export default function CaseListPage() {
             const stageNumber = stageIndex + 1;
             const StageIcon = STAGE_ICONS[c.current_stage] || Compass;
 
+            const isHighlighted = highlightActive && highlightId === c.id;
+
             return (
               <div
                 key={c.id}
-                className={`bg-white rounded-2xl border border-slate-200/90 shadow-card hover:border-blue-300 hover:shadow-md transition-all flex flex-col justify-between overflow-hidden ${getCardBorderColor(c)}`}
+                ref={highlightId === c.id ? highlightRef : null}
+                className={`bg-white rounded-2xl border shadow-card hover:border-blue-300 hover:shadow-md transition-all flex flex-col justify-between overflow-hidden ${getCardBorderColor(c)} ${
+                  isHighlighted
+                    ? 'ring-2 ring-amber-400 ring-offset-2 border-amber-400 bg-amber-50/40 shadow-lg shadow-amber-200/50 animate-pulse'
+                    : 'border-slate-200/90'
+                }`}
               >
                 <div className="p-5 flex-1 flex flex-col justify-between space-y-4">
                   {/* TOP: Case ID, Priority, Overdue | Status, More */}

@@ -1,5 +1,5 @@
-import { useState, useEffect, useCallback, useMemo } from 'react';
-import { Link } from 'react-router-dom';
+import { useState, useEffect, useCallback, useMemo, useRef } from 'react';
+import { Link, useSearchParams } from 'react-router-dom';
 import { useAuth } from '../../contexts/AuthContext';
 import api from '../../services/api';
 import ProjectCreateModal from './ProjectCreateModal';
@@ -20,6 +20,10 @@ import {
 
 export default function ProjectListPage() {
   const { user, hasRole } = useAuth();
+  const [searchParams, setSearchParams] = useSearchParams();
+  const highlightId = searchParams.get('highlight');
+  const [highlightActive, setHighlightActive] = useState(!!highlightId);
+  const highlightRef = useRef(null);
   const [projects, setProjects] = useState([]);
   const [loading, setLoading] = useState(true);
   const [search, setSearch] = useState('');
@@ -49,6 +53,20 @@ export default function ProjectListPage() {
   useEffect(() => {
     fetchProjects();
   }, [fetchProjects]);
+
+  // Auto-scroll and highlight the target project from alerts
+  useEffect(() => {
+    if (highlightId && !loading && highlightRef.current) {
+      setTimeout(() => {
+        highlightRef.current?.scrollIntoView({ behavior: 'smooth', block: 'center' });
+      }, 300);
+      const timer = setTimeout(() => {
+        setHighlightActive(false);
+        setSearchParams({}, { replace: true });
+      }, 3500);
+      return () => clearTimeout(timer);
+    }
+  }, [highlightId, loading, setSearchParams]);
 
   const sortedProjects = useMemo(() => {
     let list = [...projects];
@@ -273,7 +291,11 @@ export default function ProjectListPage() {
             const pct = reqArea > 0 ? Math.min(100, Math.round((acqArea / reqArea) * 100)) : 0;
 
             return (
-              <div key={project.id} className="card hover:border-blue-300 transition-all group flex flex-col justify-between overflow-hidden">
+              <div key={project.id} ref={highlightId === project.id ? highlightRef : null} className={`card hover:border-blue-300 transition-all group flex flex-col justify-between overflow-hidden ${
+                highlightActive && highlightId === project.id
+                  ? 'ring-2 ring-amber-400 ring-offset-2 border-amber-400 bg-amber-50/40 shadow-lg shadow-amber-200/50 animate-pulse'
+                  : ''
+              }`}>
                 <div className="card-body">
                   <div className="flex items-start justify-between gap-3 mb-3">
                     <div>
