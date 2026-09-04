@@ -452,8 +452,37 @@ export default function FieldVerificationPage() {
       </div>
 
       {/* Main Focus: Full-Width Joint Measurement Survey (JMS) Form */}
-      {selectedParcel ? (
+      {selectedParcel ? (() => {
+        const hasMismatches = parseInt(selectedParcel.mismatch_count || 0, 10) > 0;
+        return (
         <div className="card p-5 sm:p-6 bg-white space-y-6 shadow-sm border border-slate-200">
+          {/* ── AI Mismatch Blocking Banner ── */}
+          {hasMismatches && (
+            <div className="bg-rose-50 border-2 border-rose-300 rounded-xl overflow-hidden">
+              <div className="flex items-center gap-2 px-4 py-3 bg-rose-100 border-b border-rose-200">
+                <ShieldAlert className="w-5 h-5 text-rose-700 flex-shrink-0" />
+                <span className="text-xs font-extrabold text-rose-800 uppercase tracking-wider">
+                  Field Inspection Locked — Unresolved AI Document Discrepancy
+                </span>
+              </div>
+              <div className="p-4 space-y-2">
+                <p className="text-xs text-rose-700 font-semibold leading-relaxed">
+                  This parcel has <strong>{selectedParcel.mismatch_count}</strong> unresolved document mismatch(es) detected by AI.
+                  You <strong>cannot approve</strong> this field inspection until the <strong>DLAO</strong> resolves all
+                  discrepancies in the <strong>AI Mismatch</strong> section.
+                </p>
+                <p className="text-[11px] text-rose-600">
+                  You may still fill GPS coordinates, asset checklist data, and remarks as investigation evidence for the DLAO.
+                  However, the <strong>"Approve & Forward"</strong> button is disabled until all mismatches are resolved.
+                </p>
+                <div className="flex items-center gap-1.5 pt-1">
+                  <span className="text-[10px] font-bold text-rose-500 uppercase">Action Required →</span>
+                  <span className="text-[11px] font-bold text-rose-800">Move to next parcel. Return after DLAO clearance.</span>
+                </div>
+              </div>
+            </div>
+          )}
+
           {/* Header: Selected Parcel Summary */}
           <div className="flex flex-col sm:flex-row sm:items-center justify-between gap-3 pb-4 border-b border-slate-100">
             <div>
@@ -778,13 +807,23 @@ export default function FieldVerificationPage() {
               <button
                 type="button"
                 onClick={() => handleSubmitReport('VERIFY_AND_APPROVE')}
-                disabled={submitting}
-                className="btn btn-primary text-xs font-bold flex items-center justify-center gap-2 py-2.5 shadow-md cursor-pointer disabled:opacity-50"
+                disabled={submitting || hasMismatches}
+                title={hasMismatches ? 'Blocked: Unresolved AI document discrepancy — DLAO must resolve first' : ''}
+                className={`btn text-xs font-bold flex items-center justify-center gap-2 py-2.5 shadow-md disabled:opacity-50 ${
+                  hasMismatches
+                    ? 'bg-slate-300 text-slate-500 border-slate-300 cursor-not-allowed'
+                    : 'btn-primary cursor-pointer'
+                }`}
               >
                 {submitting ? (
                   <>
                     <RefreshCw className="w-4 h-4 animate-spin" />
                     Submitting Sign-off...
+                  </>
+                ) : hasMismatches ? (
+                  <>
+                    <ShieldAlert className="w-4 h-4 text-slate-400" />
+                    Blocked — Resolve Mismatches First
                   </>
                 ) : (
                   <>
@@ -796,7 +835,8 @@ export default function FieldVerificationPage() {
             </div>
           </div>
         </div>
-      ) : (
+        );
+      })() : (
         <div className="card p-12 text-center text-slate-500 text-xs bg-white">
           <p className="font-semibold text-slate-700 mb-3">No survey plot currently selected.</p>
           <button
@@ -917,6 +957,11 @@ export default function FieldVerificationPage() {
                           ) : (
                             <span className="inline-flex items-center gap-1 text-[10px] font-bold text-amber-800 bg-amber-100 px-2 py-0.5 rounded-full border border-amber-300">
                               <Clock className="w-3 h-3 text-amber-700" /> Pending
+                            </span>
+                          )}
+                          {parseInt(p.mismatch_count || 0, 10) > 0 && (
+                            <span className="inline-flex items-center gap-0.5 text-[10px] font-bold text-rose-800 bg-rose-100 px-2 py-0.5 rounded-full border border-rose-300">
+                              <ShieldAlert className="w-3 h-3 text-rose-700" /> {p.mismatch_count} Mismatch
                             </span>
                           )}
                         </div>

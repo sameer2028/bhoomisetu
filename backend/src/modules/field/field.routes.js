@@ -185,6 +185,30 @@ router.post(
         return apiResponse(res, { status: 404, success: false, error: 'Parcel not found.' });
       }
 
+      // ── AI Mismatch Blocking Gate (blocks VERIFY_AND_APPROVE only) ──
+      if (action === 'VERIFY_AND_APPROVE') {
+        const openMismatches = await queryRows(
+          `SELECT id, field_name, official_value, extracted_value, severity, status
+             FROM ai_mismatches
+            WHERE parcel_id = $1
+              AND status IN ('DETECTED', 'UNDER_REVIEW')
+            ORDER BY severity DESC`,
+          [id]
+        );
+
+        if (openMismatches.length > 0) {
+          return apiResponse(res, {
+            status: 409,
+            success: false,
+            error: `Field inspection approval BLOCKED: This parcel has ${openMismatches.length} unresolved AI document discrepancy(ies). DLAO must resolve all mismatches before field verification can be approved.`,
+            data: {
+              blocked_by: 'AI_MISMATCH_GATE',
+              open_mismatches: openMismatches,
+            },
+          });
+        }
+      }
+
       const lat = gps_coordinates?.latitude ? parseFloat(gps_coordinates.latitude) : parcel.latitude || 26.8467;
       const lng = gps_coordinates?.longitude ? parseFloat(gps_coordinates.longitude) : parcel.longitude || 80.9462;
 
