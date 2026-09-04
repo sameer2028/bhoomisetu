@@ -52,7 +52,7 @@ const RR_STAGES = [
   { key: 'ENTITLEMENT', label: '2. Entitlement' },
   { key: 'HOUSING', label: '3. Housing Plot' },
   { key: 'GRANT', label: '4. Resettlement Grant' },
-  { key: 'TRAINING', label: '5. Skill Training' },
+  { key: 'TRAINING', label: '5. Skill & Livelihood' },
   { key: 'SUBSISTENCE', label: '6. Subsistence Allowance' },
   { key: 'CLOSURE', label: '7. R&R Closure' },
 ];
@@ -62,7 +62,7 @@ const STAGE_DESCRIPTIONS = {
   ENTITLEMENT: 'Sanction of statutory entitlements under Second Schedule of RFCTLARR Act 2013 (housing, grants, employment allowance).',
   HOUSING: 'Allotment of residential plot or constructed dwelling house in designated Resettlement Colony.',
   GRANT: 'Disbursement of statutory resettlement allowance and shifting allowances.',
-  TRAINING: 'Enrollment of family members in vocational skill training & priority job rosters.',
+  TRAINING: 'Enrollment of family members in skill & livelihood programs & priority job rosters.',
   SUBSISTENCE: 'Payment of monthly subsistence allowance post-displacement.',
   CLOSURE: 'Final R&R completion certificate issuance and statutory file closure.',
 };
@@ -999,7 +999,7 @@ export default function FamilyDetailPage() {
           {!isStageLocked && activeStageKey === 'TRAINING' && (
             <div className="card p-5 space-y-3 border-l-4 border-l-purple-600">
               <h3 className="text-sm font-bold text-slate-900 flex items-center gap-2">
-                <Award className="w-4 h-4 text-purple-600" /> Step 5: Vocational Skill Training & Livelihood Panel
+                <Award className="w-4 h-4 text-purple-600" /> Step 5: Skill & Livelihood Panel
               </h3>
               <div className="p-4 bg-purple-50/60 rounded-xl space-y-2 text-xs">
                 <p className="font-bold text-purple-950">Livelihood Rehabilitation Program</p>
@@ -1278,7 +1278,7 @@ export default function FamilyDetailPage() {
                 >
                   <option value="Housing Site Allocation">Housing Site Allocation</option>
                   <option value="One-Time Resettlement Grant">One-Time Resettlement Grant</option>
-                  <option value="Vocational Skill Training">Vocational Skill Training</option>
+                  <option value="Skill & Livelihood">Skill & Livelihood</option>
                   <option value="Monthly Subsistence Allowance">Monthly Subsistence Allowance</option>
                   <option value="Livelihood Rehabilitation Grant">Livelihood Rehabilitation Grant</option>
                   <option value="Cattle Shed Shifting Grant">Cattle Shed Shifting Grant</option>

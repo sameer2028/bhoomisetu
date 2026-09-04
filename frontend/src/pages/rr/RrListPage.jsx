@@ -614,7 +614,7 @@ export default function RrListPage() {
                 <label className="block text-slate-700 font-bold mb-1">Statutory Entitlement Package</label>
                 <textarea
                   rows={3}
-                  placeholder="Specify entitlements under RFCTLARR Act 2013 (housing plot, grant, training)..."
+                  placeholder="Specify entitlements under RFCTLARR Act 2013 (housing plot, grant, skill & livelihood)..."
                   value={createForm.entitlement}
                   onChange={(e) => setCreateForm({ ...createForm, entitlement: e.target.value })}
                   className="form-input w-full"
