@@ -45,24 +45,92 @@ export default function Header({ mobileOpen, setMobileOpen }) {
   const [alerts, setAlerts] = useState([]);
   const [unreadCount, setUnreadCount] = useState(0);
   const [isNotificationsOpen, setIsNotificationsOpen] = useState(false);
+  const [liveToast, setLiveToast] = useState(null);
   const notificationsRef = useRef(null);
+  const lastAlertIdRef = useRef(null);
+  const isFirstLoadRef = useRef(true);
 
-  // Fetch Alerts
-  const fetchAlerts = useCallback(async () => {
+  // Audio chime for new notifications
+  const playChime = useCallback(() => {
     try {
-      const res = await api.get('/alerts', { params: { limit: 10 } });
-      setAlerts(res.data.data || []);
-      setUnreadCount(res.data.meta?.unreadCount || 0);
-    } catch (err) {
-      console.error('Failed to fetch alerts:', err);
+      const AudioCtx = window.AudioContext || window.webkitAudioContext;
+      if (!AudioCtx) return;
+      const ctx = new AudioCtx();
+      const osc = ctx.createOscillator();
+      const gain = ctx.createGain();
+      osc.type = 'sine';
+      osc.frequency.setValueAtTime(659.25, ctx.currentTime); // E5
+      osc.frequency.setValueAtTime(880, ctx.currentTime + 0.12); // A5
+      gain.gain.setValueAtTime(0.25, ctx.currentTime);
+      gain.gain.exponentialRampToValueAtTime(0.001, ctx.currentTime + 0.45);
+      osc.connect(gain);
+      gain.connect(ctx.destination);
+      osc.start();
+      osc.stop(ctx.currentTime + 0.45);
+    } catch (e) {
+      // Audio playback allowed on user interaction
     }
   }, []);
 
+  // Fetch Alerts
+  const fetchAlerts = useCallback(async (isManualTrigger = false) => {
+    try {
+      const res = await api.get('/alerts', { params: { limit: 15, sort: 'newest' } });
+      const items = res.data.data || [];
+      const newUnread = res.data.meta?.unreadCount || 0;
+
+      setAlerts(items);
+      setUnreadCount(newUnread);
+
+      if (items.length > 0) {
+        const newest = items[0];
+        if (!isFirstLoadRef.current && lastAlertIdRef.current && newest.id !== lastAlertIdRef.current && !newest.is_read) {
+          // New incoming notification detected!
+          setLiveToast(newest);
+          playChime();
+        } else if (isManualTrigger && !newest.is_read) {
+          setLiveToast(newest);
+          playChime();
+        }
+        lastAlertIdRef.current = newest.id;
+      }
+      isFirstLoadRef.current = false;
+    } catch (err) {
+      console.error('Failed to fetch alerts:', err);
+    }
+  }, [playChime]);
+
   useEffect(() => {
     fetchAlerts();
-    const interval = setInterval(fetchAlerts, 30000); // refresh every 30s
-    return () => clearInterval(interval);
+    const interval = setInterval(() => fetchAlerts(false), 3000); // 3s fast polling for real-time alerts
+
+    // Cross-tab real-time sync
+    let channel;
+    try {
+      channel = new BroadcastChannel('bhoomisetu_notifications');
+      channel.onmessage = (event) => {
+        if (event.data?.type === 'NEW_ALERT') {
+          fetchAlerts(true);
+        }
+      };
+    } catch (e) {
+      // BroadcastChannel fallback
+    }
+
+    return () => {
+      clearInterval(interval);
+      if (channel) channel.close();
+    };
   }, [fetchAlerts]);
+
+  // Auto-dismiss live toast after 8 seconds
+  useEffect(() => {
+    if (!liveToast) return;
+    const timer = setTimeout(() => {
+      setLiveToast(null);
+    }, 8000);
+    return () => clearTimeout(timer);
+  }, [liveToast]);
 
   // Handle Mark All Read
   const handleMarkAllRead = async () => {
@@ -87,10 +155,10 @@ export default function Header({ mobileOpen, setMobileOpen }) {
       }
       setIsNotificationsOpen(false);
 
-      if (alertItem.case_id) navigate('/cases');
-      else if (alertItem.parcel_id) navigate('/parcels');
-      else if (alertItem.project_id) navigate('/projects');
-      else navigate('/alerts');
+      if (alertItem.case_id) navigate(`/cases?highlight=${alertItem.case_id}`);
+      else if (alertItem.parcel_id) navigate(`/parcels?highlight=${alertItem.parcel_id}`);
+      else if (alertItem.project_id) navigate(`/projects?highlight=${alertItem.project_id}`);
+      else navigate(`/alerts?highlight=${alertItem.id}`);
     } catch (err) {
       console.error('Failed to update alert:', err);
     }
@@ -518,6 +586,64 @@ export default function Header({ mobileOpen, setMobileOpen }) {
           </Link>
         </div>
       </div>
+
+      {/* Real-time Live Alert Toast Banner */}
+      {liveToast && (
+        <aside
+          role="status"
+          aria-live="polite"
+          aria-label="Real-time alert notification"
+          className="fixed top-20 right-4 sm:right-6 z-50 max-w-sm sm:max-w-md w-full bg-slate-900 text-white rounded-2xl shadow-2xl border-2 border-amber-400/80 p-4 transition-all animate-bounceIn"
+        >
+          <div className="flex items-start gap-3">
+            <div className={`p-2 rounded-xl flex-shrink-0 ${liveToast.priority === 'CRITICAL' ? 'bg-rose-500/20 text-rose-400 border border-rose-500/40' : 'bg-amber-500/20 text-amber-400 border border-amber-500/40'}`}>
+              <AlertTriangle className="w-5 h-5 animate-pulse" />
+            </div>
+
+            <div className="flex-1 min-w-0 space-y-1">
+              <div className="flex items-center justify-between gap-2">
+                <span className="text-[10px] font-extrabold uppercase tracking-wider px-2 py-0.5 rounded bg-amber-400/20 text-amber-300 border border-amber-400/30">
+                  🔔 Real-Time Alert ({liveToast.priority || 'HIGH'})
+                </span>
+                <button
+                  onClick={() => setLiveToast(null)}
+                  className="text-slate-400 hover:text-white p-0.5 rounded"
+                  aria-label="Dismiss real-time alert"
+                >
+                  <X className="w-4 h-4" />
+                </button>
+              </div>
+
+              <h4 className="text-xs font-bold text-white leading-snug line-clamp-2">
+                {liveToast.title}
+              </h4>
+
+              <p className="text-[11px] text-slate-300 line-clamp-2">
+                {liveToast.message}
+              </p>
+
+              <div className="flex items-center gap-2 pt-2">
+                <button
+                  onClick={() => {
+                    setLiveToast(null);
+                    handleAlertClick(liveToast);
+                  }}
+                  className="text-xs font-bold bg-amber-400 hover:bg-amber-300 text-slate-950 px-3 py-1.5 rounded-lg flex items-center gap-1 shadow-sm transition-colors"
+                >
+                  <span>Open Alert</span>
+                  <ExternalLink className="w-3 h-3" />
+                </button>
+                <button
+                  onClick={() => setLiveToast(null)}
+                  className="text-xs text-slate-400 hover:text-slate-200 px-2 py-1.5 font-medium"
+                >
+                  Dismiss
+                </button>
+              </div>
+            </div>
+          </div>
+        </aside>
+      )}
     </header>
   );
 }

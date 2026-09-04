@@ -281,16 +281,33 @@ router.post(
         }
       }
 
-      if (action === 'FLAG_ISSUE') {
-        // Create alert for DLAO and State Officer
+      const dlaoUser = await queryOne(`SELECT id, full_name FROM users WHERE role = 'DLAO' ORDER BY id LIMIT 1`);
+
+      if (action === 'VERIFY_AND_APPROVE') {
         await query(
-          `INSERT INTO alerts (type, title, message, project_id, case_id, parcel_id, priority, is_read, is_acknowledged, created_at)
-           VALUES ('HIGH_RISK', 'Field Inspection Issue Flagged', $1, $2, $3, $4, 'HIGH', false, false, now())`,
+          `INSERT INTO alerts (type, title, message, project_id, case_id, parcel_id, target_user_id, priority, is_read, is_acknowledged, created_at)
+           VALUES ('HIGH_RISK', $1, $2, $3, $4, $5, $6, 'HIGH', false, false, now())`,
           [
-            `Field Officer flagged issue for parcel survey #${parcel.survey_number}: ${issue_type || remarks}`,
+            `Field Verification Completed: Survey #${parcel.survey_number}`,
+            `Field & Revenue Officer ${req.user?.full_name || 'FRO'} completed on-site GPS inspection for Survey #${parcel.survey_number} (${parcel.village}). Ready for DLAO Review.`,
             parcel.project_id,
             linkedCase ? linkedCase.id : null,
             parcel.id,
+            dlaoUser?.id || null,
+          ]
+        );
+      } else if (action === 'FLAG_ISSUE') {
+        // Create critical alert for DLAO
+        await query(
+          `INSERT INTO alerts (type, title, message, project_id, case_id, parcel_id, target_user_id, priority, is_read, is_acknowledged, created_at)
+           VALUES ('HIGH_RISK', $1, $2, $3, $4, $5, $6, 'CRITICAL', false, false, now())`,
+          [
+            `Field Inspection Issue Flagged: Survey #${parcel.survey_number}`,
+            `Field & Revenue Officer ${req.user?.full_name || 'FRO'} flagged an issue for Survey #${parcel.survey_number}: ${issue_type || remarks || 'Discrepancy detected during field survey'}.`,
+            parcel.project_id,
+            linkedCase ? linkedCase.id : null,
+            parcel.id,
+            dlaoUser?.id || null,
           ]
         );
       }
