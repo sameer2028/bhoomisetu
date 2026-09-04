@@ -2,28 +2,55 @@
 ocr.py
 
 Extracts raw text from uploaded documents.
-- Images (.png, .jpg, .jpeg) -> Tesseract OCR (pytesseract)
-- Digital PDFs (.pdf) -> direct text extraction (pdfplumber), since
-  OCR is unnecessary and less accurate for text that's already digital
+- Images (.png, .jpg, .jpeg) -> EasyOCR (deep learning, no system deps)
+- Digital PDFs (.pdf)         -> pdfplumber direct text extraction
+- Scanned PDFs (.pdf)         -> convert pages to images, then EasyOCR
 
-This module only returns RAW TEXT. Turning that raw text into
-structured fields (survey number, area, etc.) happens in extractor.py.
+EasyOCR is a pure-Python library that bundles its own ML models.
+Unlike pytesseract it does NOT need Tesseract installed on the OS,
+so it works identically on Windows, Linux, Mac, and in Docker/cloud
+deployments without any extra setup.
+
+This module only returns RAW TEXT.  Structured field extraction
+happens in extractor.py.
 """
 
 from pathlib import Path
-import pytesseract
 from PIL import Image, ImageEnhance, ImageOps
 import pdfplumber
+import logging
+import io
 
+logger = logging.getLogger(__name__)
 
-SUPPORTED_IMAGE_TYPES = {".png", ".jpg", ".jpeg"}
+SUPPORTED_IMAGE_TYPES = {".png", ".jpg", ".jpeg", ".webp", ".tiff", ".bmp"}
 SUPPORTED_PDF_TYPES = {".pdf"}
+
+# ── Lazy-loaded EasyOCR reader (heavy model, load once) ────────────
+_reader = None
+
+
+def _get_reader():
+    """Lazily initialise the EasyOCR reader (downloads models on first run)."""
+    global _reader
+    if _reader is None:
+        import easyocr
+        _reader = easyocr.Reader(
+            ["en"],
+            gpu=False,          # CPU-only; set True if CUDA is available
+            verbose=False,
+        )
+        logger.info("EasyOCR reader initialised (English, CPU mode)")
+    return _reader
+
+
+# ── Public API ──────────────────────────────────────────────────────
 
 
 def extract_text(file_path: str | Path) -> str:
     """
-    Main entry point. Detects file type and routes to the correct
-    extraction method. Returns raw extracted text as a single string.
+    Main entry point.  Detects file type, extracts text, and returns
+    a single string of raw text.
     """
     file_path = Path(file_path)
 
@@ -40,99 +67,123 @@ def extract_text(file_path: str | Path) -> str:
         raise ValueError(f"Unsupported file type: {suffix}")
 
 
-def _extract_from_image(file_path: Path) -> str:
-    """
-    Run multi-pass OCR on a scanned or photographed image using Tesseract
-    and PIL preprocessing (auto-orientation, scaling, contrast enhancement,
-    and handwriting pattern extraction).
-    """
-    file_bytes = file_path.stat().st_size
-    
-    # Check if this is the handwritten sample photo or camera upload
-    # (Matches user handwritten image: 123/2, 2.10 acres, Rameshwar Kumar Sharma)
-    if file_path.name == "IMG_20260903_015446.jpg" or file_bytes == 3782761:
-        return (
-            "Report Date: 12-Feb-2026.\n"
-            "Project : Lucknow-Kanpur Highway Expansion\n"
-            "Survey No: 123/2 .\n"
-            "Area: 2.10 acres.\n"
-            "Village: Sarai Khas.\n"
-            "Owner : Rameshwar Kumar Sharma\n"
-            "District : Lucknow\n"
-        )
+# ── Image OCR ───────────────────────────────────────────────────────
 
+
+def _preprocess_image(image: Image.Image) -> Image.Image:
+    """
+    Light preprocessing to improve OCR accuracy:
+    - Auto-orient via EXIF
+    - Convert to grayscale
+    - Boost contrast
+    - Auto-level (stretch histogram)
+    """
     try:
-        image = Image.open(file_path)
         image = ImageOps.exif_transpose(image)
     except Exception:
-        image = Image.open(file_path)
+        pass
 
-    extracted_texts = []
+    gray = image.convert("L")
+    enhanced = ImageEnhance.Contrast(gray).enhance(1.8)
+    auto = ImageOps.autocontrast(enhanced, cutoff=1)
+    return auto
 
-    # Pass 1: Standard PSM 6 OCR
+
+def _ocr_image(image: Image.Image) -> str:
+    """Run EasyOCR on a PIL Image and return joined text."""
+    reader = _get_reader()
+
+    # EasyOCR accepts numpy arrays, file paths, or bytes
+    # Convert PIL -> bytes so we don't need numpy as a dependency
+    buf = io.BytesIO()
+    image.save(buf, format="PNG")
+    buf.seek(0)
+
+    results = reader.readtext(buf.getvalue(), detail=0, paragraph=True)
+    return "\n".join(results).strip()
+
+
+def _extract_from_image(file_path: Path) -> str:
+    """
+    Run EasyOCR on an image file with preprocessing.
+    Performs two passes (original + preprocessed) and picks the
+    longer / richer result.
+    """
+    image = Image.open(file_path)
+
+    texts = []
+
+    # Pass 1: original image (good for clean printed docs)
     try:
-        t1 = pytesseract.image_to_string(image, config="--psm 6").strip()
+        t1 = _ocr_image(image)
         if t1:
-            extracted_texts.append(t1)
-    except Exception:
-        pass
+            texts.append(t1)
+    except Exception as exc:
+        logger.warning("OCR pass 1 failed: %s", exc)
 
-    # Pass 2: High-contrast Grayscale
+    # Pass 2: preprocessed (grayscale + contrast boost)
     try:
-        gray = image.convert("L")
-        enhancer = ImageEnhance.Contrast(gray)
-        high_contrast = enhancer.enhance(2.5)
-        auto_gray = ImageOps.autocontrast(high_contrast, cutoff=2)
-        t2 = pytesseract.image_to_string(auto_gray, config="--psm 6").strip()
+        processed = _preprocess_image(image)
+        t2 = _ocr_image(processed)
         if t2:
-            extracted_texts.append(t2)
-    except Exception:
-        pass
+            texts.append(t2)
+    except Exception as exc:
+        logger.warning("OCR pass 2 failed: %s", exc)
 
-    # Pass 3: Rescaled for high-resolution camera photos (optimal Tesseract DPI)
-    try:
-        if max(image.width, image.height) > 1800:
-            scale = 1400.0 / max(image.width, image.height)
-            scaled = image.resize((int(image.width * scale), int(image.height * scale)), Image.Resampling.LANCZOS).convert("L")
-            scaled_enh = ImageEnhance.Contrast(scaled).enhance(3.0)
-            for psm in ["--psm 6", "--psm 3", "--psm 4", "--psm 11"]:
-                t3 = pytesseract.image_to_string(scaled_enh, config=psm).strip()
-                if t3 and len(t3) > 15:
-                    extracted_texts.append(t3)
-    except Exception:
-        pass
-
-    # Pass 4: Color channel separation (Green channel provides dark ink on light background)
-    try:
-        if image.mode in ("RGB", "RGBA"):
-            r, g, b = image.split()[:3]
-            g_enh = ImageEnhance.Contrast(g).enhance(3.5)
-            g_auto = ImageOps.autocontrast(g_enh, cutoff=3)
-            for psm in ["--psm 6", "--psm 4", "--psm 3"]:
-                t4 = pytesseract.image_to_string(g_auto, config=psm).strip()
-                if t4 and len(t4) > 15:
-                    extracted_texts.append(t4)
-    except Exception:
-        pass
-
-    if not extracted_texts:
+    if not texts:
+        logger.warning("No text extracted from image: %s", file_path.name)
         return ""
 
-    return "\n\n".join(extracted_texts).strip()
+    # Return the longest result (most content extracted)
+    return max(texts, key=len)
+
+
+# ── PDF text extraction ─────────────────────────────────────────────
 
 
 def _extract_from_pdf(file_path: Path) -> str:
     """
-    Extract text from a digital PDF directly (no OCR needed).
-    If the PDF has no extractable text (i.e. it's actually a scanned
-    image saved as PDF), this will return an empty string — that
-    case would need image-conversion + OCR, which is out of scope
-    for the MVP.
+    Extract text from a PDF.
+    1. Try direct text extraction (for digital / text-layer PDFs).
+    2. If the PDF yields little or no text (scanned document),
+       fall back to converting each page to an image and running OCR.
     """
     text_parts = []
-    with pdfplumber.open(file_path) as pdf:
-        for page in pdf.pages:
-            page_text = page.extract_text()
-            if page_text:
-                text_parts.append(page_text)
-    return "\n".join(text_parts).strip()
+
+    try:
+        with pdfplumber.open(file_path) as pdf:
+            for page in pdf.pages:
+                page_text = page.extract_text()
+                if page_text:
+                    text_parts.append(page_text)
+    except Exception as exc:
+        logger.warning("pdfplumber extraction failed: %s", exc)
+
+    direct_text = "\n".join(text_parts).strip()
+
+    # If we got meaningful text, use it
+    if len(direct_text) > 30:
+        return direct_text
+
+    # Otherwise treat it as a scanned PDF -> OCR each page
+    logger.info("PDF has little direct text; falling back to OCR")
+    return _ocr_pdf_pages(file_path)
+
+
+def _ocr_pdf_pages(file_path: Path) -> str:
+    """Convert each PDF page to an image and run OCR."""
+    ocr_parts = []
+
+    try:
+        with pdfplumber.open(file_path) as pdf:
+            for i, page in enumerate(pdf.pages):
+                img = page.to_image(resolution=300).original
+                processed = _preprocess_image(img)
+                page_text = _ocr_image(processed)
+                if page_text:
+                    ocr_parts.append(page_text)
+                    logger.info("OCR page %d: extracted %d chars", i + 1, len(page_text))
+    except Exception as exc:
+        logger.warning("PDF page OCR failed: %s", exc)
+
+    return "\n".join(ocr_parts).strip()

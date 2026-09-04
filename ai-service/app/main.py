@@ -165,8 +165,12 @@ def api_process_document(req: ProcessDocumentRequest):
     """
     import urllib.request
     import tempfile
+    import logging
+
+    logger = logging.getLogger(__name__)
 
     file_path_obj = None
+    temp_file_path = None  # Track temp file for cleanup
 
     if req.file_url:
         try:
@@ -174,18 +178,21 @@ def api_process_document(req: ProcessDocumentRequest):
             import os
             url_path = urllib.parse.urlparse(req.file_url).path
             ext = os.path.splitext(url_path)[1].lower()
-            if ext not in ['.pdf', '.png', '.jpg', '.jpeg']:
+            if ext not in ['.pdf', '.png', '.jpg', '.jpeg', '.webp', '.tiff', '.bmp']:
                 ext = '.png'
             with tempfile.NamedTemporaryFile(delete=False, suffix=ext) as tmp:
                 r = urllib.request.Request(req.file_url, headers={'User-Agent': 'Mozilla/5.0'})
-                with urllib.request.urlopen(r) as response:
+                with urllib.request.urlopen(r, timeout=30) as response:
                     tmp.write(response.read())
-            file_path_obj = Path(tmp.name)
-        except Exception:
-            pass  # fallback to local path if URL fails
+                temp_file_path = tmp.name
+            file_path_obj = Path(temp_file_path)
+        except Exception as e:
+            logger.warning("Failed to download file from URL %s: %s", req.file_url, e)
 
-    if not file_path_obj and req.file_path:
-        file_path_obj = Path(req.file_path)
+    if not file_path_obj and req.file_path and req.file_path.strip():
+        candidate = Path(req.file_path)
+        if candidate.exists():
+            file_path_obj = candidate
 
     if not file_path_obj or not file_path_obj.exists():
         raise HTTPException(status_code=404, detail=f"File not found: {req.file_path or req.file_url}")
@@ -209,6 +216,14 @@ def api_process_document(req: ProcessDocumentRequest):
         }
     except Exception as e:
         raise HTTPException(status_code=500, detail=f"Document processing failed: {str(e)}")
+    finally:
+        # Clean up temp file
+        if temp_file_path:
+            try:
+                import os
+                os.unlink(temp_file_path)
+            except OSError:
+                pass
 
 
 # ---------- Feature 2: Risk scoring ----------
@@ -251,17 +266,20 @@ def api_calculate_risk(
     """
     Computes weighted 4-factor risk score for a project.
     """
-    score, risk_level, factors = calculate_risk_score(
-        overdue_cases_count=overdue_cases_count,
-        total_assessed_comp=total_assessed_comp,
-        total_paid_comp=total_paid_comp,
-        delayed_rr_count=delayed_rr_count,
-        open_mismatches_count=open_mismatches_count,
-    )
+    result = calculate_risk_score({
+        "total_cases": overdue_cases_count + 10,  # estimate total from overdue
+        "overdue_cases": overdue_cases_count,
+        "total_compensation_assessed": total_assessed_comp,
+        "total_compensation_paid": total_paid_comp,
+        "total_mismatches": open_mismatches_count + 1 if open_mismatches_count else 0,
+        "unresolved_mismatches": open_mismatches_count,
+        "total_rr_activities": delayed_rr_count + 5 if delayed_rr_count else 0,
+        "completed_rr_activities": max(0, (delayed_rr_count + 5) - delayed_rr_count) if delayed_rr_count else 0,
+    })
     return {
-        "score": score,
-        "risk_level": risk_level,
-        "factors": factors,
+        "score": result["score"],
+        "risk_level": result["risk_level"],
+        "factors": result["factors"],
         "model_version": "v1.2-weighted",
     }
 

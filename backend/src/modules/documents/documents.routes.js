@@ -15,23 +15,22 @@ const { generateStatutoryPdf, generateSamplePdfBuffer } = require('../../utils/p
 
 const router = express.Router();
 
-// ─── Cloudinary Storage Config ──────────────────────────────────────
-const cloudinary = require('cloudinary').v2;
-const { CloudinaryStorage } = require('multer-storage-cloudinary');
+// ─── Local Storage Config ──────────────────────────────────────
 const envConfig = require('../../config/env');
 
-cloudinary.config({
-  cloud_name: envConfig.cloudinaryCloudName,
-  api_key: envConfig.cloudinaryApiKey,
-  api_secret: envConfig.cloudinaryApiSecret,
-});
+const uploadDir = path.join(__dirname, '../../../uploads/documents');
+if (!fs.existsSync(uploadDir)) {
+  fs.mkdirSync(uploadDir, { recursive: true });
+}
 
-const storage = new CloudinaryStorage({
-  cloudinary: cloudinary,
-  params: {
-    folder: 'nla_documents',
-    resource_type: 'auto',
+const storage = multer.diskStorage({
+  destination: function (req, file, cb) {
+    cb(null, uploadDir);
   },
+  filename: function (req, file, cb) {
+    const uniqueSuffix = Date.now() + '-' + Math.round(Math.random() * 1E9);
+    cb(null, file.fieldname + '-' + uniqueSuffix + path.extname(file.originalname));
+  }
 });
 
 const upload = multer({
@@ -71,7 +70,7 @@ async function callPythonAiService(endpoint, body) {
         'Content-Type': 'application/json',
         'Content-Length': Buffer.byteLength(postData),
       },
-      timeout: 60000,
+      timeout: 300000, // Increased to 5 minutes
     };
 
     const req = (parsedUrl.protocol === 'https:' ? https : http).request(options, (res) => {
@@ -382,9 +381,10 @@ router.post('/', authenticate, rbac(ROLES.DLAO, ROLES.PIA, ROLES.FRO, ROLES.SGA,
     const accessLvl = access_level && ['PUBLIC', 'RESTRICTED', 'CONFIDENTIAL'].includes(access_level) ? access_level : 'PUBLIC';
 
     // File info
-    let file_path = null, file_name = null, file_size = null, mime_type = null;
+    let file_path = null, file_name = null, file_size = null, mime_type = null, absoluteFilePath = null;
     if (req.file) {
-      file_path = req.file.path; // Cloudinary URL
+      absoluteFilePath = req.file.path;
+      file_path = '/uploads/documents/' + req.file.filename;
       file_name = req.file.originalname;
       file_size = req.file.size || 0;
       mime_type = req.file.mimetype;
@@ -442,8 +442,8 @@ router.post('/', authenticate, rbac(ROLES.DLAO, ROLES.PIA, ROLES.FRO, ROLES.SGA,
         if (!targetParcel) {
           try {
             const rawExtraction = await callPythonAiService('/api/ai/process-document', {
-              file_path: '', // Not used anymore for cloudinary
-              file_url: fileUrl,
+              file_path: absoluteFilePath, 
+              file_url: '', 
             });
             if (rawExtraction?.extracted_fields?.survey_number) {
               if (project_id) {
@@ -485,8 +485,8 @@ router.post('/', authenticate, rbac(ROLES.DLAO, ROLES.PIA, ROLES.FRO, ROLES.SGA,
 
         if (targetParcel) {
           const aiRes = await callPythonAiService('/api/ai/process-document', {
-            file_path: '', // Not used anymore
-            file_url: fileUrl,
+            file_path: absoluteFilePath,
+            file_url: '',
             official_parcel: {
               survey_number: targetParcel.survey_number,
               area_acres: parseFloat(targetParcel.area_acres),
