@@ -354,11 +354,37 @@ export default function RrListPage() {
       ) : (
         <div className="grid grid-cols-1 lg:grid-cols-2 gap-4">
           {families.map((f) => {
-            const totalAct = parseInt(f.total_activities, 10) || 0;
+            const isAffected = f.category === 'AFFECTED';
+            const totalStages = isAffected ? 5 : 7;
             const compAct = parseInt(f.completed_activities, 10) || 0;
-            const pct = totalAct > 0 ? Math.round((compAct / totalAct) * 100) : 0;
-            const isFinished = totalAct > 0 && compAct === totalAct;
-            const statusKey = isFinished ? 'COMPLETED' : totalAct > 0 ? 'IN_PROGRESS' : 'PENDING';
+            const delayedAct = parseInt(f.delayed_activities, 10) || 0;
+            const isFinished = compAct >= totalStages;
+            const pct = Math.min(100, Math.round((compAct / totalStages) * 100));
+
+            const statusKey = isFinished
+              ? 'COMPLETED'
+              : delayedAct > 0
+                ? 'DELAYED'
+                : compAct > 0
+                  ? 'IN_PROGRESS'
+                  : 'PENDING';
+
+            let milestoneText = 'Step 1: Registration & Identification';
+            if (isFinished) {
+              milestoneText = 'R&R Settled & Statutory Closed';
+            } else if (isAffected) {
+              if (compAct === 1) milestoneText = 'Step 2: Statutory Entitlement Sanction';
+              else if (compAct === 2) milestoneText = 'Step 3: Skill & Livelihood Training';
+              else if (compAct === 3) milestoneText = 'Step 4: Subsistence Allowance Disbursement';
+              else if (compAct === 4) milestoneText = 'Step 5: Final Statutory R&R Closure';
+            } else {
+              if (compAct === 1) milestoneText = 'Step 2: Statutory Entitlement Sanction';
+              else if (compAct === 2) milestoneText = 'Step 3: Housing Plot Allocation';
+              else if (compAct === 3) milestoneText = 'Step 4: Resettlement Shifting Grant';
+              else if (compAct === 4) milestoneText = 'Step 5: Skill & Livelihood Training';
+              else if (compAct === 5) milestoneText = 'Step 6: Subsistence Allowance Disbursement';
+              else if (compAct === 6) milestoneText = 'Step 7: Final Statutory R&R Closure';
+            }
 
             return (
               <Link
@@ -382,10 +408,10 @@ export default function RrListPage() {
                       <span className="badge bg-slate-100 text-slate-700 border border-slate-200">
                         👨‍👩‍👧‍👦 {f.members_count} Members
                       </span>
-                      {parseInt(f.delayed_activities, 10) > 0 && (
+                      {delayedAct > 0 && (
                         <span className="badge bg-rose-50 text-rose-800 border border-rose-200 font-bold flex items-center gap-1">
                           <AlertTriangle className="w-3 h-3 text-rose-600" />
-                          {f.delayed_activities} Delayed
+                          {delayedAct} Delayed
                         </span>
                       )}
                     </div>
@@ -420,7 +446,7 @@ export default function RrListPage() {
                     </span>
                     <p className="text-xs font-bold text-slate-900 mt-0.5 flex items-center gap-2">
                       <span className="w-2 h-2 rounded-full bg-blue-600 inline-block animate-pulse" />
-                      {compAct === 0 ? 'Entitlement Allocation & Housing Sanction' : compAct < totalAct ? 'Activity Implementation & Grant Disbursement' : 'R&R Settled & Closed'}
+                      {milestoneText}
                     </p>
                   </div>
 
@@ -445,7 +471,7 @@ export default function RrListPage() {
 
                     <div className="flex items-center gap-1.5">
                       <Calendar className="w-3.5 h-3.5 text-slate-400 flex-shrink-0" />
-                      <span>{compAct}/{totalAct} Tasks Done</span>
+                      <span>{compAct}/{totalStages} Stages Done</span>
                     </div>
                   </div>
 
@@ -614,7 +640,7 @@ export default function RrListPage() {
                 <label className="block text-slate-700 font-bold mb-1">Statutory Entitlement Package</label>
                 <textarea
                   rows={3}
-                  placeholder="Specify entitlements under RFCTLARR Act 2013 (housing plot, grant, training)..."
+                  placeholder="Specify entitlements under RFCTLARR Act 2013 (housing plot, grant, skill & livelihood)..."
                   value={createForm.entitlement}
                   onChange={(e) => setCreateForm({ ...createForm, entitlement: e.target.value })}
                   className="form-input w-full"

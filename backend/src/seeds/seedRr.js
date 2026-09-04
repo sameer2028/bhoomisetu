@@ -58,7 +58,7 @@ async function seedRr() {
           evidenceDocId: documents[1]?.id || null,
         },
         {
-          type: 'Vocational Skill Training',
+          type: 'Skill & Livelihood',
           description: 'Enrollment of 2 adult family members in National Skill Development Corporation (NSDC) welding & electrician certification',
           authority: fro.id,
           dueDate: '2026-09-30',
