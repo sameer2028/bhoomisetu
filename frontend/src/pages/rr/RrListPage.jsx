@@ -233,7 +233,7 @@ export default function RrListPage() {
           <p className="text-[11px] font-semibold text-slate-500 uppercase tracking-wider mb-1">Total R&R Cases</p>
           <p className="text-2xl font-extrabold text-slate-900">{stats?.families?.total || meta.total || 0}</p>
           <p className="text-[11px] text-slate-500 font-medium mt-0.5">
-            👨‍👩‍👧‍👦 {stats?.families?.totalPersons || 22} Dependents Covered
+            👨‍👩‍👧‍👦 {stats?.families?.totalPersons || 0} Dependents Covered
           </p>
         </div>
 
@@ -464,7 +464,7 @@ export default function RrListPage() {
                 {/* Footer */}
                 <div className="px-6 py-3 bg-slate-50/80 border-t border-slate-100 flex items-center justify-between">
                   <span className="text-[11px] text-slate-400 font-mono font-medium">
-                    {f.project_code || 'PRJ-2026-001'}
+                    {f.project_code || ''}
                   </span>
                   <span className="text-xs font-bold text-blue-700 flex items-center gap-1 group-hover:translate-x-0.5 transition-transform">
                     View R&R Pipeline <ChevronRight className="w-4 h-4" />
@@ -478,7 +478,7 @@ export default function RrListPage() {
 
       {/* Modal: Delete Confirmation */}
       {deleteTarget && (
-        <div className="fixed inset-0 z-50 bg-black/35 backdrop-blur-[2px] flex items-center justify-center p-4">
+        <div className="fixed inset-0 z-[9999] bg-slate-950/70 backdrop-blur-md flex items-center justify-center p-4">
           <div className="card w-full max-w-md bg-white p-6 rounded-xl shadow-2xl space-y-4">
             <div className="flex items-center justify-between border-b pb-3">
               <h3 className="text-base font-bold text-rose-700 flex items-center gap-2">
@@ -514,7 +514,7 @@ export default function RrListPage() {
 
       {/* Modal: Register New Family */}
       {isCreateOpen && (
-        <div className="fixed inset-0 z-50 bg-black/35 backdrop-blur-[2px] flex items-center justify-center p-4">
+        <div className="fixed inset-0 z-[9999] bg-slate-950/70 backdrop-blur-md flex items-center justify-center p-4">
           <div className="card w-full max-w-lg bg-white p-6 rounded-xl shadow-2xl space-y-4 max-h-[90vh] overflow-y-auto">
             <div className="flex items-center justify-between border-b pb-3">
               <h3 className="text-base font-bold text-slate-900 flex items-center gap-2">

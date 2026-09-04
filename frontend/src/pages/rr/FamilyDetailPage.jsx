@@ -257,7 +257,7 @@ function downloadProofDocument(doc, family) {
       <tbody>
         <tr>
           <th>Document Reference</th>
-          <td><strong>${doc.code || doc.id || 'DOC-RR-STAT-001'}</strong></td>
+          <td><strong>${doc.code || doc.id || 'N/A'}</strong></td>
         </tr>
         <tr>
           <th>Certificate Title</th>
@@ -528,7 +528,7 @@ export default function FamilyDetailPage() {
   // Compute the maximum stage index the user can access
   const currentStageIndex = computeCurrentStageIndex(activities);
   const activeStageIndex = RR_STAGES.findIndex(s => s.key === activeStageKey);
-  
+
   // Disable strict stage locking so users can access any stage (e.g. Closure) even if they skip optional middle stages
   const isStageLocked = false;
 
@@ -550,8 +550,8 @@ export default function FamilyDetailPage() {
     .filter(a => a.evidence_document_title || a.evidence_document_id)
     .map((a) => {
       const matchedDoc = documents.find(d => String(d.id) === String(a.evidence_document_id));
-      const uploaderName = a.doc_uploader_name || matchedDoc?.uploaded_by_name || a.authority_name || (user?.full_name ? `${user.full_name}` : 'District Officer');
-      const uploaderRole = a.doc_uploader_role || matchedDoc?.uploaded_by_role || a.authority_role || (user?.role || 'DLAO');
+      const uploaderName = a.doc_uploader_name || matchedDoc?.uploaded_by_name || a.authority_name || user?.full_name || 'N/A';
+      const uploaderRole = a.doc_uploader_role || matchedDoc?.uploaded_by_role || a.authority_role || user?.role || 'N/A';
 
       return {
         id: a.evidence_document_id || a.id,
@@ -611,6 +611,19 @@ export default function FamilyDetailPage() {
                   code: family.project_code,
                 }}
                 ownerName={family.head_of_family}
+                acquisitionStatus={family.acquisition_status || (family.acquisition_stage ? family.acquisition_stage : null)}
+                acquisitionStage={family.acquisition_stage}
+                caseId={family.case_id}
+                caseCode={family.case_code}
+                fieldVerified={
+                  family.geometry_source === 'FIELD_GPS' || (family.acquisition_status && family.acquisition_status !== 'PROPOSED')
+                    ? true
+                    : family.has_geometry
+                      ? true
+                      : family.parcel_id
+                        ? false
+                        : null
+                }
               />
 
               <div className="mt-5">
@@ -687,12 +700,12 @@ export default function FamilyDetailPage() {
                 disabled={isLocked}
                 title={isLocked ? `Complete Step ${currentStageIndex + 1} to unlock this stage` : st.label}
                 className={`flex-1 text-center py-2 px-1 border-b-2 text-xs font-bold transition-all flex items-center justify-center gap-1 ${isLocked
-                    ? 'border-slate-100 text-slate-300 cursor-not-allowed bg-slate-50/50'
-                    : isActive
-                      ? 'border-blue-600 text-blue-800 bg-blue-50/50'
-                      : isCompleted
-                        ? 'border-emerald-400 text-emerald-700 hover:text-emerald-800 bg-emerald-50/30'
-                        : 'border-slate-200 text-slate-500 hover:text-slate-800'
+                  ? 'border-slate-100 text-slate-300 cursor-not-allowed bg-slate-50/50'
+                  : isActive
+                    ? 'border-blue-600 text-blue-800 bg-blue-50/50'
+                    : isCompleted
+                      ? 'border-emerald-400 text-emerald-700 hover:text-emerald-800 bg-emerald-50/30'
+                      : 'border-slate-200 text-slate-500 hover:text-slate-800'
                   }`}
               >
                 {isCompleted && <CheckCircle2 className="w-3.5 h-3.5 text-emerald-500 flex-shrink-0" />}
@@ -787,47 +800,47 @@ export default function FamilyDetailPage() {
             </div>
           ) : (
             /* UNLOCKED STAGE — Show real guidance card */
-            <div className="bg-slate-900 text-white rounded-xl shadow-xl p-6 space-y-6">
-              <div className="flex flex-col md:flex-row md:items-center justify-between gap-4 border-b border-slate-800 pb-4">
+            <div className="bg-white text-slate-900 rounded-xl shadow-card border border-slate-200/90 p-6 space-y-6">
+              <div className="flex flex-col md:flex-row md:items-center justify-between gap-4 border-b border-slate-100 pb-4">
                 <div>
-                  <span className="text-[11px] text-blue-400 font-mono uppercase tracking-widest font-bold block">
+                  <span className="text-[11px] text-blue-700 font-mono uppercase tracking-widest font-bold block">
                     STATUTORY R&R GUIDANCE & REHABILITATION FRAMEWORK
                   </span>
-                  <h2 className="text-xl font-bold text-white mt-0.5 flex items-center gap-2">
-                    <BookOpen className="w-5 h-5 text-indigo-400" />
+                  <h2 className="text-xl font-bold text-slate-900 mt-0.5 flex items-center gap-2">
+                    <BookOpen className="w-5 h-5 text-blue-700" />
                     {RR_STAGES.find((s) => s.key === activeStageKey)?.label}
                   </h2>
                 </div>
-                <span className="text-xs bg-slate-800 text-slate-300 px-3 py-1 rounded-full font-mono border border-slate-700">
+                <span className="text-xs bg-blue-50 text-blue-800 px-3 py-1 rounded-full font-mono font-semibold border border-blue-200">
                   RFCTLARR Sec 31 Compliance
                 </span>
               </div>
 
-              <p className="text-sm text-slate-300 leading-relaxed font-sans">
+              <p className="text-sm text-slate-600 leading-relaxed font-sans">
                 {guidanceDescription}
               </p>
 
               {/* Statutory Checklist & Real Proof Documents Exporter & Viewer */}
               <div className="grid grid-cols-1 md:grid-cols-2 gap-6 pt-2">
                 {/* Stage Executed Tasks */}
-                <div className="bg-slate-800/80 p-4 rounded-xl border border-slate-700/80 space-y-3">
-                  <h3 className="text-xs font-bold text-indigo-300 uppercase tracking-wider flex items-center gap-2">
-                    <ListChecks className="w-4 h-4 text-indigo-400" /> Registered Tasks for Stage
+                <div className="bg-slate-50 p-4 rounded-xl border border-slate-200/80 space-y-3">
+                  <h3 className="text-xs font-bold text-blue-800 uppercase tracking-wider flex items-center gap-2">
+                    <ListChecks className="w-4 h-4 text-blue-700" /> Registered Tasks for Stage
                   </h3>
                   {stageActivities.length === 0 ? (
-                    <div className="py-4 text-slate-400 text-xs">
+                    <div className="py-4 text-slate-500 text-xs">
                       No activity logs recorded for this stage yet.
                     </div>
                   ) : (
                     <div className="space-y-2">
                       {stageActivities.map((act) => (
                         <div key={act.id} className="flex items-start gap-2 text-xs">
-                          <CheckCircle2 className={`w-4 h-4 mt-0.5 flex-shrink-0 ${act.status === 'COMPLETED' ? 'text-emerald-400' : 'text-amber-500'}`} />
+                          <CheckCircle2 className={`w-4 h-4 mt-0.5 flex-shrink-0 ${act.status === 'COMPLETED' ? 'text-emerald-600' : 'text-amber-500'}`} />
                           <div>
-                            <span className={act.status === 'COMPLETED' ? 'text-slate-200 font-medium' : 'text-slate-300'}>
+                            <span className={act.status === 'COMPLETED' ? 'text-slate-800 font-semibold' : 'text-slate-700'}>
                               {act.activity_type}
                             </span>
-                            {act.description && <p className="text-[11px] text-slate-400">{act.description}</p>}
+                            {act.description && <p className="text-[11px] text-slate-500">{act.description}</p>}
                           </div>
                         </div>
                       ))}
@@ -836,16 +849,16 @@ export default function FamilyDetailPage() {
                 </div>
 
                 {/* Real Proof Documents Downloader & Viewer */}
-                <div className="bg-slate-800/80 p-4 rounded-xl border border-slate-700/80 space-y-3">
-                  <h3 className="text-xs font-bold text-indigo-300 uppercase tracking-wider flex items-center gap-2">
-                    <FileCheck className="w-4 h-4 text-indigo-400" /> Statutory Evidence Proofs
+                <div className="bg-slate-50 p-4 rounded-xl border border-slate-200/80 space-y-3">
+                  <h3 className="text-xs font-bold text-blue-800 uppercase tracking-wider flex items-center gap-2">
+                    <FileCheck className="w-4 h-4 text-blue-700" /> Statutory Evidence Proofs
                   </h3>
                   {realProofs.length === 0 ? (
-                    <div className="py-4 text-slate-400 text-xs space-y-2">
+                    <div className="py-4 text-slate-500 text-xs space-y-2">
                       <p>No evidence documents uploaded in database for this stage yet.</p>
                       <button
                         onClick={() => setShowUploadProofModal(true)}
-                        className="btn btn-sm bg-slate-800 hover:bg-slate-700 text-indigo-300 border border-slate-600 font-semibold text-xs flex items-center gap-1"
+                        className="btn btn-sm bg-white hover:bg-slate-100 text-blue-700 border border-slate-300 font-semibold text-xs flex items-center gap-1 shadow-xs"
                       >
                         <Upload className="w-3.5 h-3.5" /> Upload Proof Document
                       </button>
@@ -853,32 +866,32 @@ export default function FamilyDetailPage() {
                   ) : (
                     <div className="space-y-2">
                       {realProofs.map((proof) => (
-                        <div key={proof.code} className="p-3 bg-slate-900/90 rounded-lg border border-slate-700 flex flex-col sm:flex-row sm:items-center justify-between gap-3">
+                        <div key={proof.code} className="p-3 bg-white rounded-lg border border-slate-200 shadow-xs flex flex-col sm:flex-row sm:items-center justify-between gap-3">
                           <div className="space-y-1">
-                            <div className="text-xs font-bold text-white">{proof.title}</div>
-                            <div className="text-[11px] text-slate-400 font-mono">Ref: {proof.code} • Date: {proof.date}</div>
-                            <div className="inline-flex items-center gap-1.5 px-2.5 py-0.5 rounded-full bg-indigo-950/90 border border-indigo-700/80 text-[11px] text-indigo-300 font-medium">
-                              <User className="w-3 h-3 text-indigo-400" />
-                              <span>Uploaded by: <strong className="text-white">{proof.verifier}</strong> <span className="text-indigo-300">({proof.verifierRole})</span></span>
+                            <div className="text-xs font-bold text-slate-900">{proof.title}</div>
+                            <div className="text-[11px] text-slate-500 font-mono">Ref: {proof.code} • Date: {proof.date}</div>
+                            <div className="inline-flex items-center gap-1.5 px-2.5 py-0.5 rounded-full bg-blue-50 border border-blue-200 text-[11px] text-blue-900 font-medium">
+                              <User className="w-3 h-3 text-blue-600" />
+                              <span>Uploaded by: <strong className="text-slate-900">{proof.verifier}</strong> <span className="text-blue-700">({proof.verifierRole})</span></span>
                             </div>
                           </div>
                           <div className="flex items-center gap-2 flex-shrink-0">
                             <button
                               onClick={() => setViewingCertificate(proof)}
-                              className="btn btn-sm bg-slate-800 hover:bg-slate-700 text-indigo-300 border border-slate-600 font-semibold text-xs flex items-center gap-1 shadow-sm"
+                              className="btn btn-sm bg-slate-100 hover:bg-slate-200 text-slate-800 border border-slate-300 font-semibold text-xs flex items-center gap-1 shadow-xs"
                             >
                               <Eye className="w-3.5 h-3.5" /> View
                             </button>
                             <button
                               onClick={() => downloadProofDocument(proof, family)}
-                              className="btn btn-sm bg-indigo-600 hover:bg-indigo-700 text-white font-semibold text-xs flex items-center gap-1 shadow-sm"
+                              className="btn btn-sm bg-blue-700 hover:bg-blue-800 text-white font-semibold text-xs flex items-center gap-1 shadow-xs"
                             >
                               <Download className="w-3.5 h-3.5" /> Export
                             </button>
                             {(user?.role === proof.verifierRole || user?.role === 'ADMIN') && (
                               <button
                                 onClick={() => handleDeleteProof(proof.activity_id)}
-                                className="btn btn-sm bg-rose-600/90 hover:bg-rose-700 text-white border border-rose-500 font-semibold text-xs flex items-center gap-1 shadow-sm"
+                                className="btn btn-sm bg-rose-50 hover:bg-rose-100 text-rose-700 border border-rose-200 font-semibold text-xs flex items-center gap-1 shadow-xs"
                                 title="Delete Proof"
                               >
                                 <Trash2 className="w-3.5 h-3.5" />
@@ -890,7 +903,7 @@ export default function FamilyDetailPage() {
                       <div className="pt-2">
                         <button
                           onClick={() => setShowUploadProofModal(true)}
-                          className="btn btn-xs bg-slate-800 hover:bg-slate-700 text-indigo-300 border border-slate-600 font-semibold text-[11px] flex items-center gap-1"
+                          className="btn btn-xs bg-white hover:bg-slate-100 text-blue-700 border border-slate-300 font-semibold text-[11px] flex items-center gap-1 shadow-xs"
                         >
                           <Upload className="w-3 h-3" /> Upload Additional Proof Document
                         </button>
@@ -1112,7 +1125,7 @@ export default function FamilyDetailPage() {
 
       {/* MODAL: VIEW UPLOADED EVIDENCE DOCUMENT */}
       {viewingCertificate && (
-        <div className="fixed inset-0 z-50 bg-slate-950/80 backdrop-blur-md flex items-center justify-center p-4 overflow-y-auto">
+        <div className="fixed inset-0 z-[9999] bg-slate-950/70 backdrop-blur-md flex items-center justify-center p-4 overflow-y-auto">
           <div className="card w-full max-w-5xl bg-slate-900 border border-slate-800 text-white p-6 rounded-2xl shadow-2xl space-y-4 max-h-[92vh] flex flex-col">
             {/* Modal Header */}
             <div className="flex flex-col sm:flex-row sm:items-center justify-between gap-3 border-b border-slate-800 pb-3 flex-shrink-0">
@@ -1210,7 +1223,7 @@ export default function FamilyDetailPage() {
 
       {/* Modal: Delete Family Confirmation */}
       {showDeleteModal && (
-        <div className="fixed inset-0 z-50 bg-slate-900/60 backdrop-blur-sm flex items-center justify-center p-4">
+        <div className="fixed inset-0 z-[9999] bg-slate-950/70 backdrop-blur-md flex items-center justify-center p-4">
           <div className="card w-full max-w-md bg-white p-6 rounded-xl shadow-2xl space-y-4">
             <div className="flex items-center justify-between border-b pb-3">
               <h3 className="text-base font-bold text-rose-700 flex items-center gap-2">
@@ -1246,7 +1259,7 @@ export default function FamilyDetailPage() {
 
       {/* Modal: Add Task */}
       {showAddActivityModal && (
-        <div className="fixed inset-0 z-50 bg-slate-900/60 backdrop-blur-sm flex items-center justify-center p-4">
+        <div className="fixed inset-0 z-[9999] bg-slate-950/70 backdrop-blur-md flex items-center justify-center p-4">
           <div className="card w-full max-w-lg bg-white p-6 rounded-xl shadow-2xl space-y-4">
             <div className="flex items-center justify-between border-b pb-3">
               <h3 className="text-base font-bold text-slate-900">Add Task for {family.head_of_family}</h3>
@@ -1309,7 +1322,7 @@ export default function FamilyDetailPage() {
 
       {/* Modal: Update Task Status */}
       {showUpdateStatusModal && selectedActivity && (
-        <div className="fixed inset-0 z-50 bg-slate-900/60 backdrop-blur-sm flex items-center justify-center p-4">
+        <div className="fixed inset-0 z-[9999] bg-slate-950/70 backdrop-blur-md flex items-center justify-center p-4">
           <div className="card w-full max-w-md bg-white p-6 rounded-xl shadow-2xl space-y-4">
             <div className="flex items-center justify-between border-b pb-3">
               <h3 className="text-base font-bold text-slate-900">Update R&R Task Status</h3>
@@ -1374,7 +1387,7 @@ export default function FamilyDetailPage() {
 
       {/* Modal: Upload Proof Document */}
       {showUploadProofModal && (
-        <div className="fixed inset-0 z-50 bg-slate-900/60 backdrop-blur-sm flex items-center justify-center p-4">
+        <div className="fixed inset-0 z-[9999] bg-slate-950/70 backdrop-blur-md flex items-center justify-center p-4">
           <div className="card w-full max-w-lg bg-white p-6 rounded-xl shadow-2xl space-y-4">
             <div className="flex items-center justify-between border-b pb-3">
               <div className="flex items-center gap-2">
@@ -1399,8 +1412,8 @@ export default function FamilyDetailPage() {
                 <label className="block text-slate-700 font-bold mb-1">Select Evidence File *</label>
                 <label
                   className={`block w-full border-2 border-dashed rounded-xl p-6 text-center cursor-pointer transition-colors ${proofFile
-                      ? 'border-emerald-400 bg-emerald-50'
-                      : 'border-slate-300 hover:border-indigo-400 hover:bg-indigo-50/30'
+                    ? 'border-emerald-400 bg-emerald-50'
+                    : 'border-slate-300 hover:border-indigo-400 hover:bg-indigo-50/30'
                     }`}
                 >
                   <input

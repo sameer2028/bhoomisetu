@@ -228,10 +228,23 @@ router.get('/families/:id', authenticate, async (req, res, next) => {
          pc.parcel_code,
          pc.survey_number,
          pc.village,
-         pc.area_acres
+         pc.area_acres,
+         pc.acquisition_status,
+         pc.geometry_source,
+         (pc.geometry IS NOT NULL) AS has_geometry,
+         ac.id AS case_id,
+         ac.case_code,
+         ac.current_stage AS acquisition_stage
        FROM families f
        LEFT JOIN projects p ON p.id = f.project_id
        LEFT JOIN parcels pc ON pc.id = f.parcel_id
+       LEFT JOIN LATERAL (
+         SELECT id, case_code, current_stage
+         FROM acquisition_cases
+         WHERE parcel_id = f.parcel_id OR (parcel_id IS NULL AND project_id = f.project_id)
+         ORDER BY created_at DESC
+         LIMIT 1
+       ) ac ON true
        WHERE f.id = $1`,
       [id]
     );
