@@ -170,7 +170,13 @@ def api_process_document(req: ProcessDocumentRequest):
 
     if req.file_url:
         try:
-            with tempfile.NamedTemporaryFile(delete=False, suffix=".png") as tmp:
+            import urllib.parse
+            import os
+            url_path = urllib.parse.urlparse(req.file_url).path
+            ext = os.path.splitext(url_path)[1].lower()
+            if ext not in ['.pdf', '.png', '.jpg', '.jpeg']:
+                ext = '.png'
+            with tempfile.NamedTemporaryFile(delete=False, suffix=ext) as tmp:
                 r = urllib.request.Request(req.file_url, headers={'User-Agent': 'Mozilla/5.0'})
                 with urllib.request.urlopen(r) as response:
                     tmp.write(response.read())

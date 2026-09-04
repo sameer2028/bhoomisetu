@@ -15,18 +15,22 @@ const { generateStatutoryPdf, generateSamplePdfBuffer } = require('../../utils/p
 
 const router = express.Router();
 
-// ─── Multer Storage Config ──────────────────────────────────────────
-const UPLOAD_DIR = path.resolve(__dirname, '..', '..', '..', 'uploads');
-if (!fs.existsSync(UPLOAD_DIR)) {
-  fs.mkdirSync(UPLOAD_DIR, { recursive: true });
-}
+// ─── Cloudinary Storage Config ──────────────────────────────────────
+const cloudinary = require('cloudinary').v2;
+const { CloudinaryStorage } = require('multer-storage-cloudinary');
+const envConfig = require('../../config/env');
 
-const storage = multer.diskStorage({
-  destination: (_req, _file, cb) => cb(null, UPLOAD_DIR),
-  filename: (_req, file, cb) => {
-    const uniqueSuffix = `${Date.now()}-${Math.round(Math.random() * 1e6)}`;
-    const ext = path.extname(file.originalname);
-    cb(null, `doc-${uniqueSuffix}${ext}`);
+cloudinary.config({
+  cloud_name: envConfig.cloudinaryCloudName,
+  api_key: envConfig.cloudinaryApiKey,
+  api_secret: envConfig.cloudinaryApiSecret,
+});
+
+const storage = new CloudinaryStorage({
+  cloudinary: cloudinary,
+  params: {
+    folder: 'nla_documents',
+    resource_type: 'auto',
   },
 });
 
@@ -252,7 +256,12 @@ const streamDocPdf = async (req, res, next) => {
       created_at: new Date(),
     };
 
-    // Check physical file on disk if exists
+    // Check if it's a Cloudinary URL
+    if (doc?.file_path && doc.file_path.startsWith('http')) {
+      return res.redirect(doc.file_path);
+    }
+
+    // Check physical file on disk if exists (for backwards compatibility with local uploads)
     if (doc?.file_path) {
       const fullPath = path.resolve(__dirname, '..', '..', '..', doc.file_path.replace(/^\//, ''));
       if (fs.existsSync(fullPath)) {
@@ -375,9 +384,9 @@ router.post('/', authenticate, rbac(ROLES.DLAO, ROLES.PIA, ROLES.FRO, ROLES.SGA,
     // File info
     let file_path = null, file_name = null, file_size = null, mime_type = null;
     if (req.file) {
-      file_path = `/uploads/${req.file.filename}`;
+      file_path = req.file.path; // Cloudinary URL
       file_name = req.file.originalname;
-      file_size = req.file.size;
+      file_size = req.file.size || 0;
       mime_type = req.file.mimetype;
     }
 
@@ -422,8 +431,7 @@ router.post('/', authenticate, rbac(ROLES.DLAO, ROLES.PIA, ROLES.FRO, ROLES.SGA,
     let aiVerification = null;
     if (req.file) {
       try {
-        const fullDiskPath = path.resolve(UPLOAD_DIR, req.file.filename);
-        const fileUrl = `${req.protocol}://${req.get('host')}/uploads/${req.file.filename}`;
+        const fileUrl = req.file.path;
         
         let targetParcel = null;
         if (parcel_id) {
@@ -431,10 +439,10 @@ router.post('/', authenticate, rbac(ROLES.DLAO, ROLES.PIA, ROLES.FRO, ROLES.SGA,
         }
 
         // If target parcel not explicitly provided, try to extract fields from OCR to find survey number
-        if (!targetParcel && fs.existsSync(fullDiskPath)) {
+        if (!targetParcel) {
           try {
             const rawExtraction = await callPythonAiService('/api/ai/process-document', {
-              file_path: fullDiskPath,
+              file_path: '', // Not used anymore for cloudinary
               file_url: fileUrl,
             });
             if (rawExtraction?.extracted_fields?.survey_number) {
@@ -475,9 +483,9 @@ router.post('/', authenticate, rbac(ROLES.DLAO, ROLES.PIA, ROLES.FRO, ROLES.SGA,
           }
         }
 
-        if (targetParcel && fs.existsSync(fullDiskPath)) {
+        if (targetParcel) {
           const aiRes = await callPythonAiService('/api/ai/process-document', {
-            file_path: fullDiskPath,
+            file_path: '', // Not used anymore
             file_url: fileUrl,
             official_parcel: {
               survey_number: targetParcel.survey_number,
@@ -605,26 +613,30 @@ router.post('/:id/verify-ai', authenticate, rbac(ROLES.DLAO, ROLES.PIA, ROLES.FR
       return apiResponse(res, { status: 400, success: false, error: 'Document does not have an uploaded file to analyze.' });
     }
 
-    const cleanPath = doc.file_path.replace(/^\//, '');
-    let targetFilePath = path.resolve(__dirname, '..', '..', '..', cleanPath);
-    if (!fs.existsSync(targetFilePath)) {
-      targetFilePath = path.resolve(__dirname, '..', '..', '..', 'uploads', path.basename(cleanPath));
-    }
-    if (!fs.existsSync(targetFilePath)) {
-      targetFilePath = path.resolve(__dirname, '..', '..', '..', '..', 'ai-service', 'data', 'sample_docs', path.basename(cleanPath));
-    }
+    let targetFilePath = '';
+    let fileUrl = '';
 
-    if (!fs.existsSync(targetFilePath)) {
-      return apiResponse(res, { status: 404, success: false, error: 'Physical document file not found on server.' });
+    if (doc.file_path.startsWith('http')) {
+      fileUrl = doc.file_path;
+    } else {
+      const cleanPath = doc.file_path.replace(/^\//, '');
+      targetFilePath = path.resolve(__dirname, '..', '..', '..', cleanPath);
+      if (!fs.existsSync(targetFilePath)) {
+        targetFilePath = path.resolve(__dirname, '..', '..', '..', 'uploads', path.basename(cleanPath));
+      }
+      if (!fs.existsSync(targetFilePath)) {
+        targetFilePath = path.resolve(__dirname, '..', '..', '..', '..', 'ai-service', 'data', 'sample_docs', path.basename(cleanPath));
+      }
+      if (!fs.existsSync(targetFilePath)) {
+        return apiResponse(res, { status: 404, success: false, error: 'Physical document file not found on server.' });
+      }
+      fileUrl = `${req.protocol}://${req.get('host')}/${cleanPath}`;
     }
 
     let targetParcel = null;
     if (doc.parcel_id) {
       targetParcel = await queryOne('SELECT * FROM parcels WHERE id = $1', [doc.parcel_id]);
     }
-
-    // Construct the URL to the file for the AI service to download (critical for production/Render)
-    const fileUrl = `${req.protocol}://${req.get('host')}/${cleanPath}`;
 
     // Call Python AI Service
     const aiRes = await callPythonAiService('/api/ai/process-document', {

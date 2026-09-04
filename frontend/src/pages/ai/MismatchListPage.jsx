@@ -45,6 +45,10 @@ export default function MismatchListPage() {
     detected: 0,
   });
 
+  const [page, setPage] = useState(1);
+  const [totalPages, setTotalPages] = useState(1);
+  const [pageSize, setPageSize] = useState(10);
+
   // Modal States
   const [selectedMismatch, setSelectedMismatch] = useState(null);
   const [isDetailOpen, setIsDetailOpen] = useState(false);
@@ -63,7 +67,7 @@ export default function MismatchListPage() {
   const fetchMismatches = useCallback(async () => {
     setLoading(true);
     try {
-      const params = {};
+      const params = { limit: pageSize, page };
       if (search) params.search = search;
       if (statusFilter) params.status = statusFilter;
       if (severityFilter) params.severity = severityFilter;
@@ -74,12 +78,15 @@ export default function MismatchListPage() {
       if (res.data.meta?.summary) {
         setSummaryMetrics(res.data.meta.summary);
       }
+      if (res.data.meta?.totalPages) {
+        setTotalPages(res.data.meta.totalPages);
+      }
     } catch (err) {
       console.error('Failed to fetch AI mismatches:', err);
     } finally {
       setLoading(false);
     }
-  }, [search, statusFilter, severityFilter, projectIdFilter]);
+  }, [search, statusFilter, severityFilter, projectIdFilter, page, pageSize]);
 
   useEffect(() => {
     fetchProjects();
@@ -266,6 +273,20 @@ export default function MismatchListPage() {
           <option value="FALSE_POSITIVE">False Positive</option>
         </select>
 
+        <select
+          value={pageSize}
+          onChange={(e) => {
+            setPageSize(Number(e.target.value));
+            setPage(1);
+          }}
+          className="form-select text-xs w-auto min-w-[120px]"
+        >
+          <option value={10}>10 / page</option>
+          <option value={50}>50 / page</option>
+          <option value={500}>Show All</option>
+        </select>
+
+
         <label className="flex items-center gap-1.5 px-3 py-2 rounded-lg bg-slate-50 border border-slate-200 hover:bg-slate-100 cursor-pointer select-none text-xs font-semibold text-slate-700 whitespace-nowrap transition-colors flex-shrink-0">
           <input
             type="checkbox"
@@ -397,6 +418,31 @@ export default function MismatchListPage() {
               </tbody>
             </table>
           </div>
+          
+          {/* Pagination Controls */}
+          {totalPages > 0 && (
+            <div className="p-4 border-t border-slate-200 flex items-center justify-between bg-slate-50 rounded-b-xl">
+              <span className="text-sm text-slate-500 font-medium">
+                Showing Page {page} of {totalPages || 1}
+              </span>
+              <div className="flex gap-2">
+                <button 
+                  onClick={() => setPage(p => Math.max(1, p - 1))}
+                  disabled={page === 1}
+                  className="btn btn-secondary btn-sm"
+                >
+                  Previous
+                </button>
+                <button 
+                  onClick={() => setPage(p => Math.min(totalPages, p + 1))}
+                  disabled={page === totalPages}
+                  className="btn btn-secondary btn-sm"
+                >
+                  Next
+                </button>
+              </div>
+            </div>
+          )}
         </div>
       )}
 
