@@ -1,4 +1,4 @@
-import { useState, useEffect, useCallback } from 'react';
+import { useState, useEffect, useCallback, useRef } from 'react';
 import { Link, useSearchParams } from 'react-router-dom';
 import { useAuth } from '../../contexts/AuthContext';
 import { toLandReference } from '../../services/landRecordMapper';
@@ -20,8 +20,11 @@ import {
 } from 'lucide-react';
 
 export default function ParcelListPage() {
-  const [searchParams] = useSearchParams();
+  const [searchParams, setSearchParams] = useSearchParams();
   const initialProjectId = searchParams.get('projectId') || '';
+  const highlightId = searchParams.get('highlight');
+  const [highlightActive, setHighlightActive] = useState(!!highlightId);
+  const highlightRef = useRef(null);
 
   const { hasRole } = useAuth();
   const [parcels, setParcels] = useState([]);
@@ -60,11 +63,26 @@ export default function ParcelListPage() {
 
   useEffect(() => {
     fetchProjects();
-  }, [fetchProjects]);
-
-  useEffect(() => {
     fetchParcels();
-  }, [fetchParcels]);
+  }, [fetchProjects, fetchParcels]);
+
+  // Auto-scroll and highlight the target parcel from alerts
+  useEffect(() => {
+    if (highlightId && !loading && highlightRef.current) {
+      setTimeout(() => {
+        highlightRef.current?.scrollIntoView({ behavior: 'smooth', block: 'center' });
+      }, 300);
+      const timer = setTimeout(() => {
+        setHighlightActive(false);
+        setSearchParams((prev) => {
+          const next = new URLSearchParams(prev);
+          next.delete('highlight');
+          return next;
+        }, { replace: true });
+      }, 3500);
+      return () => clearTimeout(timer);
+    }
+  }, [highlightId, loading, setSearchParams]);
 
   const getStatusBadge = (status) => {
     switch (status) {
@@ -213,7 +231,15 @@ export default function ParcelListPage() {
               </thead>
               <tbody className="divide-y divide-slate-100">
                 {parcels.map((parcel) => (
-                  <tr key={parcel.id} className="hover:bg-blue-50/40 transition-colors">
+                  <tr
+                    key={parcel.id}
+                    ref={highlightId === parcel.id ? highlightRef : null}
+                    className={`transition-colors ${
+                      highlightActive && highlightId === parcel.id
+                        ? 'bg-amber-50 ring-2 ring-amber-400 ring-inset shadow-lg shadow-amber-200/50 animate-pulse'
+                        : 'hover:bg-blue-50/40'
+                    }`}
+                  >
                     <td>
                       <div className="flex flex-col gap-1">
                         <span className="font-mono font-bold text-blue-900 text-xs">

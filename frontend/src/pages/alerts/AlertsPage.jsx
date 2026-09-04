@@ -316,11 +316,11 @@ export default function AlertsPage() {
     setIsEscalationTrailModalOpen(true);
   };
 
-  // Navigate to Target Record
+  // Navigate to Target Record with highlight
   const handleNavigateToRecord = (alertItem) => {
-    if (alertItem.case_id) navigate('/cases');
-    else if (alertItem.parcel_id) navigate('/parcels');
-    else if (alertItem.project_id) navigate('/projects');
+    if (alertItem.case_id) navigate(`/cases?highlight=${alertItem.case_id}`);
+    else if (alertItem.parcel_id) navigate(`/parcels?highlight=${alertItem.parcel_id}`);
+    else if (alertItem.project_id) navigate(`/projects?highlight=${alertItem.project_id}`);
   };
 
   return (
