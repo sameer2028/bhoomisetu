@@ -525,10 +525,10 @@ export default function DashboardPage() {
                     m.severity === 'CRITICAL'
                       ? 'bg-rose-100 text-rose-800 border-rose-300'
                       : m.severity === 'HIGH'
-                      ? 'bg-orange-100 text-orange-800 border-orange-300'
-                      : m.severity === 'MEDIUM'
-                      ? 'bg-amber-100 text-amber-800 border-amber-300'
-                      : 'bg-slate-100 text-slate-700 border-slate-200';
+                        ? 'bg-orange-100 text-orange-800 border-orange-300'
+                        : m.severity === 'MEDIUM'
+                          ? 'bg-amber-100 text-amber-800 border-amber-300'
+                          : 'bg-slate-100 text-slate-700 border-slate-200';
 
                   return (
                     <tr key={m.id} className="hover:bg-slate-50/70 transition-colors">

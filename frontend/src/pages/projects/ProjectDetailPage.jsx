@@ -40,7 +40,6 @@ export default function ProjectDetailPage() {
 
   // Risk Score State
   const [riskData, setRiskData] = useState(null);
-  const [isRiskExpanded, setIsRiskExpanded] = useState(true);
   const [recalculatingRisk, setRecalculatingRisk] = useState(false);
 
   const fetchProject = useCallback(async () => {
@@ -58,23 +57,21 @@ export default function ProjectDetailPage() {
           name: p.name || '',
           description: p.description || '',
           project_type: p.project_type || '',
-          implementing_agency: p.implementing_agency || '',
-          state: p.state || '',
           district: p.district || '',
-          taluk: p.taluk || '',
-          total_area_required: p.total_area_required || '',
-          total_area_acquired: p.total_area_acquired || '',
-          status: p.status || 'PROPOSED',
-          start_date: p.start_date || '',
-          expected_end_date: p.expected_end_date || '',
+          status: p.status || 'DRAFT',
+          total_area_acres: p.total_area_acres || '',
+          estimated_budget: p.estimated_budget || '',
         });
+      } else {
+        setErrorMsg('Failed to load project details.');
       }
 
-      if (riskRes.status === 'fulfilled' && riskRes.value.data?.data?.risk) {
-        setRiskData(riskRes.value.data.data.risk);
+      if (riskRes.status === 'fulfilled') {
+        setRiskData(riskRes.value.data.data?.risk || null);
       }
     } catch (err) {
-      console.error('Failed to fetch project:', err);
+      console.error(err);
+      setErrorMsg('Failed to load project.');
     } finally {
       setLoading(false);
     }

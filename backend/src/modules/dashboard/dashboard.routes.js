@@ -38,7 +38,7 @@ const getDashboardStats = async (state = null, district = null, projectId = null
       (SELECT COUNT(*) FROM documents WHERE project_id IN (SELECT id FROM p_scope)) AS total_documents,
       (SELECT COUNT(*) FROM ai_mismatches WHERE status IN ('DETECTED', 'UNDER_REVIEW') AND parcel_id IN (SELECT id FROM parcels WHERE project_id IN (SELECT id FROM p_scope))) AS open_mismatches
   `;
-  
+
   const stats = await queryOne(sql, [state, district, projectId]);
   return stats;
 };

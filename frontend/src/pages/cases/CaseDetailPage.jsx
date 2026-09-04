@@ -6,7 +6,6 @@ import {
   GitBranch,
   ArrowLeft,
   CheckCircle2,
-  Circle,
   AlertTriangle,
   Clock,
   User,
@@ -14,17 +13,14 @@ import {
   MapPin,
   Calendar,
   ChevronRight,
-  ArrowRightCircle,
   RotateCcw,
   XCircle,
   MessageSquare,
-  Shield,
   X,
   Building2,
   Flag,
   MoreVertical,
   FileText,
-  ExternalLink,
   Check,
   HelpCircle,
   Eye,
@@ -302,6 +298,7 @@ const ACTION_CONFIG = {
     description: 'Finalize statutory closure of acquisition file',
   },
 };
+
 
 function timeAgo(dateStr) {
   if (!dateStr) return '';
@@ -667,7 +664,7 @@ function downloadProofDocument(doc) {
 export default function CaseDetailPage() {
   const { id } = useParams();
   const navigate = useNavigate();
-  const { hasRole, user } = useAuth();
+  const { hasRole } = useAuth();
 
   const [caseData, setCaseData] = useState(null);
   const [loading, setLoading] = useState(true);
@@ -675,7 +672,6 @@ export default function CaseDetailPage() {
   const [transitionModal, setTransitionModal] = useState(null);
   const [selectedStageKey, setSelectedStageKey] = useState(null);
   const [showActionDropdown, setShowActionDropdown] = useState(false);
-  const [auditFilter, setAuditFilter] = useState('ALL');
   const [proofPreview, setProofPreview] = useState(null);
   const [showFullAuditModal, setShowFullAuditModal] = useState(false);
   const [copiedToast, setCopiedToast] = useState('');
@@ -685,15 +681,12 @@ export default function CaseDetailPage() {
     try {
       const res = await api.get(`/workflow/cases/${id}`);
       setCaseData(res.data.data);
-      if (!selectedStageKey) {
-        setSelectedStageKey(res.data.data.current_stage);
-      }
     } catch (err) {
       setError(err.response?.data?.error || 'Failed to fetch case details.');
     } finally {
       setLoading(false);
     }
-  }, [id, selectedStageKey]);
+  }, [id]);
 
   useEffect(() => {
     fetchCase();
@@ -735,10 +728,6 @@ export default function CaseDetailPage() {
   const stageGuidance = STAGE_GUIDANCE_DATA[activeStageKey] || STAGE_GUIDANCE_DATA.PROJECT_PROPOSAL;
   const daysRemaining = calculateDaysRemaining(caseData.due_date);
   const overallProgressPct = Math.round(((currentStageIndex + 1) / STAGE_ORDER.length) * 100);
-
-  const activeStageAuditEvents = caseData.auditTimeline?.filter(
-    (evt) => evt.to_stage === activeStageKey || evt.from_stage === activeStageKey
-  ) || [];
 
   let activeOfficerDecision = null;
   if (caseData.auditTimeline) {
