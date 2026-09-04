@@ -47,21 +47,29 @@ import {
   Paperclip
 } from 'lucide-react';
 
-const RR_STAGES = [
-  { key: 'REGISTRATION', label: '1. Registration' },
-  { key: 'ENTITLEMENT', label: '2. Entitlement' },
-  { key: 'HOUSING', label: '3. Housing Plot' },
-  { key: 'GRANT', label: '4. Resettlement Grant' },
-  { key: 'TRAINING', label: '5. Skill & Livelihood' },
-  { key: 'SUBSISTENCE', label: '6. Subsistence Allowance' },
-  { key: 'CLOSURE', label: '7. R&R Closure' },
+const DISPLACED_STAGES = [
+  { key: 'REGISTRATION', label: 'Registration' },
+  { key: 'ENTITLEMENT', label: 'Entitlement' },
+  { key: 'HOUSING', label: 'Housing Plot' },
+  { key: 'GRANT', label: 'Resettlement Grant' },
+  { key: 'TRAINING', label: 'Skill & Livelihood' },
+  { key: 'SUBSISTENCE', label: 'Subsistence Allowance' },
+  { key: 'CLOSURE', label: 'R&R Closure' },
+];
+
+const AFFECTED_STAGES = [
+  { key: 'REGISTRATION', label: 'Registration' },
+  { key: 'ENTITLEMENT', label: 'Entitlement' },
+  { key: 'TRAINING', label: 'Skill & Livelihood' },
+  { key: 'SUBSISTENCE', label: 'Subsistence Allowance' },
+  { key: 'CLOSURE', label: 'R&R Closure' },
 ];
 
 const STAGE_DESCRIPTIONS = {
   REGISTRATION: 'Initial identification & registration of affected/displaced family under RFCTLARR Act 2013 Section 31.',
   ENTITLEMENT: 'Sanction of statutory entitlements under Second Schedule of RFCTLARR Act 2013 (housing, grants, employment allowance).',
-  HOUSING: 'Allotment of residential plot or constructed dwelling house in designated Resettlement Colony.',
-  GRANT: 'Disbursement of statutory resettlement allowance and shifting allowances.',
+  HOUSING: 'Allotment of residential plot or constructed dwelling house in designated Resettlement Colony (Displaced Families Only).',
+  GRANT: 'Disbursement of statutory resettlement allowance and shifting allowances (Displaced Families Only).',
   TRAINING: 'Enrollment of family members in skill & livelihood programs & priority job rosters.',
   SUBSISTENCE: 'Payment of monthly subsistence allowance post-displacement.',
   CLOSURE: 'Final R&R completion certificate issuance and statutory file closure.',
@@ -81,14 +89,12 @@ const STAGE_ACTIVITY_KEYWORDS = {
 /**
  * Compute the highest stage index the family has reached based on their activities.
  * A stage is "reached" if it has at least one completed activity.
- * The family is always at minimum on Stage 0 (REGISTRATION).
- * The "current stage" = highest stage with completed activity + 1 (the next in-progress stage),
- * capped at 6 (CLOSURE). If no activities exist, current stage = 0 (REGISTRATION).
  */
-function computeCurrentStageIndex(activities) {
+function computeCurrentStageIndex(activities, activeStages) {
   if (!activities || activities.length === 0) return 0; // Start at Registration
 
-  const stageKeys = RR_STAGES.map(s => s.key);
+  const stagesToUse = activeStages || DISPLACED_STAGES;
+  const stageKeys = stagesToUse.map(s => s.key);
   let highestCompletedStageIdx = -1;
 
   for (const act of activities) {
@@ -106,16 +112,10 @@ function computeCurrentStageIndex(activities) {
     }
   }
 
-  // If at least one activity in a stage is completed, the user can view that stage
-  // AND the next stage (which is now "in progress").
-  // If nothing is completed, user is on stage 0.
   if (highestCompletedStageIdx === -1) {
-    // No completed activities — check if any activity exists at all
-    // If there are pending/in-progress activities, user is still on stage 0
     return 0;
   }
 
-  // User can access up to the stage AFTER the highest completed one
   return Math.min(highestCompletedStageIdx + 1, stageKeys.length - 1);
 }
 
@@ -395,6 +395,16 @@ export default function FamilyDetailPage() {
     fetchDocuments();
   }, [fetchFamilyDetail]);
 
+  useEffect(() => {
+    if (family) {
+      const isAff = family.category === 'AFFECTED';
+      const curList = isAff ? AFFECTED_STAGES : DISPLACED_STAGES;
+      if (!curList.some(s => s.key === activeStageKey)) {
+        setActiveStageKey('REGISTRATION');
+      }
+    }
+  }, [family?.id, family?.category]);
+
   const handleAddActivitySubmit = async (e) => {
     e.preventDefault();
     try {
@@ -473,7 +483,10 @@ export default function FamilyDetailPage() {
 
       // Create an R&R activity linked to this uploaded document
       if (uploadedDocId) {
-        const stageLabel = RR_STAGES.find(s => s.key === activeStageKey)?.label || activeStageKey;
+        const isAff = family?.category === 'AFFECTED';
+        const curStages = isAff ? AFFECTED_STAGES : DISPLACED_STAGES;
+        const stageObj = curStages.find(s => s.key === activeStageKey);
+        const stageLabel = stageObj ? `${curStages.indexOf(stageObj) + 1}. ${stageObj.label}` : activeStageKey;
         await api.post('/rr/activities', {
           family_id: id,
           activity_type: `${stageLabel} - Evidence Upload`,
@@ -522,12 +535,25 @@ export default function FamilyDetailPage() {
   const activities = family.activities || [];
   const totalAct = activities.length;
   const compAct = activities.filter((a) => a.status === 'COMPLETED').length;
-  const progressPct = totalAct > 0 ? Math.round((compAct / totalAct) * 100) : 0;
   const canDelete = hasRole('DLAO', 'PIA', 'SGA', 'ADMIN');
 
+  // Determine active stages dynamically: 5 stages for AFFECTED families, 7 stages for DISPLACED families
+  const isAffectedCategory = family.category === 'AFFECTED';
+  const activeStages = isAffectedCategory ? AFFECTED_STAGES : DISPLACED_STAGES;
+  const totalRequiredStages = activeStages.length;
+
+  // Compute how many statutory lifecycle stages have at least one COMPLETED activity
+  const completedStagesCount = activeStages.filter(st => {
+    const keywords = STAGE_ACTIVITY_KEYWORDS[st.key] || [];
+    return activities.some(a => a.status === 'COMPLETED' && keywords.some(kw => (a.activity_type || '').toLowerCase().includes(kw)));
+  }).length;
+
+  // Dynamic statutory progress percentage across the 5 (or 7) required stages
+  const progressPct = Math.round((completedStagesCount / totalRequiredStages) * 100);
+
   // Compute the maximum stage index the user can access
-  const currentStageIndex = computeCurrentStageIndex(activities);
-  const activeStageIndex = RR_STAGES.findIndex(s => s.key === activeStageKey);
+  const currentStageIndex = computeCurrentStageIndex(activities, activeStages);
+  const activeStageIndex = activeStages.findIndex(s => s.key === activeStageKey);
 
   // Disable strict stage locking so users can access any stage (e.g. Closure) even if they skip optional middle stages
   const isStageLocked = false;
@@ -654,42 +680,56 @@ export default function FamilyDetailPage() {
       {/* Professional Executive R&R KPI Bar */}
       <div className="grid grid-cols-2 md:grid-cols-4 gap-3">
         <div className="kpi-card">
-          <p className="text-[11px] font-semibold text-slate-500 uppercase tracking-wider mb-1">R&R Progress</p>
+          <p className="text-[11px] font-semibold text-slate-500 uppercase tracking-wider mb-1">R&R Statutory Progress</p>
           <div className="flex items-center gap-2">
             <span className="text-2xl font-extrabold text-indigo-700">{progressPct}%</span>
             <div className="w-16 bg-slate-200 h-2 rounded-full overflow-hidden">
-              <div className="bg-indigo-600 h-full" style={{ width: `${progressPct}%` }} />
+              <div className="bg-indigo-600 h-full transition-all duration-500" style={{ width: `${progressPct}%` }} />
             </div>
           </div>
+          <p className="text-[11px] text-slate-500 mt-1 font-medium">{completedStagesCount} of {totalRequiredStages} Stages Completed</p>
         </div>
 
         <div className="kpi-card">
           <p className="text-[11px] font-semibold text-slate-500 uppercase tracking-wider mb-1">Category & Household</p>
           <p className="text-base font-extrabold text-slate-900">{family.category}</p>
-          <p className="text-[11px] text-slate-500 font-medium">👨‍👩‍👧‍👦 {family.members_count} Members</p>
+          <p className="text-[11px] text-slate-500 font-medium">👨‍👩‍👧‍👦 {family.members_count} Members ({isAffectedCategory ? '5-Step' : '7-Step'})</p>
         </div>
 
         <div className="kpi-card">
-          <p className="text-[11px] font-semibold text-slate-500 uppercase tracking-wider mb-1">Tasks Settled</p>
-          <p className="text-base font-extrabold text-emerald-600">{compAct} of {totalAct} Done</p>
-          <p className="text-[11px] text-slate-500">RFCTLARR Compliance</p>
+          <p className="text-[11px] font-semibold text-slate-500 uppercase tracking-wider mb-1">Tasks & Stages Settled</p>
+          <p className="text-base font-extrabold text-emerald-600">{completedStagesCount} of {totalRequiredStages} Stages Done</p>
+          <p className="text-[11px] text-slate-500">{compAct} Total Tasks Completed</p>
         </div>
 
         <div className="kpi-card">
           <p className="text-[11px] font-semibold text-slate-500 uppercase tracking-wider mb-1">Registered Entitlement</p>
-          <p className="text-xs font-bold text-slate-900 truncate" title={family.entitlement || 'Pending Record'}>
-            {family.entitlement || 'Pending Record'}
+          <p className="text-xs font-bold text-slate-900 truncate" title={family.entitlement || 'Pending Sanction'}>
+            {family.entitlement || 'Pending Sanction'}
           </p>
           <p className="text-[11px] text-indigo-700 font-semibold">
-            {family.entitlement ? 'DB Entitlement Active' : 'Awaiting Sanction'}
+            {family.entitlement ? 'DB Entitlement Active' : 'Awaiting Officer Sanction'}
           </p>
         </div>
       </div>
 
+      {/* Category Lifecycle Notice Banner */}
+      {isAffectedCategory ? (
+        <div className="p-3 bg-blue-50/80 border border-blue-200 rounded-xl flex items-center justify-between text-xs text-blue-900 font-medium">
+          <span>ℹ️ <strong>Affected Family Lifecycle (5 Stages)</strong>: Economically affected family (non-displaced). Physical housing plot allocation and shifting grants are omitted under RFCTLARR Act Second Schedule.</span>
+          <span className="badge bg-blue-200 text-blue-950 font-bold ml-2">AFFECTED FAMILY (5 STEPS)</span>
+        </div>
+      ) : (
+        <div className="p-3 bg-indigo-50/80 border border-indigo-200 rounded-xl flex items-center justify-between text-xs text-indigo-900 font-medium">
+          <span>🏠 <strong>Displaced Family Lifecycle (7 Stages)</strong>: Physically displaced family requiring complete housing site allocation and resettlement shifting grants.</span>
+          <span className="badge bg-indigo-200 text-indigo-950 font-bold ml-2">DISPLACED FAMILY (7 STEPS)</span>
+        </div>
+      )}
+
       {/* Milestone Step Tracker Bar */}
       <div className="card p-4 overflow-x-auto">
         <div className="flex items-center min-w-[700px] justify-between relative">
-          {RR_STAGES.map((st, idx) => {
+          {activeStages.map((st, idx) => {
             const isActive = activeStageKey === st.key;
             const isLocked = idx > currentStageIndex;
             const isCompleted = idx < currentStageIndex;
@@ -698,11 +738,11 @@ export default function FamilyDetailPage() {
                 key={st.key}
                 onClick={() => !isLocked && setActiveStageKey(st.key)}
                 disabled={isLocked}
-                title={isLocked ? `Complete Step ${currentStageIndex + 1} to unlock this stage` : st.label}
-                className={`flex-1 text-center py-2 px-1 border-b-2 text-xs font-bold transition-all flex items-center justify-center gap-1 ${isLocked
+                title={isLocked ? `Complete Step ${currentStageIndex + 1} to unlock this stage` : `${idx + 1}. ${st.label}`}
+                className={`flex-1 text-center py-2.5 px-1 border-b-2 text-xs font-bold transition-all flex items-center justify-center gap-1.5 ${isLocked
                   ? 'border-slate-100 text-slate-300 cursor-not-allowed bg-slate-50/50'
                   : isActive
-                    ? 'border-blue-600 text-blue-800 bg-blue-50/50'
+                    ? 'border-blue-600 text-blue-800 bg-blue-50/50 shadow-sm'
                     : isCompleted
                       ? 'border-emerald-400 text-emerald-700 hover:text-emerald-800 bg-emerald-50/30'
                       : 'border-slate-200 text-slate-500 hover:text-slate-800'
@@ -710,7 +750,7 @@ export default function FamilyDetailPage() {
               >
                 {isCompleted && <CheckCircle2 className="w-3.5 h-3.5 text-emerald-500 flex-shrink-0" />}
                 {isLocked && <Lock className="w-3 h-3 text-slate-300 flex-shrink-0" />}
-                {st.label}
+                {idx + 1}. {st.label}
               </button>
             );
           })}
@@ -765,7 +805,7 @@ export default function FamilyDetailPage() {
               {isStageLocked ? 'Stage Locked' : 'Active Stage Context'}
             </h3>
             <p className={`text-[11px] font-semibold ${isStageLocked ? 'text-slate-500' : 'text-indigo-950'}`}>
-              {RR_STAGES.find((s) => s.key === activeStageKey)?.label}
+              {activeStages.find((s) => s.key === activeStageKey)?.label}
             </p>
             <p className={`text-[11px] leading-relaxed font-sans ${isStageLocked ? 'text-slate-400' : 'text-indigo-800'}`}>
               {isStageLocked
@@ -786,11 +826,11 @@ export default function FamilyDetailPage() {
                 <Lock className="w-8 h-8 text-slate-400" />
               </div>
               <h2 className="text-lg font-bold text-slate-500">
-                {RR_STAGES.find((s) => s.key === activeStageKey)?.label} — Locked
+                {activeStages.find((s) => s.key === activeStageKey)?.label} — Locked
               </h2>
               <p className="text-sm text-slate-400 max-w-md mx-auto leading-relaxed">
                 This stage will become accessible once the activities for
-                <strong className="text-slate-600"> Step {currentStageIndex + 1}: {RR_STAGES[currentStageIndex]?.label.split('. ')[1]} </strong>
+                <strong className="text-slate-600"> Step {currentStageIndex + 1}: {activeStages[currentStageIndex]?.label} </strong>
                 are completed. Please complete the current stage first.
               </p>
               <div className="inline-flex items-center gap-2 bg-slate-200 text-slate-500 px-4 py-2 rounded-full text-xs font-bold">
@@ -808,7 +848,7 @@ export default function FamilyDetailPage() {
                   </span>
                   <h2 className="text-xl font-bold text-slate-900 mt-0.5 flex items-center gap-2">
                     <BookOpen className="w-5 h-5 text-blue-700" />
-                    {RR_STAGES.find((s) => s.key === activeStageKey)?.label}
+                    {activeStages.find((s) => s.key === activeStageKey)?.label}
                   </h2>
                 </div>
                 <span className="text-xs bg-blue-50 text-blue-800 px-3 py-1 rounded-full font-mono font-semibold border border-blue-200">
@@ -919,7 +959,7 @@ export default function FamilyDetailPage() {
           {!isStageLocked && activeStageKey === 'REGISTRATION' && (
             <div className="card p-5 space-y-3 border-l-4 border-l-blue-600">
               <h3 className="text-sm font-bold text-slate-900 flex items-center gap-2">
-                <UsersIcon className="w-4 h-4 text-blue-600" /> Step 1: Registration & Household Verification Record
+                <UsersIcon className="w-4 h-4 text-blue-600" /> Step {activeStages.findIndex(s => s.key === 'REGISTRATION') + 1}: Registration & Household Verification Record
               </h3>
               <div className="grid grid-cols-1 md:grid-cols-2 gap-4 text-xs">
                 <div className="p-3 bg-slate-50 rounded-lg space-y-1">
@@ -939,7 +979,7 @@ export default function FamilyDetailPage() {
           {!isStageLocked && activeStageKey === 'ENTITLEMENT' && (
             <div className="card p-5 space-y-3 border-l-4 border-l-indigo-600">
               <h3 className="text-sm font-bold text-slate-900 flex items-center gap-2">
-                <Award className="w-4 h-4 text-indigo-600" /> Step 2: Statutory Entitlement Package Record
+                <Award className="w-4 h-4 text-indigo-600" /> Step {activeStages.findIndex(s => s.key === 'ENTITLEMENT') + 1}: Statutory Entitlement Package Record
               </h3>
               <div className="p-4 bg-indigo-50/60 rounded-xl space-y-2 text-xs">
                 <p className="font-bold text-indigo-950">Statutory Entitlement Terms (Database Record)</p>
@@ -959,7 +999,7 @@ export default function FamilyDetailPage() {
           {!isStageLocked && activeStageKey === 'HOUSING' && (
             <div className="card p-5 space-y-3 border-l-4 border-l-emerald-600">
               <h3 className="text-sm font-bold text-slate-900 flex items-center gap-2">
-                <Home className="w-4 h-4 text-emerald-600" /> Step 3: Resettlement Dwelling & Land Allocation Record
+                <Home className="w-4 h-4 text-emerald-600" /> Step {activeStages.findIndex(s => s.key === 'HOUSING') + 1}: Resettlement Dwelling & Land Allocation Record
               </h3>
               <div className="p-4 bg-emerald-50/60 rounded-xl space-y-3 text-xs">
                 <div className="flex items-center justify-between">
@@ -981,7 +1021,7 @@ export default function FamilyDetailPage() {
           {!isStageLocked && activeStageKey === 'GRANT' && (
             <div className="card p-5 space-y-3 border-l-4 border-l-amber-600">
               <h3 className="text-sm font-bold text-slate-900 flex items-center gap-2">
-                <ShieldCheck className="w-4 h-4 text-amber-600" /> Step 4: Resettlement Grant & Financial Disbursement Panel
+                <ShieldCheck className="w-4 h-4 text-amber-600" /> Step {activeStages.findIndex(s => s.key === 'GRANT') + 1}: Resettlement Grant & Financial Disbursement Panel
               </h3>
               <div className="p-4 bg-amber-50/60 rounded-xl space-y-3 text-xs">
                 <p className="font-bold text-amber-950">Statutory Financial Grant Package</p>
@@ -999,7 +1039,7 @@ export default function FamilyDetailPage() {
           {!isStageLocked && activeStageKey === 'TRAINING' && (
             <div className="card p-5 space-y-3 border-l-4 border-l-purple-600">
               <h3 className="text-sm font-bold text-slate-900 flex items-center gap-2">
-                <Award className="w-4 h-4 text-purple-600" /> Step 5: Skill & Livelihood Panel
+                <Award className="w-4 h-4 text-purple-600" /> Step {activeStages.findIndex(s => s.key === 'TRAINING') + 1}: Skill & Livelihood Panel
               </h3>
               <div className="p-4 bg-purple-50/60 rounded-xl space-y-2 text-xs">
                 <p className="font-bold text-purple-950">Livelihood Rehabilitation Program</p>
@@ -1012,7 +1052,7 @@ export default function FamilyDetailPage() {
           {!isStageLocked && activeStageKey === 'SUBSISTENCE' && (
             <div className="card p-5 space-y-3 border-l-4 border-l-teal-600">
               <h3 className="text-sm font-bold text-slate-900 flex items-center gap-2">
-                <Calendar className="w-4 h-4 text-teal-600" /> Step 6: Subsistence Allowance Record Panel
+                <Calendar className="w-4 h-4 text-teal-600" /> Step {activeStages.findIndex(s => s.key === 'SUBSISTENCE') + 1}: Subsistence Allowance Record Panel
               </h3>
               <div className="p-4 bg-teal-50/60 rounded-xl space-y-2 text-xs">
                 <p className="font-bold text-teal-950">Monthly Subsistence Allowance</p>
@@ -1025,7 +1065,7 @@ export default function FamilyDetailPage() {
           {!isStageLocked && activeStageKey === 'CLOSURE' && (
             <div className="card p-5 space-y-3 border-l-4 border-l-emerald-600">
               <h3 className="text-sm font-bold text-slate-900 flex items-center gap-2">
-                <CheckCircle2 className="w-4 h-4 text-emerald-600" /> Step 7: Final R&R Statutory File Closure Record
+                <CheckCircle2 className="w-4 h-4 text-emerald-600" /> Step {activeStages.findIndex(s => s.key === 'CLOSURE') + 1}: Final R&R Statutory File Closure Record
               </h3>
               <div className="p-4 bg-emerald-50/60 rounded-xl space-y-2 text-xs">
                 <p className="font-bold text-emerald-950">Statutory R&R Case Status</p>
@@ -1397,7 +1437,7 @@ export default function FamilyDetailPage() {
                 <div>
                   <h3 className="text-base font-bold text-slate-900">Upload Proof Document</h3>
                   <p className="text-[11px] text-slate-500">
-                    Stage: {RR_STAGES.find(s => s.key === activeStageKey)?.label} • {family.head_of_family}
+                    Stage: {activeStages.find(s => s.key === activeStageKey)?.label} • {family.head_of_family}
                   </p>
                 </div>
               </div>
@@ -1484,7 +1524,7 @@ export default function FamilyDetailPage() {
 
               <div className="bg-blue-50 border border-blue-200 rounded-lg p-3 text-[11px] text-blue-800">
                 <strong>Note:</strong> This document will be uploaded as statutory evidence proof for the{' '}
-                <strong>{RR_STAGES.find(s => s.key === activeStageKey)?.label}</strong> stage and linked to the family's R&R case file.
+                <strong>{activeStages.find(s => s.key === activeStageKey)?.label}</strong> stage and linked to the family's R&R case file.
               </div>
 
               <div className="flex justify-end gap-3 border-t pt-3">
