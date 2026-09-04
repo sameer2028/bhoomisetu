@@ -117,11 +117,6 @@ router.get('/families', authenticate, async (req, res, next) => {
       paramIdx++;
     }
 
-    // Role-based jurisdiction filtering
-    if ((req.user.role === 'DLAO' || req.user.role === 'FRO') && req.user.district) {
-      conditions.push(`p.district = $${paramIdx++}`);
-      params.push(req.user.district);
-    }
 
     const whereClause = conditions.length > 0 ? `WHERE ${conditions.join(' AND ')}` : '';
     const havingClause = isDelayedOnly
@@ -251,10 +246,13 @@ router.get('/families/:id', authenticate, async (req, res, next) => {
          u.full_name AS authority_name,
          u.role AS authority_role,
          d.title AS evidence_document_title,
-         d.file_name AS evidence_file_name
+         d.file_name AS evidence_file_name,
+         du.full_name AS doc_uploader_name,
+         du.role AS doc_uploader_role
        FROM rr_activities ra
        LEFT JOIN users u ON u.id = ra.responsible_authority
        LEFT JOIN documents d ON d.id = ra.evidence_document_id
+       LEFT JOIN users du ON du.id = d.uploaded_by
        WHERE ra.family_id = $1
        ORDER BY ra.due_date ASC NULLS LAST, ra.created_at ASC`,
       [id]
@@ -561,12 +559,27 @@ router.put('/activities/:id', authenticate, rbac('DLAO', 'PIA', 'SGA', 'FRO', 'A
 /**
  * Delete R&R activity
  */
-router.delete('/activities/:id', authenticate, rbac('DLAO', 'SGA', 'ADMIN'), async (req, res, next) => {
+router.delete('/activities/:id', authenticate, async (req, res, next) => {
   try {
     const { id } = req.params;
-    const existing = await queryOne('SELECT * FROM rr_activities WHERE id = $1', [id]);
+    const existing = await queryOne(`
+      SELECT ra.*, 
+             COALESCE(u.role, du.role) as uploader_role
+      FROM rr_activities ra
+      LEFT JOIN users u ON u.id = ra.responsible_authority
+      LEFT JOIN documents d ON d.id = ra.evidence_document_id
+      LEFT JOIN users du ON du.id = d.uploaded_by
+      WHERE ra.id = $1
+    `, [id]);
+    
     if (!existing) {
       return apiResponse(res, { status: 404, success: false, error: 'R&R Activity not found.' });
+    }
+
+    // If uploader_role is known and doesn't match the user (and not ADMIN), deny.
+    // If it is null (seeded dummy data), allow it.
+    if (existing.uploader_role && existing.uploader_role !== req.user.role && req.user.role !== 'ADMIN') {
+      return apiResponse(res, { status: 403, success: false, error: 'Access Denied: Only the role that uploaded this proof can delete it.' });
     }
 
     await query('DELETE FROM rr_activities WHERE id = $1', [id]);

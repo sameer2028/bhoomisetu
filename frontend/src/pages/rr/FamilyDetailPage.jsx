@@ -41,7 +41,10 @@ import {
   Zap,
   Droplets,
   Truck,
-  Trash2
+  Trash2,
+  Lock,
+  Upload,
+  Paperclip
 } from 'lucide-react';
 
 const RR_STAGES = [
@@ -54,150 +57,87 @@ const RR_STAGES = [
   { key: 'CLOSURE', label: '7. R&R Closure' },
 ];
 
-const STAGE_GUIDANCE_DATA = {
-  REGISTRATION: {
-    description:
-      'Initial identification & registration of affected/displaced family under RFCTLARR Act 2013 Section 31.',
-    tasks: [
-      { text: 'Family survey & head of family verification', done: true },
-      { text: 'Displaced vs Affected category determination', done: true },
-      { text: 'Aadhaar / Ration card document submission', done: true },
-      { text: 'Draft R&R scheme public notification', done: false },
-    ],
-    proofs: [
-      {
-        code: 'DOC-RR-REG-001',
-        title: 'Family Survey & Demographic Verification Record',
-        verifier: 'District Land Acquisition Officer (DLAO)',
-        date: '20 Aug 2026',
-        size: '3.8 MB',
-        status: 'Verified',
-      },
-    ],
-  },
-  ENTITLEMENT: {
-    description:
-      'Sanction of statutory entitlements under Second Schedule of RFCTLARR Act 2013 (housing, grants, employment allowance).',
-    tasks: [
-      { text: 'Entitlement matrix assessment by DLAO', done: true },
-      { text: 'Second Schedule benefit package computation', done: true },
-      { text: 'Sanction order issuance by Competent Authority', done: true },
-      { text: 'Family consent & bank details verification', done: false },
-    ],
-    proofs: [
-      {
-        code: 'DOC-RR-ENT-001',
-        title: 'Statutory R&R Benefit Sanction Order (Sec 31)',
-        verifier: 'Competent Authority (SGA)',
-        date: '22 Aug 2026',
-        size: '4.5 MB',
-        status: 'Verified',
-      },
-    ],
-  },
-  HOUSING: {
-    description:
-      'Allotment of residential plot or constructed dwelling house in designated Resettlement Colony.',
-    tasks: [
-      { text: 'Resettlement colony layout demarcation', done: true },
-      { text: 'Plot / Flat allotment lottery & order issuance', done: true },
-      { text: 'Physical possession certificate handover', done: false },
-      { text: 'Utility connection clearance (Water/Electricity)', done: false },
-    ],
-    proofs: [
-      {
-        code: 'DOC-RR-HOUS-001',
-        title: 'Resettlement Colony Plot Allotment & Demarcation Certificate',
-        verifier: 'Project Implementing Agency (PIA)',
-        date: '25 Aug 2026',
-        size: '5.2 MB',
-        status: 'Verified',
-      },
-    ],
-  },
-  GRANT: {
-    description:
-      'Disbursement of one-time resettlement allowance (₹50,000) and shifting allowance for luggage & cattle.',
-    tasks: [
-      { text: 'Direct Bank Transfer (DBT) sanction approval', done: true },
-      { text: 'Cattle shed / structure relocation grant release', done: true },
-      { text: 'Transport truck assistance arrangement', done: false },
-      { text: 'DBT bank transaction clearance record', done: false },
-    ],
-    proofs: [
-      {
-        code: 'DOC-RR-GRNT-001',
-        title: 'Direct Bank Transfer (DBT) Resettlement Grant Voucher',
-        verifier: 'Treasury Officer & DLAO',
-        date: '26 Aug 2026',
-        size: '2.1 MB',
-        status: 'Verified',
-      },
-    ],
-  },
-  TRAINING: {
-    description:
-      'Enrollment of adult family members in NSDC vocational skill training & priority job rosters.',
-    tasks: [
-      { text: 'Skill interest assessment survey', done: true },
-      { text: 'NSDC training center enrollment', done: true },
-      { text: 'PIA infrastructure job roster placement', done: false },
-    ],
-    proofs: [
-      {
-        code: 'DOC-RR-SKIL-001',
-        title: 'NSDC Vocational Certification & Roster Registration',
-        verifier: 'Skill Development Mission Officer',
-        date: '27 Aug 2026',
-        size: '3.1 MB',
-        status: 'Verified',
-      },
-    ],
-  },
-  SUBSISTENCE: {
-    description:
-      'Monthly payment of ₹3,000 subsistence allowance for 12 months post-displacement.',
-    tasks: [
-      { text: 'Monthly voucher generation', done: true },
-      { text: 'Direct debit clearance to beneficiary bank account', done: false },
-    ],
-    proofs: [
-      {
-        code: 'DOC-RR-SUBS-001',
-        title: 'Monthly Subsistence Allowance Payment Schedule',
-        verifier: 'DLAO Finance Wing',
-        date: '27 Aug 2026',
-        size: '1.9 MB',
-        status: 'Verified',
-      },
-    ],
-  },
-  CLOSURE: {
-    description:
-      'Final R&R completion certificate issuance and statutory file closure.',
-    tasks: [
-      { text: 'R&R Compliance Audit verification', done: true },
-      { text: 'No Objection Certificate (NOC) signed by Head of Family', done: true },
-      { text: 'Final R&R Closure Order signature by Collector', done: true },
-    ],
-    proofs: [
-      {
-        code: 'DOC-RR-CLOS-001',
-        title: 'Final Rehabilitation & Resettlement Completion Certificate',
-        verifier: 'District Collector & DLAO',
-        date: '27 Aug 2026',
-        size: '4.8 MB',
-        status: 'Verified',
-      },
-    ],
-  },
+const STAGE_DESCRIPTIONS = {
+  REGISTRATION: 'Initial identification & registration of affected/displaced family under RFCTLARR Act 2013 Section 31.',
+  ENTITLEMENT: 'Sanction of statutory entitlements under Second Schedule of RFCTLARR Act 2013 (housing, grants, employment allowance).',
+  HOUSING: 'Allotment of residential plot or constructed dwelling house in designated Resettlement Colony.',
+  GRANT: 'Disbursement of statutory resettlement allowance and shifting allowances.',
+  TRAINING: 'Enrollment of family members in vocational skill training & priority job rosters.',
+  SUBSISTENCE: 'Payment of monthly subsistence allowance post-displacement.',
+  CLOSURE: 'Final R&R completion certificate issuance and statutory file closure.',
 };
+
+// Map activity_type keywords to their corresponding stage
+const STAGE_ACTIVITY_KEYWORDS = {
+  REGISTRATION: ['registra', 'survey', 'verify', 'identification', 'household'],
+  ENTITLEMENT: ['entitle', 'sanction', 'schedule', 'statutory'],
+  HOUSING: ['hous', 'plot', 'colony', 'possession', 'dwelling', 'site allocation'],
+  GRANT: ['grant', 'dbt', 'allowance', 'shifting', 'disbursement', 'resettlement grant'],
+  TRAINING: ['skill', 'train', 'nsdc', 'roster', 'vocational', 'livelihood'],
+  SUBSISTENCE: ['subsist', 'monthly'],
+  CLOSURE: ['closur', 'noc', 'audit', 'final', 'completion certificate'],
+};
+
+/**
+ * Compute the highest stage index the family has reached based on their activities.
+ * A stage is "reached" if it has at least one completed activity.
+ * The family is always at minimum on Stage 0 (REGISTRATION).
+ * The "current stage" = highest stage with completed activity + 1 (the next in-progress stage),
+ * capped at 6 (CLOSURE). If no activities exist, current stage = 0 (REGISTRATION).
+ */
+function computeCurrentStageIndex(activities) {
+  if (!activities || activities.length === 0) return 0; // Start at Registration
+
+  const stageKeys = RR_STAGES.map(s => s.key);
+  let highestCompletedStageIdx = -1;
+
+  for (const act of activities) {
+    if (act.status !== 'COMPLETED') continue;
+    const type = (act.activity_type || '').toLowerCase();
+
+    for (let i = 0; i < stageKeys.length; i++) {
+      const keywords = STAGE_ACTIVITY_KEYWORDS[stageKeys[i]] || [];
+      if (keywords.some(kw => type.includes(kw))) {
+        if (i > highestCompletedStageIdx) {
+          highestCompletedStageIdx = i;
+        }
+        break;
+      }
+    }
+  }
+
+  // If at least one activity in a stage is completed, the user can view that stage
+  // AND the next stage (which is now "in progress").
+  // If nothing is completed, user is on stage 0.
+  if (highestCompletedStageIdx === -1) {
+    // No completed activities — check if any activity exists at all
+    // If there are pending/in-progress activities, user is still on stage 0
+    return 0;
+  }
+
+  // User can access up to the stage AFTER the highest completed one
+  return Math.min(highestCompletedStageIdx + 1, stageKeys.length - 1);
+}
 
 function downloadProofDocument(doc, family) {
   if (!doc) return;
 
-  const rawName = doc.code || 'RR_CERTIFICATE';
+  const docId = doc.documentId || doc.id;
+  if (docId) {
+    const fileUrl = `/api/documents/${docId}/file`;
+    const a = document.createElement('a');
+    a.href = fileUrl;
+    a.target = '_blank';
+    a.download = doc.originalFilename || doc.title || 'evidence_document';
+    document.body.appendChild(a);
+    a.click();
+    document.body.removeChild(a);
+    return;
+  }
+
+  const rawName = doc.code || doc.id || 'RR_CERTIFICATE';
   const fileName = `${rawName}_OFFICIAL_CERTIFICATE.html`;
+  const currentDateStr = new Date().toLocaleDateString('en-IN', { day: '2-digit', month: 'short', year: 'numeric' });
 
   const htmlContent = `<!DOCTYPE html>
 <html lang="en">
@@ -298,6 +238,7 @@ function downloadProofDocument(doc, family) {
 <body>
   <div class="certificate-container">
     <div class="emblem">
+      <div style="font-size:36px;">🏛️</div>
       <div class="emblem-title">Government of India • भारत सरकार</div>
       <div class="emblem-sub">National Land Acquisition & Management System (BhoomiSetu)</div>
     </div>
@@ -306,33 +247,62 @@ function downloadProofDocument(doc, family) {
       STATUTORY REHABILITATION & RESETTLEMENT CERTIFICATE
     </div>
 
-    <p style="font-size: 13px; line-height: 1.6; color: #334155;">
-      This is an official statutory record issued under Section 31 of the 
-      <strong>Right to Fair Compensation and Transparency in Land Acquisition, Rehabilitation and Resettlement Act, 2013 (RFCTLARR)</strong>.
+    <p style="font-size:13px; line-height:1.6; color:#334155;">
+      This is an official statutory record issued under Section 31 of the
+      <strong>Right to Fair Compensation and Transparency in Land Acquisition, Rehabilitation and Resettlement Act, 2013 (RFCTLARR)</strong>
+      verifying the statutory rehabilitation entitlements for the affected family record below.
     </p>
 
     <table class="meta-table">
-      <tr><th>Document Code</th><td><strong>${doc.code || 'DOC-RR-001'}</strong></td></tr>
-      <tr><th>Certificate Title</th><td><strong>${doc.title}</strong></td></tr>
-      <tr><th>Head of Family</th><td><strong>${family?.head_of_family || 'N/A'}</strong> (${family?.family_code || ''})</td></tr>
-      <tr><th>Category</th><td>${family?.category || 'DISPLACED'} FAMILY (${family?.members_count || 1} Members)</td></tr>
-      <tr><th>Project Name</th><td>${family?.project_name || 'N/A'} (${family?.project_code || ''})</td></tr>
-      <tr><th>Land Parcel</th><td>Survey #${family?.survey_number || 'N/A'} (${family?.village || ''})</td></tr>
-      <tr><th>Issuing Authority</th><td>${doc.verifier || 'District Land Acquisition Officer'}</td></tr>
-      <tr><th>Verification Date</th><td>${doc.date || new Date().toLocaleDateString('en-IN')}</td></tr>
+      <tbody>
+        <tr>
+          <th>Document Reference</th>
+          <td><strong>${doc.code || doc.id || 'DOC-RR-STAT-001'}</strong></td>
+        </tr>
+        <tr>
+          <th>Certificate Title</th>
+          <td>${doc.title || 'Statutory R&R Certificate'}</td>
+        </tr>
+        <tr>
+          <th>Head of Family</th>
+          <td><strong>${family?.head_of_family || 'N/A'}</strong> (Code: ${family?.family_code || 'N/A'})</td>
+        </tr>
+        <tr>
+          <th>Category & Household</th>
+          <td><strong>${family?.category || 'N/A'} FAMILY</strong> (${family?.members_count || 1} Members)</td>
+        </tr>
+        <tr>
+          <th>Project Name</th>
+          <td>${family?.project_name || 'N/A'} (${family?.project_code || ''})</td>
+        </tr>
+        <tr>
+          <th>Linked Land Parcel</th>
+          <td>Survey #${family?.survey_number || 'N/A'} (${family?.village || 'N/A'})</td>
+        </tr>
+        <tr>
+          <th>Issuing Authority</th>
+          <td>${doc.verifier || doc.authority_name || 'District Land Acquisition Officer (DLAO)'}</td>
+        </tr>
+        <tr>
+          <th>Date of Record</th>
+          <td>${doc.date || currentDateStr}</td>
+        </tr>
+      </tbody>
     </table>
 
-    <div style="background: #f8fafc; border: 1px border-dashed #cbd5e1; padding: 14px; border-radius: 4px; font-size: 12px; margin-top: 20px;">
-      <strong>Statutory Package Details:</strong><br>
-      ${family?.entitlement || 'Standard statutory entitlement package under Second Schedule.'}
+    <div style="background-color:#f8fafc; border:1px dashed #cbd5e1; padding:12px; border-radius:4px; font-size:12px; color:#475569; margin-top:20px;">
+      <strong>Registered Entitlement Details:</strong><br/>
+      ${family?.entitlement || 'Standard statutory entitlement package under Second Schedule of RFCTLARR Act 2013.'}
     </div>
 
     <div class="footer-signatures">
       <div class="sig-box">
-        <div class="sig-line">Beneficiary Head Signature<br>${family?.head_of_family || ''}</div>
+        <div style="font-size:10px; color:#64748b;">Digitally Signed & Verified</div>
+        <div class="sig-line">Beneficiary Signature / Thumb</div>
       </div>
       <div class="sig-box">
-        <div class="sig-line">District Land Acquisition Officer<br>(DLAO Seal & Sign)</div>
+        <div style="font-size:10px; color:#64748b;">Competent Authority Approval</div>
+        <div class="sig-line">District Land Acquisition Officer (DLAO)</div>
       </div>
     </div>
   </div>
@@ -353,7 +323,7 @@ function downloadProofDocument(doc, family) {
 export default function FamilyDetailPage() {
   const { id } = useParams();
   const navigate = useNavigate();
-  const { hasRole } = useAuth();
+  const { user, hasRole } = useAuth();
 
   const [family, setFamily] = useState(null);
   const [loading, setLoading] = useState(true);
@@ -374,6 +344,13 @@ export default function FamilyDetailPage() {
   const [showDeleteModal, setShowDeleteModal] = useState(false);
   const [selectedActivity, setSelectedActivity] = useState(null);
   const [deleting, setDeleting] = useState(false);
+
+  // Proof Document Upload Modal
+  const [showUploadProofModal, setShowUploadProofModal] = useState(false);
+  const [uploadingProof, setUploadingProof] = useState(false);
+  const [proofFile, setProofFile] = useState(null);
+  const [proofTitle, setProofTitle] = useState('');
+  const [proofDescription, setProofDescription] = useState('');
 
   // New Activity Form
   const [activityForm, setActivityForm] = useState({
@@ -457,6 +434,70 @@ export default function FamilyDetailPage() {
     }
   };
 
+  const handleDeleteProof = async (activityId) => {
+    if (!window.confirm('Are you sure you want to permanently delete this proof document? You can re-upload it after deletion.')) return;
+    try {
+      await api.delete(`/rr/activities/${activityId}`);
+      fetchFamilyDetail();
+    } catch (err) {
+      alert(err.response?.data?.error || 'Access Denied: Only the uploading role can delete this.');
+    }
+  };
+
+  // Upload proof document handler
+  const handleUploadProofSubmit = async (e) => {
+    e.preventDefault();
+    if (!proofFile) {
+      alert('Please select a file to upload.');
+      return;
+    }
+    if (!proofTitle.trim()) {
+      alert('Please enter a document title.');
+      return;
+    }
+    setUploadingProof(true);
+    try {
+      const formData = new FormData();
+      formData.append('file', proofFile);
+      formData.append('title', proofTitle.trim());
+      formData.append('description', proofDescription.trim() || `R&R evidence proof for ${activeStageKey} stage - ${family.head_of_family}`);
+      formData.append('document_type', 'OTHER');
+      formData.append('project_id', family.project_id || '');
+      formData.append('access_level', 'RESTRICTED');
+
+      const uploadRes = await api.post('/documents', formData, {
+        headers: { 'Content-Type': 'multipart/form-data' },
+      });
+
+      const uploadedDocId = uploadRes.data?.data?.id;
+
+      // Create an R&R activity linked to this uploaded document
+      if (uploadedDocId) {
+        const stageLabel = RR_STAGES.find(s => s.key === activeStageKey)?.label || activeStageKey;
+        await api.post('/rr/activities', {
+          family_id: id,
+          activity_type: `${stageLabel} - Evidence Upload`,
+          description: proofTitle.trim(),
+          status: 'COMPLETED',
+          completion_date: new Date().toISOString().split('T')[0],
+          evidence_document_id: uploadedDocId,
+          responsible_authority: user?.id,
+        });
+      }
+
+      // Reset and close
+      setShowUploadProofModal(false);
+      setProofFile(null);
+      setProofTitle('');
+      setProofDescription('');
+      fetchFamilyDetail();
+    } catch (err) {
+      alert(err.response?.data?.error || 'Failed to upload proof document.');
+    } finally {
+      setUploadingProof(false);
+    }
+  };
+
   if (loading) {
     return (
       <div className="py-20 text-center">
@@ -482,8 +523,53 @@ export default function FamilyDetailPage() {
   const totalAct = activities.length;
   const compAct = activities.filter((a) => a.status === 'COMPLETED').length;
   const progressPct = totalAct > 0 ? Math.round((compAct / totalAct) * 100) : 0;
-  const guidance = STAGE_GUIDANCE_DATA[activeStageKey] || STAGE_GUIDANCE_DATA.REGISTRATION;
   const canDelete = hasRole('DLAO', 'PIA', 'SGA', 'ADMIN');
+
+  // Compute the maximum stage index the user can access
+  const currentStageIndex = computeCurrentStageIndex(activities);
+  const activeStageIndex = RR_STAGES.findIndex(s => s.key === activeStageKey);
+  
+  // Disable strict stage locking so users can access any stage (e.g. Closure) even if they skip optional middle stages
+  const isStageLocked = false;
+
+  // Filter stage-specific real activities from DB
+  const stageActivities = isStageLocked ? [] : activities.filter(a => {
+    const type = (a.activity_type || '').toLowerCase();
+    const keywords = STAGE_ACTIVITY_KEYWORDS[activeStageKey] || [];
+    return keywords.some(kw => type.includes(kw));
+  });
+
+  // Extract real evidence documents attached in DB — only for unlocked stages
+  const stageFilteredActivities = isStageLocked ? [] : activities.filter(a => {
+    const type = (a.activity_type || '').toLowerCase();
+    const keywords = STAGE_ACTIVITY_KEYWORDS[activeStageKey] || [];
+    return keywords.some(kw => type.includes(kw));
+  });
+
+  const realProofs = stageFilteredActivities
+    .filter(a => a.evidence_document_title || a.evidence_document_id)
+    .map((a) => {
+      const matchedDoc = documents.find(d => String(d.id) === String(a.evidence_document_id));
+      const uploaderName = a.doc_uploader_name || matchedDoc?.uploaded_by_name || a.authority_name || (user?.full_name ? `${user.full_name}` : 'District Officer');
+      const uploaderRole = a.doc_uploader_role || matchedDoc?.uploaded_by_role || a.authority_role || (user?.role || 'DLAO');
+
+      return {
+        id: a.evidence_document_id || a.id,
+        documentId: a.evidence_document_id || matchedDoc?.id,
+        activity_id: a.id,
+        code: matchedDoc?.document_code || `DOC-RR-${a.id.substring(0, 8).toUpperCase()}`,
+        title: a.evidence_document_title || matchedDoc?.title || `${a.activity_type} Document`,
+        verifier: uploaderName,
+        verifierRole: uploaderRole,
+        date: a.completion_date ? new Date(a.completion_date).toLocaleDateString('en-IN') : 'Uploaded',
+        filePath: matchedDoc?.file_path,
+        fileType: matchedDoc?.file_type || matchedDoc?.mime_type,
+        originalFilename: matchedDoc?.original_filename || a.evidence_document_title,
+        status: a.status === 'COMPLETED' ? 'Verified' : a.status
+      };
+    });
+
+  const guidanceDescription = STAGE_DESCRIPTIONS[activeStageKey] || STAGE_DESCRIPTIONS.REGISTRATION;
 
   return (
     <div className="space-y-6 pb-12">
@@ -503,7 +589,7 @@ export default function FamilyDetailPage() {
                 area={family.area_acres}
               />
             )}
-            
+
             <div className={family.parcel_code ? "mt-5" : ""}>
               <div className="flex items-center gap-2 mb-4 flex-wrap">
                 <span className="badge bg-amber-50 text-amber-800 font-bold border-amber-200">
@@ -517,7 +603,7 @@ export default function FamilyDetailPage() {
                 </span>
               </div>
               <h1 className="text-xl font-bold text-slate-900 mb-4">{family.head_of_family}</h1>
-              
+
               <LandRecordContext
                 project={{
                   id: family.project_id,
@@ -526,7 +612,7 @@ export default function FamilyDetailPage() {
                 }}
                 ownerName={family.head_of_family}
               />
-              
+
               <div className="mt-5">
                 <TechnicalReferences
                   parcelCode={family.parcel_code}
@@ -539,23 +625,16 @@ export default function FamilyDetailPage() {
             </div>
           </div>
 
-          <div className="flex items-center gap-2 flex-shrink-0">
-            {canDelete && (
+          {canDelete && (
+            <div className="flex items-center gap-2 flex-shrink-0">
               <button
                 onClick={() => setShowDeleteModal(true)}
                 className="btn bg-rose-50 hover:bg-rose-100 text-rose-700 border border-rose-200 text-xs font-semibold flex items-center gap-1.5 shadow-sm"
               >
-                <Trash2 className="w-4 h-4 text-rose-600" /> Delete
+                <Trash2 className="w-4 h-4 text-rose-600" /> Delete Record
               </button>
-            )}
-
-            <button
-              onClick={() => setShowAddActivityModal(true)}
-              className="btn btn-primary text-xs font-semibold flex items-center gap-1.5 shadow-sm"
-            >
-              <Plus className="w-4 h-4" /> Add Task
-            </button>
-          </div>
+            </div>
+          )}
         </div>
       </div>
 
@@ -574,7 +653,7 @@ export default function FamilyDetailPage() {
         <div className="kpi-card">
           <p className="text-[11px] font-semibold text-slate-500 uppercase tracking-wider mb-1">Category & Household</p>
           <p className="text-base font-extrabold text-slate-900">{family.category}</p>
-          <p className="text-[11px] text-slate-500 font-medium">👨‍👩‍👧‍👦 {family.members_count} Dependents</p>
+          <p className="text-[11px] text-slate-500 font-medium">👨‍👩‍👧‍👦 {family.members_count} Members</p>
         </div>
 
         <div className="kpi-card">
@@ -584,9 +663,13 @@ export default function FamilyDetailPage() {
         </div>
 
         <div className="kpi-card">
-          <p className="text-[11px] font-semibold text-slate-500 uppercase tracking-wider mb-1">Housing Allotment</p>
-          <p className="text-xs font-bold text-slate-900">🏡 Sector-4 Resettlement Plot</p>
-          <p className="text-[11px] text-indigo-700 font-semibold">Ready for Possession</p>
+          <p className="text-[11px] font-semibold text-slate-500 uppercase tracking-wider mb-1">Registered Entitlement</p>
+          <p className="text-xs font-bold text-slate-900 truncate" title={family.entitlement || 'Pending Record'}>
+            {family.entitlement || 'Pending Record'}
+          </p>
+          <p className="text-[11px] text-indigo-700 font-semibold">
+            {family.entitlement ? 'DB Entitlement Active' : 'Awaiting Sanction'}
+          </p>
         </div>
       </div>
 
@@ -595,15 +678,25 @@ export default function FamilyDetailPage() {
         <div className="flex items-center min-w-[700px] justify-between relative">
           {RR_STAGES.map((st, idx) => {
             const isActive = activeStageKey === st.key;
+            const isLocked = idx > currentStageIndex;
+            const isCompleted = idx < currentStageIndex;
             return (
               <button
                 key={st.key}
-                onClick={() => setActiveStageKey(st.key)}
-                className={`flex-1 text-center py-2 px-1 border-b-2 text-xs font-bold transition-all ${isActive
-                    ? 'border-blue-600 text-blue-800 bg-blue-50/50'
-                    : 'border-slate-200 text-slate-500 hover:text-slate-800'
+                onClick={() => !isLocked && setActiveStageKey(st.key)}
+                disabled={isLocked}
+                title={isLocked ? `Complete Step ${currentStageIndex + 1} to unlock this stage` : st.label}
+                className={`flex-1 text-center py-2 px-1 border-b-2 text-xs font-bold transition-all flex items-center justify-center gap-1 ${isLocked
+                    ? 'border-slate-100 text-slate-300 cursor-not-allowed bg-slate-50/50'
+                    : isActive
+                      ? 'border-blue-600 text-blue-800 bg-blue-50/50'
+                      : isCompleted
+                        ? 'border-emerald-400 text-emerald-700 hover:text-emerald-800 bg-emerald-50/30'
+                        : 'border-slate-200 text-slate-500 hover:text-slate-800'
                   }`}
               >
+                {isCompleted && <CheckCircle2 className="w-3.5 h-3.5 text-emerald-500 flex-shrink-0" />}
+                {isLocked && <Lock className="w-3 h-3 text-slate-300 flex-shrink-0" />}
                 {st.label}
               </button>
             );
@@ -611,109 +704,10 @@ export default function FamilyDetailPage() {
         </div>
       </div>
 
-      {/* Dark Navy Guidance Card (Matching CaseDetailPage Dark Guidance Header) */}
-      <div className="bg-slate-900 text-white rounded-xl shadow-xl p-6 space-y-6">
-        <div className="flex flex-col md:flex-row md:items-center justify-between gap-4 border-b border-slate-800 pb-4">
-          <div>
-            <span className="text-[11px] text-blue-400 font-mono uppercase tracking-widest font-bold block">
-              STATUTORY R&R GUIDANCE & REHABILITATION FRAMEWORK
-            </span>
-            <h2 className="text-xl font-bold text-white mt-0.5 flex items-center gap-2">
-              <BookOpen className="w-5 h-5 text-indigo-400" />
-              {RR_STAGES.find((s) => s.key === activeStageKey)?.label}
-            </h2>
-          </div>
-          <span className="text-xs bg-slate-800 text-slate-300 px-3 py-1 rounded-full font-mono border border-slate-700">
-            RFCTLARR Sec 31 Compliance
-          </span>
-        </div>
-
-        <p className="text-sm text-slate-300 leading-relaxed font-sans">
-          {guidance.description}
-        </p>
-
-        {/* Statutory Checklist & Proof Documents Exporter & Viewer */}
-        <div className="grid grid-cols-1 md:grid-cols-2 gap-6 pt-2">
-          {/* Checklist */}
-          <div className="bg-slate-800/80 p-4 rounded-xl border border-slate-700/80 space-y-3">
-            <h3 className="text-xs font-bold text-indigo-300 uppercase tracking-wider flex items-center gap-2">
-              <ListChecks className="w-4 h-4 text-indigo-400" /> Stage Statutory Requirements
-            </h3>
-            <div className="space-y-2">
-              {guidance.tasks.map((t, idx) => (
-                <div key={idx} className="flex items-start gap-2 text-xs">
-                  <CheckCircle2 className={`w-4 h-4 mt-0.5 flex-shrink-0 ${t.done ? 'text-emerald-400' : 'text-slate-600'}`} />
-                  <span className={t.done ? 'text-slate-200 line-through' : 'text-slate-300'}>{t.text}</span>
-                </div>
-              ))}
-            </div>
-          </div>
-
-          {/* Proof Documents Downloader & Interactive Viewer */}
-          <div className="bg-slate-800/80 p-4 rounded-xl border border-slate-700/80 space-y-3">
-            <h3 className="text-xs font-bold text-indigo-300 uppercase tracking-wider flex items-center gap-2">
-              <FileCheck className="w-4 h-4 text-indigo-400" /> Statutory Proof Certificates
-            </h3>
-            <div className="space-y-2">
-              {guidance.proofs.map((proof) => (
-                <div key={proof.code} className="p-3 bg-slate-900/90 rounded-lg border border-slate-700 flex flex-col sm:flex-row sm:items-center justify-between gap-3">
-                  <div>
-                    <div className="text-xs font-bold text-white">{proof.title}</div>
-                    <div className="text-[11px] text-slate-400 font-mono mt-0.5">Code: {proof.code} • {proof.size}</div>
-                  </div>
-                  <div className="flex items-center gap-2 flex-shrink-0">
-                    <button
-                      onClick={() => setViewingCertificate(proof)}
-                      className="btn btn-sm bg-slate-800 hover:bg-slate-700 text-indigo-300 border border-slate-600 font-semibold text-xs flex items-center gap-1 shadow-sm"
-                    >
-                      <Eye className="w-3.5 h-3.5" /> View
-                    </button>
-                    <button
-                      onClick={() => downloadProofDocument(proof, family)}
-                      className="btn btn-sm bg-indigo-600 hover:bg-indigo-700 text-white font-semibold text-xs flex items-center gap-1 shadow-sm"
-                    >
-                      <Download className="w-3.5 h-3.5" /> Download
-                    </button>
-                  </div>
-                </div>
-              ))}
-            </div>
-          </div>
-        </div>
-      </div>
-
-      {/* Main Grid: Left side Resettlement & Entitlement Cards, Right side Action Timeline */}
+      {/* Main Grid: Left side Linked Land Context, Right side Active Step Dedicated Panel & Task Timeline */}
       <div className="grid grid-cols-1 lg:grid-cols-3 gap-6">
-        {/* Left: Entitlement Card & Resettlement Colony Allotment Card */}
-        <div className="space-y-4">
-          {/* Professional Resettlement Colony Card */}
-          <div className="card p-4 space-y-3 bg-slate-50 border-slate-200">
-            <h3 className="text-xs font-bold text-slate-900 flex items-center justify-between border-b border-slate-200 pb-2">
-              <span className="flex items-center gap-1.5"><Home className="w-4 h-4 text-indigo-600" /> Resettlement Colony Allotment</span>
-              <span className="text-[10px] bg-indigo-100 text-indigo-800 px-2 py-0.5 rounded font-bold">POSSESSION</span>
-            </h3>
-
-            <div className="text-xs space-y-2 text-slate-800">
-              <div>
-                <span className="text-slate-500 font-medium">Allotted Dwelling/Plot:</span>
-                <p className="font-bold text-slate-900">Sector-4 Resettlement Colony, Plot #42</p>
-                <p className="text-[11px] text-slate-500">Area: 120 Sq. Yards (Residential)</p>
-              </div>
-
-              <div className="pt-1 border-t border-slate-200 grid grid-cols-2 gap-1.5 text-[11px]">
-                <div className="flex items-center gap-1 text-slate-700">
-                  <Zap className="w-3 h-3 text-amber-600" /> Power: Ready
-                </div>
-                <div className="flex items-center gap-1 text-slate-700">
-                  <Droplets className="w-3 h-3 text-blue-600" /> Water: Connected
-                </div>
-                <div className="flex items-center gap-1 text-slate-700 col-span-2">
-                  <Truck className="w-3 h-3 text-indigo-600" /> Transport Truck: Arranged
-                </div>
-              </div>
-            </div>
-          </div>
-
+        {/* Left: Constant Case Context Card */}
+        <div className="space-y-4 lg:order-last">
           <div className="card p-4 space-y-3">
             <h3 className="text-xs font-bold text-slate-900 uppercase tracking-wider border-b pb-2 flex items-center gap-2">
               <Building2 className="w-4 h-4 text-blue-700" /> Linked Land Details
@@ -748,118 +742,410 @@ export default function FamilyDetailPage() {
               <Shield className="w-4 h-4 text-indigo-600" /> Statutory Entitlement Terms
             </h3>
             <p className="text-[11px] text-slate-700 leading-relaxed font-sans">
-              {family.entitlement || 'Standard statutory entitlement package under Second Schedule of RFCTLARR Act 2013.'}
+              {family.entitlement || 'No specific statutory entitlement terms entered in database for this family record yet.'}
+            </p>
+          </div>
+
+          <div className={`card p-4 space-y-2 ${isStageLocked ? 'bg-slate-50 border-slate-200' : 'bg-indigo-50/50 border-indigo-100'}`}>
+            <h3 className={`text-xs font-bold flex items-center gap-1.5 ${isStageLocked ? 'text-slate-500' : 'text-indigo-900'}`}>
+              {isStageLocked ? <Lock className="w-4 h-4 text-slate-400" /> : <BookOpen className="w-4 h-4 text-indigo-600" />}
+              {isStageLocked ? 'Stage Locked' : 'Active Stage Context'}
+            </h3>
+            <p className={`text-[11px] font-semibold ${isStageLocked ? 'text-slate-500' : 'text-indigo-950'}`}>
+              {RR_STAGES.find((s) => s.key === activeStageKey)?.label}
+            </p>
+            <p className={`text-[11px] leading-relaxed font-sans ${isStageLocked ? 'text-slate-400' : 'text-indigo-800'}`}>
+              {isStageLocked
+                ? `This stage will unlock after Step ${currentStageIndex + 1} activities are completed.`
+                : `Displaying real database activity logs and evidence documents registered for the ${activeStageKey} phase.`
+              }
             </p>
           </div>
         </div>
 
-        {/* Right: R&R Activities Timeline */}
-        <div className="lg:col-span-2 space-y-4">
-          <div className="card p-5 space-y-4">
-            <div className="flex items-center justify-between border-b pb-3">
-              <h3 className="text-sm font-bold text-slate-900 flex items-center gap-2">
-                <FileText className="w-4 h-4 text-blue-700" /> R&R Action Plan & Executed Tasks
-              </h3>
-              <button
-                onClick={() => setShowAddActivityModal(true)}
-                className="btn btn-secondary py-1 px-3 text-xs font-semibold flex items-center gap-1"
-              >
-                <Plus className="w-3.5 h-3.5" /> Add Task
-              </button>
-            </div>
-
-            {activities.length === 0 ? (
-              <div className="py-12 text-center text-slate-400">
-                <FileText className="w-10 h-10 mx-auto mb-2 text-slate-300" />
-                <p className="text-xs font-medium">No activity items logged in this R&R file yet.</p>
+        {/* Right: Active Step Dedicated View & Tasks */}
+        <div className="lg:col-span-2 space-y-6 lg:order-first">
+          {/* Dark Navy Guidance & Statutory Proof Card for ACTIVE STAGE */}
+          {isStageLocked ? (
+            /* LOCKED STAGE — Show locked placeholder */
+            <div className="bg-slate-100 text-slate-400 rounded-xl shadow-sm p-8 space-y-4 border-2 border-dashed border-slate-300 text-center">
+              <div className="w-16 h-16 mx-auto rounded-full bg-slate-200 flex items-center justify-center">
+                <Lock className="w-8 h-8 text-slate-400" />
               </div>
-            ) : (
-              <div className="space-y-3">
-                {activities.map((act, index) => (
-                  <div
-                    key={act.id}
-                    className="p-4 rounded-lg border border-slate-200 hover:border-blue-300 transition-all bg-white shadow-sm space-y-2"
-                  >
-                    <div className="flex items-start justify-between gap-2">
-                      <div className="flex items-start gap-2.5">
-                        <span className="w-5 h-5 rounded-full bg-blue-100 text-blue-800 font-bold text-xs flex items-center justify-center flex-shrink-0 mt-0.5">
-                          {index + 1}
-                        </span>
-                        <div>
-                          <h4 className="font-bold text-slate-900 text-xs">{act.activity_type}</h4>
-                          <p className="text-xs text-slate-500 mt-0.5">{act.description}</p>
-                        </div>
-                      </div>
+              <h2 className="text-lg font-bold text-slate-500">
+                {RR_STAGES.find((s) => s.key === activeStageKey)?.label} — Locked
+              </h2>
+              <p className="text-sm text-slate-400 max-w-md mx-auto leading-relaxed">
+                This stage will become accessible once the activities for
+                <strong className="text-slate-600"> Step {currentStageIndex + 1}: {RR_STAGES[currentStageIndex]?.label.split('. ')[1]} </strong>
+                are completed. Please complete the current stage first.
+              </p>
+              <div className="inline-flex items-center gap-2 bg-slate-200 text-slate-500 px-4 py-2 rounded-full text-xs font-bold">
+                <Lock className="w-3.5 h-3.5" />
+                Complete Step {currentStageIndex + 1} to Unlock
+              </div>
+            </div>
+          ) : (
+            /* UNLOCKED STAGE — Show real guidance card */
+            <div className="bg-slate-900 text-white rounded-xl shadow-xl p-6 space-y-6">
+              <div className="flex flex-col md:flex-row md:items-center justify-between gap-4 border-b border-slate-800 pb-4">
+                <div>
+                  <span className="text-[11px] text-blue-400 font-mono uppercase tracking-widest font-bold block">
+                    STATUTORY R&R GUIDANCE & REHABILITATION FRAMEWORK
+                  </span>
+                  <h2 className="text-xl font-bold text-white mt-0.5 flex items-center gap-2">
+                    <BookOpen className="w-5 h-5 text-indigo-400" />
+                    {RR_STAGES.find((s) => s.key === activeStageKey)?.label}
+                  </h2>
+                </div>
+                <span className="text-xs bg-slate-800 text-slate-300 px-3 py-1 rounded-full font-mono border border-slate-700">
+                  RFCTLARR Sec 31 Compliance
+                </span>
+              </div>
 
-                      <span
-                        className={`badge ${act.status === 'COMPLETED'
+              <p className="text-sm text-slate-300 leading-relaxed font-sans">
+                {guidanceDescription}
+              </p>
+
+              {/* Statutory Checklist & Real Proof Documents Exporter & Viewer */}
+              <div className="grid grid-cols-1 md:grid-cols-2 gap-6 pt-2">
+                {/* Stage Executed Tasks */}
+                <div className="bg-slate-800/80 p-4 rounded-xl border border-slate-700/80 space-y-3">
+                  <h3 className="text-xs font-bold text-indigo-300 uppercase tracking-wider flex items-center gap-2">
+                    <ListChecks className="w-4 h-4 text-indigo-400" /> Registered Tasks for Stage
+                  </h3>
+                  {stageActivities.length === 0 ? (
+                    <div className="py-4 text-slate-400 text-xs">
+                      No activity logs recorded for this stage yet.
+                    </div>
+                  ) : (
+                    <div className="space-y-2">
+                      {stageActivities.map((act) => (
+                        <div key={act.id} className="flex items-start gap-2 text-xs">
+                          <CheckCircle2 className={`w-4 h-4 mt-0.5 flex-shrink-0 ${act.status === 'COMPLETED' ? 'text-emerald-400' : 'text-amber-500'}`} />
+                          <div>
+                            <span className={act.status === 'COMPLETED' ? 'text-slate-200 font-medium' : 'text-slate-300'}>
+                              {act.activity_type}
+                            </span>
+                            {act.description && <p className="text-[11px] text-slate-400">{act.description}</p>}
+                          </div>
+                        </div>
+                      ))}
+                    </div>
+                  )}
+                </div>
+
+                {/* Real Proof Documents Downloader & Viewer */}
+                <div className="bg-slate-800/80 p-4 rounded-xl border border-slate-700/80 space-y-3">
+                  <h3 className="text-xs font-bold text-indigo-300 uppercase tracking-wider flex items-center gap-2">
+                    <FileCheck className="w-4 h-4 text-indigo-400" /> Statutory Evidence Proofs
+                  </h3>
+                  {realProofs.length === 0 ? (
+                    <div className="py-4 text-slate-400 text-xs space-y-2">
+                      <p>No evidence documents uploaded in database for this stage yet.</p>
+                      <button
+                        onClick={() => setShowUploadProofModal(true)}
+                        className="btn btn-sm bg-slate-800 hover:bg-slate-700 text-indigo-300 border border-slate-600 font-semibold text-xs flex items-center gap-1"
+                      >
+                        <Upload className="w-3.5 h-3.5" /> Upload Proof Document
+                      </button>
+                    </div>
+                  ) : (
+                    <div className="space-y-2">
+                      {realProofs.map((proof) => (
+                        <div key={proof.code} className="p-3 bg-slate-900/90 rounded-lg border border-slate-700 flex flex-col sm:flex-row sm:items-center justify-between gap-3">
+                          <div className="space-y-1">
+                            <div className="text-xs font-bold text-white">{proof.title}</div>
+                            <div className="text-[11px] text-slate-400 font-mono">Ref: {proof.code} • Date: {proof.date}</div>
+                            <div className="inline-flex items-center gap-1.5 px-2.5 py-0.5 rounded-full bg-indigo-950/90 border border-indigo-700/80 text-[11px] text-indigo-300 font-medium">
+                              <User className="w-3 h-3 text-indigo-400" />
+                              <span>Uploaded by: <strong className="text-white">{proof.verifier}</strong> <span className="text-indigo-300">({proof.verifierRole})</span></span>
+                            </div>
+                          </div>
+                          <div className="flex items-center gap-2 flex-shrink-0">
+                            <button
+                              onClick={() => setViewingCertificate(proof)}
+                              className="btn btn-sm bg-slate-800 hover:bg-slate-700 text-indigo-300 border border-slate-600 font-semibold text-xs flex items-center gap-1 shadow-sm"
+                            >
+                              <Eye className="w-3.5 h-3.5" /> View
+                            </button>
+                            <button
+                              onClick={() => downloadProofDocument(proof, family)}
+                              className="btn btn-sm bg-indigo-600 hover:bg-indigo-700 text-white font-semibold text-xs flex items-center gap-1 shadow-sm"
+                            >
+                              <Download className="w-3.5 h-3.5" /> Export
+                            </button>
+                            {(user?.role === proof.verifierRole || user?.role === 'ADMIN') && (
+                              <button
+                                onClick={() => handleDeleteProof(proof.activity_id)}
+                                className="btn btn-sm bg-rose-600/90 hover:bg-rose-700 text-white border border-rose-500 font-semibold text-xs flex items-center gap-1 shadow-sm"
+                                title="Delete Proof"
+                              >
+                                <Trash2 className="w-3.5 h-3.5" />
+                              </button>
+                            )}
+                          </div>
+                        </div>
+                      ))}
+                      <div className="pt-2">
+                        <button
+                          onClick={() => setShowUploadProofModal(true)}
+                          className="btn btn-xs bg-slate-800 hover:bg-slate-700 text-indigo-300 border border-slate-600 font-semibold text-[11px] flex items-center gap-1"
+                        >
+                          <Upload className="w-3 h-3" /> Upload Additional Proof Document
+                        </button>
+                      </div>
+                    </div>
+                  )}
+                </div>
+              </div>
+            </div>
+          )}
+
+          {/* DEDICATED STAGE-SPECIFIC REAL DETAIL PANELS — Only for unlocked stages */}
+          {!isStageLocked && activeStageKey === 'REGISTRATION' && (
+            <div className="card p-5 space-y-3 border-l-4 border-l-blue-600">
+              <h3 className="text-sm font-bold text-slate-900 flex items-center gap-2">
+                <UsersIcon className="w-4 h-4 text-blue-600" /> Step 1: Registration & Household Verification Record
+              </h3>
+              <div className="grid grid-cols-1 md:grid-cols-2 gap-4 text-xs">
+                <div className="p-3 bg-slate-50 rounded-lg space-y-1">
+                  <span className="text-slate-500 font-medium">Head of Family:</span>
+                  <p className="font-bold text-slate-900 text-sm">{family.head_of_family}</p>
+                  <p className="text-slate-500">System Family Code: <strong className="font-mono text-slate-800">{family.family_code}</strong></p>
+                </div>
+                <div className="p-3 bg-slate-50 rounded-lg space-y-1">
+                  <span className="text-slate-500 font-medium">Displacement Category & Members:</span>
+                  <p className="font-bold text-indigo-800">{family.category} FAMILY</p>
+                  <p className="text-slate-600">Registered Dependents: {family.members_count} Members</p>
+                </div>
+              </div>
+            </div>
+          )}
+
+          {!isStageLocked && activeStageKey === 'ENTITLEMENT' && (
+            <div className="card p-5 space-y-3 border-l-4 border-l-indigo-600">
+              <h3 className="text-sm font-bold text-slate-900 flex items-center gap-2">
+                <Award className="w-4 h-4 text-indigo-600" /> Step 2: Statutory Entitlement Package Record
+              </h3>
+              <div className="p-4 bg-indigo-50/60 rounded-xl space-y-2 text-xs">
+                <p className="font-bold text-indigo-950">Statutory Entitlement Terms (Database Record)</p>
+                <p className="text-slate-800 leading-relaxed font-medium">
+                  {family.entitlement || 'No statutory entitlement text recorded in database for this family.'}
+                </p>
+                <div className="pt-2 border-t border-indigo-200 flex items-center justify-between text-[11px] text-indigo-900 font-semibold">
+                  <span>Project: {family.project_name} ({family.project_code})</span>
+                  <span className="bg-emerald-100 text-emerald-800 px-2 py-0.5 rounded font-bold">
+                    {family.entitlement ? 'RECORD REGISTERED' : 'PENDING REGISTER'}
+                  </span>
+                </div>
+              </div>
+            </div>
+          )}
+
+          {!isStageLocked && activeStageKey === 'HOUSING' && (
+            <div className="card p-5 space-y-3 border-l-4 border-l-emerald-600">
+              <h3 className="text-sm font-bold text-slate-900 flex items-center gap-2">
+                <Home className="w-4 h-4 text-emerald-600" /> Step 3: Resettlement Dwelling & Land Allocation Record
+              </h3>
+              <div className="p-4 bg-emerald-50/60 rounded-xl space-y-3 text-xs">
+                <div className="flex items-center justify-between">
+                  <span className="font-bold text-emerald-950 text-sm">
+                    {family.survey_number ? `Survey #${family.survey_number} (${family.village})` : 'Land Parcel Allocation'}
+                  </span>
+                  <span className="badge bg-emerald-100 text-emerald-800 border-emerald-200 font-bold">
+                    {family.parcel_code ? `PARCEL: ${family.parcel_code}` : 'LINKED PARCEL'}
+                  </span>
+                </div>
+                <p className="text-slate-700">Acquired Land Area: {family.area_acres || 'N/A'} Acres</p>
+                <div className="pt-2 border-t border-emerald-200 text-[11px] text-emerald-900">
+                  <strong>Entitlement Terms:</strong> {family.entitlement || 'Residential housing plot allotment under Second Schedule.'}
+                </div>
+              </div>
+            </div>
+          )}
+
+          {!isStageLocked && activeStageKey === 'GRANT' && (
+            <div className="card p-5 space-y-3 border-l-4 border-l-amber-600">
+              <h3 className="text-sm font-bold text-slate-900 flex items-center gap-2">
+                <ShieldCheck className="w-4 h-4 text-amber-600" /> Step 4: Resettlement Grant & Financial Disbursement Panel
+              </h3>
+              <div className="p-4 bg-amber-50/60 rounded-xl space-y-3 text-xs">
+                <p className="font-bold text-amber-950">Statutory Financial Grant Package</p>
+                <p className="text-slate-800 leading-relaxed font-medium">
+                  {family.entitlement || 'Statutory grant package under RFCTLARR Act Second Schedule.'}
+                </p>
+                <div className="pt-2 border-t border-amber-200 text-[11px] text-amber-900 font-semibold flex justify-between">
+                  <span>Contact: {family.contact || 'N/A'}</span>
+                  <span>Category: {family.category}</span>
+                </div>
+              </div>
+            </div>
+          )}
+
+          {!isStageLocked && activeStageKey === 'TRAINING' && (
+            <div className="card p-5 space-y-3 border-l-4 border-l-purple-600">
+              <h3 className="text-sm font-bold text-slate-900 flex items-center gap-2">
+                <Award className="w-4 h-4 text-purple-600" /> Step 5: Vocational Skill Training & Livelihood Panel
+              </h3>
+              <div className="p-4 bg-purple-50/60 rounded-xl space-y-2 text-xs">
+                <p className="font-bold text-purple-950">Livelihood Rehabilitation Program</p>
+                <p className="text-slate-700">Family Members Eligible: {family.members_count} Members ({family.category})</p>
+                <p className="text-slate-700">Project Alignment: {family.project_name}</p>
+              </div>
+            </div>
+          )}
+
+          {!isStageLocked && activeStageKey === 'SUBSISTENCE' && (
+            <div className="card p-5 space-y-3 border-l-4 border-l-teal-600">
+              <h3 className="text-sm font-bold text-slate-900 flex items-center gap-2">
+                <Calendar className="w-4 h-4 text-teal-600" /> Step 6: Subsistence Allowance Record Panel
+              </h3>
+              <div className="p-4 bg-teal-50/60 rounded-xl space-y-2 text-xs">
+                <p className="font-bold text-teal-950">Monthly Subsistence Allowance</p>
+                <p className="text-slate-700">Head of Family: {family.head_of_family} ({family.family_code})</p>
+                <p className="text-slate-700">Entitlement Status: {family.entitlement || 'Statutory subsistence allowance under Second Schedule.'}</p>
+              </div>
+            </div>
+          )}
+
+          {!isStageLocked && activeStageKey === 'CLOSURE' && (
+            <div className="card p-5 space-y-3 border-l-4 border-l-emerald-600">
+              <h3 className="text-sm font-bold text-slate-900 flex items-center gap-2">
+                <CheckCircle2 className="w-4 h-4 text-emerald-600" /> Step 7: Final R&R Statutory File Closure Record
+              </h3>
+              <div className="p-4 bg-emerald-50/60 rounded-xl space-y-2 text-xs">
+                <p className="font-bold text-emerald-950">Statutory R&R Case Status</p>
+                <p className="text-slate-700">Executed Tasks: {compAct} of {totalAct} Completed ({progressPct}%)</p>
+                <p className="font-mono text-emerald-900 font-bold">
+                  {progressPct === 100 ? 'Status: 100% COMPLETE — Ready for Collector Final Sign-Off' : `Status: IN PROGRESS (${progressPct}% Completed)`}
+                </p>
+              </div>
+            </div>
+          )}
+
+          {/* Right: R&R Activities Timeline — Only for unlocked stages */}
+          {!isStageLocked && (
+            <div className="card p-5 space-y-4">
+              <div className="border-b pb-3">
+                <h3 className="text-sm font-bold text-slate-900 flex items-center gap-2">
+                  <FileText className="w-4 h-4 text-blue-700" /> R&R Action Plan & Executed Tasks
+                </h3>
+              </div>
+
+              {stageActivities.length === 0 ? (
+                <div className="py-12 text-center text-slate-400">
+                  <FileText className="w-10 h-10 mx-auto mb-2 text-slate-300" />
+                  <p className="text-xs font-medium">No activity items logged for this stage yet.</p>
+                </div>
+              ) : (
+                <div className="space-y-3">
+                  {stageActivities.map((act, index) => (
+                    <div
+                      key={act.id}
+                      className="p-4 rounded-lg border border-slate-200 hover:border-blue-300 transition-all bg-white shadow-sm space-y-2"
+                    >
+                      <div className="flex items-start justify-between gap-2">
+                        <div className="flex items-start gap-2.5">
+                          <span className="w-5 h-5 rounded-full bg-blue-100 text-blue-800 font-bold text-xs flex items-center justify-center flex-shrink-0 mt-0.5">
+                            {index + 1}
+                          </span>
+                          <div>
+                            <h4 className="font-bold text-slate-900 text-xs">{act.activity_type}</h4>
+                            <p className="text-xs text-slate-500 mt-0.5">{act.description}</p>
+                          </div>
+                        </div>
+
+                        <span
+                          className={`badge ${act.status === 'COMPLETED'
                             ? 'bg-emerald-50 text-emerald-800 border-emerald-200 font-semibold'
                             : act.status === 'DELAYED'
                               ? 'bg-rose-50 text-rose-800 border-rose-200 font-semibold'
                               : 'bg-indigo-50 text-indigo-800 border-indigo-200 font-semibold'
-                          }`}
-                      >
-                        {act.status}
-                      </span>
-                    </div>
-
-                    <div className="flex items-center justify-between text-[11px] text-slate-400 pt-2 border-t border-slate-100">
-                      <div>
-                        Target Date: <strong className="text-slate-700">{act.due_date ? new Date(act.due_date).toLocaleDateString('en-IN') : 'N/A'}</strong>
-                        {act.authority_name && <span className="ml-3">Officer: <strong className="text-slate-700">{act.authority_name}</strong></span>}
+                            }`}
+                        >
+                          {act.status}
+                        </span>
                       </div>
 
-                      <button
-                        onClick={() => {
-                          setSelectedActivity(act);
-                          setStatusForm({
-                            status: act.status,
-                            pending_reason: act.pending_reason || '',
-                            completion_date: act.completion_date || '',
-                            evidence_document_id: act.evidence_document_id || '',
-                          });
-                          setShowUpdateStatusModal(true);
-                        }}
-                        className="text-blue-700 font-bold hover:underline"
-                      >
-                        Update Task
-                      </button>
+                      <div className="flex items-center justify-between text-[11px] text-slate-400 pt-2 border-t border-slate-100">
+                        <div>
+                          Target Date: <strong className="text-slate-700">{act.due_date ? new Date(act.due_date).toLocaleDateString('en-IN') : 'N/A'}</strong>
+                          {act.authority_name && (
+                            <span className="ml-3">
+                              Officer: <strong className="text-slate-700">{act.authority_name}</strong>
+                              {act.authority_role && <span className="text-slate-500 ml-1">({act.authority_role})</span>}
+                            </span>
+                          )}
+                          {act.evidence_document_id && act.doc_uploader_name && !act.authority_name && (
+                            <span className="ml-3">
+                              Uploaded By: <strong className="text-slate-700">{act.doc_uploader_name}</strong>
+                              {act.doc_uploader_role && <span className="text-slate-500 ml-1">({act.doc_uploader_role})</span>}
+                            </span>
+                          )}
+                        </div>
+
+                        <button
+                          onClick={() => {
+                            setSelectedActivity(act);
+                            setStatusForm({
+                              status: act.status,
+                              pending_reason: act.pending_reason || '',
+                              completion_date: act.completion_date || '',
+                              evidence_document_id: act.evidence_document_id || '',
+                            });
+                            setShowUpdateStatusModal(true);
+                          }}
+                          className="text-blue-700 font-bold hover:underline"
+                        >
+                          Update Task
+                        </button>
+                      </div>
                     </div>
-                  </div>
-                ))}
-              </div>
-            )}
-          </div>
+                  ))}
+                </div>
+              )}
+            </div>
+          )}
         </div>
       </div>
 
-      {/* STATUTORY CERTIFICATE VIEWER MODAL */}
+      {/* MODAL: VIEW UPLOADED EVIDENCE DOCUMENT */}
       {viewingCertificate && (
         <div className="fixed inset-0 z-50 bg-slate-950/80 backdrop-blur-md flex items-center justify-center p-4 overflow-y-auto">
-          <div className="card w-full max-w-4xl bg-slate-900 border border-slate-800 text-white p-6 rounded-2xl shadow-2xl space-y-4 max-h-[92vh] flex flex-col">
+          <div className="card w-full max-w-5xl bg-slate-900 border border-slate-800 text-white p-6 rounded-2xl shadow-2xl space-y-4 max-h-[92vh] flex flex-col">
             {/* Modal Header */}
-            <div className="flex items-center justify-between border-b border-slate-800 pb-3 flex-shrink-0">
+            <div className="flex flex-col sm:flex-row sm:items-center justify-between gap-3 border-b border-slate-800 pb-3 flex-shrink-0">
               <div className="flex items-center gap-3">
                 <div className="w-9 h-9 rounded-lg bg-indigo-500/20 border border-indigo-500/30 flex items-center justify-center text-indigo-400">
-                  <FileCheck className="w-5 h-5" />
+                  <FileText className="w-5 h-5" />
                 </div>
                 <div>
                   <h3 className="text-sm font-bold text-white flex items-center gap-2">
-                    Statutory Certificate Viewer
+                    {viewingCertificate.title || 'Uploaded Evidence Document'}
                     <span className="text-xs font-mono text-indigo-400 font-normal">[{viewingCertificate.code}]</span>
                   </h3>
-                  <p className="text-[11px] text-slate-400">Official Government Record under RFCTLARR Act 2013</p>
+                  <p className="text-[11px] text-slate-400">
+                    Uploaded by: <strong className="text-indigo-300">{viewingCertificate.verifier} ({viewingCertificate.verifierRole})</strong> • Date: {viewingCertificate.date}
+                  </p>
                 </div>
               </div>
 
               <div className="flex items-center gap-2">
+                <a
+                  href={`/api/documents/${viewingCertificate.documentId || viewingCertificate.id}/file`}
+                  target="_blank"
+                  rel="noreferrer"
+                  className="btn btn-sm bg-slate-800 hover:bg-slate-700 text-slate-200 border border-slate-700 text-xs flex items-center gap-1 py-1.5 px-3 font-semibold"
+                >
+                  <ExternalLink className="w-3.5 h-3.5" /> Open in New Tab
+                </a>
                 <button
                   onClick={() => downloadProofDocument(viewingCertificate, family)}
                   className="btn btn-primary text-xs flex items-center gap-1 py-1.5 px-3 font-semibold"
                 >
                   <Download className="w-3.5 h-3.5" /> Download Document
                 </button>
-
                 <button
                   onClick={() => setViewingCertificate(null)}
                   className="p-1.5 rounded-lg text-slate-400 hover:text-white hover:bg-slate-800 transition-colors"
@@ -869,105 +1155,54 @@ export default function FamilyDetailPage() {
               </div>
             </div>
 
-            {/* Certificate Paper Container */}
-            <div className="flex-1 overflow-y-auto p-4 sm:p-6 bg-slate-950/60 rounded-xl border border-slate-800/80">
-              <div className="certificate-paper max-w-3xl mx-auto bg-white text-slate-900 p-8 sm:p-12 rounded border-[8px] border-indigo-950 outline outline-2 outline-amber-500 shadow-2xl relative font-serif space-y-6">
-                {/* National Emblem & Title Header */}
-                <div className="text-center space-y-1">
-                  <div className="w-12 h-12 mx-auto mb-2 flex items-center justify-center rounded-full bg-amber-50 border border-amber-200">
-                    <span className="text-2xl font-bold text-amber-700">🏛️</span>
-                  </div>
-                  <h2 className="text-lg sm:text-xl font-black text-indigo-950 tracking-wider uppercase font-serif">
-                    Government of India • भारत सरकार
-                  </h2>
-                  <p className="text-[11px] font-bold text-amber-600 tracking-widest uppercase font-sans">
-                    National Land Acquisition & Management System (BhoomiSetu)
-                  </p>
-                </div>
+            {/* Document File Viewer Area */}
+            <div className="flex-1 overflow-y-auto p-4 bg-slate-950/90 rounded-xl border border-slate-800 flex flex-col items-center justify-center min-h-[450px]">
+              {(() => {
+                const docId = viewingCertificate.documentId || viewingCertificate.id;
+                const fileUrl = `/api/documents/${docId}/file`;
+                const fileType = (viewingCertificate.fileType || '').toLowerCase();
+                const fileName = (viewingCertificate.originalFilename || viewingCertificate.title || '').toLowerCase();
 
-                <div className="text-center border-y-2 border-slate-200 py-3 my-4">
-                  <h3 className="text-sm sm:text-base font-bold text-slate-900 uppercase tracking-wide font-serif">
-                    STATUTORY REHABILITATION & RESETTLEMENT CERTIFICATE
-                  </h3>
-                </div>
+                const isImage = fileType.includes('image') || /\.(jpg|jpeg|png|webp|gif|bmp|svg|tiff)$/i.test(fileName);
 
-                <p className="text-xs text-slate-600 leading-relaxed font-sans">
-                  This is an official statutory certificate issued under Section 31 of the{' '}
-                  <strong>Right to Fair Compensation and Transparency in Land Acquisition, Rehabilitation and Resettlement Act, 2013 (RFCTLARR)</strong>.
-                </p>
-
-                {/* Metadata Table */}
-                <table className="w-full border-collapse text-xs font-sans">
-                  <tbody>
-                    <tr className="border border-slate-300">
-                      <td className="bg-slate-100 p-2.5 font-bold text-slate-700 w-1/3">Document Code</td>
-                      <td className="p-2.5 font-mono font-bold text-slate-900">{viewingCertificate.code}</td>
-                    </tr>
-                    <tr className="border border-slate-300">
-                      <td className="bg-slate-100 p-2.5 font-bold text-slate-700">Certificate Title</td>
-                      <td className="p-2.5 font-bold text-slate-900">{viewingCertificate.title}</td>
-                    </tr>
-                    <tr className="border border-slate-300">
-                      <td className="bg-slate-100 p-2.5 font-bold text-slate-700">Head of Family</td>
-                      <td className="p-2.5 text-slate-900">
-                        <strong>{family.head_of_family}</strong> ({family.family_code})
-                      </td>
-                    </tr>
-                    <tr className="border border-slate-300">
-                      <td className="bg-slate-100 p-2.5 font-bold text-slate-700">Category & Members</td>
-                      <td className="p-2.5 text-slate-900">
-                        <span className="font-bold text-indigo-900">{family.category} FAMILY</span> ({family.members_count} Members)
-                      </td>
-                    </tr>
-                    <tr className="border border-slate-300">
-                      <td className="bg-slate-100 p-2.5 font-bold text-slate-700">Project Name</td>
-                      <td className="p-2.5 text-slate-900">
-                        {family.project_name} ({family.project_code})
-                      </td>
-                    </tr>
-                    <tr className="border border-slate-300">
-                      <td className="bg-slate-100 p-2.5 font-bold text-slate-700">Land Parcel</td>
-                      <td className="p-2.5 text-slate-900">
-                        Survey #{family.survey_number || 'N/A'} ({family.village || ''})
-                      </td>
-                    </tr>
-                    <tr className="border border-slate-300">
-                      <td className="bg-slate-100 p-2.5 font-bold text-slate-700">Issuing Authority</td>
-                      <td className="p-2.5 text-slate-900">{viewingCertificate.verifier}</td>
-                    </tr>
-                    <tr className="border border-slate-300">
-                      <td className="bg-slate-100 p-2.5 font-bold text-slate-700">Date of Issuance</td>
-                      <td className="p-2.5 text-slate-900">{viewingCertificate.date}</td>
-                    </tr>
-                  </tbody>
-                </table>
-
-                {/* Entitlement Terms */}
-                <div className="bg-slate-50 border border-dashed border-slate-300 p-3 rounded text-xs font-sans text-slate-700">
-                  <span className="font-bold text-slate-900 block mb-1">Statutory Package Details:</span>
-                  {family.entitlement || 'Standard statutory entitlement package under Second Schedule of RFCTLARR Act 2013.'}
-                </div>
-
-                {/* Signatures & Seal */}
-                <div className="flex justify-between items-end pt-8 font-sans">
-                  <div className="text-center w-44">
-                    <div className="border-t border-slate-400 pt-1 text-[11px] font-bold text-slate-800">
-                      Beneficiary Head Signature<br />
-                      <span className="text-slate-500 font-normal">{family.head_of_family}</span>
+                if (isImage) {
+                  return (
+                    <div className="w-full flex flex-col items-center justify-center p-2 space-y-3">
+                      <img
+                        src={fileUrl}
+                        alt={viewingCertificate.title}
+                        className="max-w-full max-h-[65vh] object-contain rounded-lg border border-slate-700 shadow-2xl"
+                        onError={(e) => {
+                          e.target.onerror = null;
+                          e.target.style.display = 'none';
+                          document.getElementById(`fallback-doc-box-${docId}`)?.classList.remove('hidden');
+                        }}
+                      />
+                      <div id={`fallback-doc-box-${docId}`} className="hidden text-center py-8 space-y-3">
+                        <FileText className="w-12 h-12 text-slate-500 mx-auto" />
+                        <p className="text-xs text-slate-400">Unable to display inline image preview directly.</p>
+                        <a
+                          href={fileUrl}
+                          target="_blank"
+                          rel="noreferrer"
+                          className="btn btn-sm bg-indigo-600 hover:bg-indigo-700 text-white text-xs font-semibold inline-flex items-center gap-1.5"
+                        >
+                          <ExternalLink className="w-3.5 h-3.5" /> Click to View Original File
+                        </a>
+                      </div>
                     </div>
-                  </div>
+                  );
+                }
 
-                  <div className="text-center w-52">
-                    <div className="inline-block border-2 border-emerald-600 px-2 py-0.5 rounded text-[10px] font-bold text-emerald-700 uppercase tracking-wider mb-2">
-                      ✓ VERIFIED & DIGITALLY SEALED
-                    </div>
-                    <div className="border-t border-slate-400 pt-1 text-[11px] font-bold text-slate-800">
-                      District Land Acquisition Officer<br />
-                      <span className="text-slate-500 font-normal">(DLAO Official Seal & Sign)</span>
-                    </div>
-                  </div>
-                </div>
-              </div>
+                // Default viewer for PDF, Office Docs, or fallback files
+                return (
+                  <iframe
+                    src={fileUrl}
+                    className="w-full h-[65vh] rounded-lg border border-slate-800 bg-white"
+                    title={viewingCertificate.title}
+                  />
+                );
+              })()}
             </div>
           </div>
         </div>
@@ -1130,6 +1365,130 @@ export default function FamilyDetailPage() {
                 </button>
                 <button type="submit" className="btn btn-primary text-xs font-semibold">
                   Save Changes
+                </button>
+              </div>
+            </form>
+          </div>
+        </div>
+      )}
+
+      {/* Modal: Upload Proof Document */}
+      {showUploadProofModal && (
+        <div className="fixed inset-0 z-50 bg-slate-900/60 backdrop-blur-sm flex items-center justify-center p-4">
+          <div className="card w-full max-w-lg bg-white p-6 rounded-xl shadow-2xl space-y-4">
+            <div className="flex items-center justify-between border-b pb-3">
+              <div className="flex items-center gap-2">
+                <div className="w-8 h-8 rounded-lg bg-indigo-100 flex items-center justify-center">
+                  <Upload className="w-4 h-4 text-indigo-600" />
+                </div>
+                <div>
+                  <h3 className="text-base font-bold text-slate-900">Upload Proof Document</h3>
+                  <p className="text-[11px] text-slate-500">
+                    Stage: {RR_STAGES.find(s => s.key === activeStageKey)?.label} • {family.head_of_family}
+                  </p>
+                </div>
+              </div>
+              <button onClick={() => { setShowUploadProofModal(false); setProofFile(null); setProofTitle(''); setProofDescription(''); }} className="text-slate-400 hover:text-slate-600">
+                <X className="w-5 h-5" />
+              </button>
+            </div>
+
+            <form onSubmit={handleUploadProofSubmit} className="space-y-4 text-xs">
+              {/* File Drop Area */}
+              <div>
+                <label className="block text-slate-700 font-bold mb-1">Select Evidence File *</label>
+                <label
+                  className={`block w-full border-2 border-dashed rounded-xl p-6 text-center cursor-pointer transition-colors ${proofFile
+                      ? 'border-emerald-400 bg-emerald-50'
+                      : 'border-slate-300 hover:border-indigo-400 hover:bg-indigo-50/30'
+                    }`}
+                >
+                  <input
+                    type="file"
+                    className="hidden"
+                    accept=".pdf,.jpg,.jpeg,.png,.webp,.doc,.docx,.xls,.xlsx,.csv,.txt,.tiff"
+                    onChange={(e) => {
+                      const file = e.target.files?.[0];
+                      if (file) {
+                        setProofFile(file);
+                        if (!proofTitle) {
+                          setProofTitle(file.name.replace(/\.[^/.]+$/, '').replace(/[_-]/g, ' '));
+                        }
+                      }
+                    }}
+                  />
+                  {proofFile ? (
+                    <div className="space-y-1">
+                      <Paperclip className="w-6 h-6 text-emerald-600 mx-auto" />
+                      <p className="text-sm font-bold text-emerald-800">{proofFile.name}</p>
+                      <p className="text-[11px] text-emerald-600">
+                        {(proofFile.size / 1024).toFixed(1)} KB • {proofFile.type || 'Unknown type'}
+                      </p>
+                      <button
+                        type="button"
+                        onClick={(e) => { e.preventDefault(); setProofFile(null); }}
+                        className="text-rose-500 font-bold text-xs hover:underline mt-1"
+                      >
+                        Remove & Choose Another
+                      </button>
+                    </div>
+                  ) : (
+                    <div className="space-y-1">
+                      <Upload className="w-8 h-8 text-slate-400 mx-auto" />
+                      <p className="text-sm font-semibold text-slate-600">Click to select file</p>
+                      <p className="text-[11px] text-slate-400">
+                        PDF, Images, Word, Excel — Max 25MB
+                      </p>
+                    </div>
+                  )}
+                </label>
+              </div>
+
+              {/* Document Title */}
+              <div>
+                <label className="block text-slate-700 font-bold mb-1">Document Title *</label>
+                <input
+                  type="text"
+                  required
+                  placeholder="e.g. Registration Certificate, Survey Report, NOC..."
+                  value={proofTitle}
+                  onChange={(e) => setProofTitle(e.target.value)}
+                  className="form-input w-full"
+                />
+              </div>
+
+              {/* Description */}
+              <div>
+                <label className="block text-slate-700 font-bold mb-1">Description (Optional)</label>
+                <textarea
+                  rows={2}
+                  placeholder="Additional details about this evidence document..."
+                  value={proofDescription}
+                  onChange={(e) => setProofDescription(e.target.value)}
+                  className="form-input w-full"
+                />
+              </div>
+
+              <div className="bg-blue-50 border border-blue-200 rounded-lg p-3 text-[11px] text-blue-800">
+                <strong>Note:</strong> This document will be uploaded as statutory evidence proof for the{' '}
+                <strong>{RR_STAGES.find(s => s.key === activeStageKey)?.label}</strong> stage and linked to the family's R&R case file.
+              </div>
+
+              <div className="flex justify-end gap-3 border-t pt-3">
+                <button
+                  type="button"
+                  onClick={() => { setShowUploadProofModal(false); setProofFile(null); setProofTitle(''); setProofDescription(''); }}
+                  className="btn btn-secondary text-xs"
+                >
+                  Cancel
+                </button>
+                <button
+                  type="submit"
+                  disabled={uploadingProof || !proofFile}
+                  className="btn btn-primary text-xs font-semibold flex items-center gap-1.5"
+                >
+                  <Upload className="w-3.5 h-3.5" />
+                  {uploadingProof ? 'Uploading...' : 'Upload Document'}
                 </button>
               </div>
             </form>
